@@ -485,7 +485,7 @@ impl PersonalityApp {
                             self.state.questionnaire.navigate_next_unanswered();
                         }
 
-                        let btn_skip = if is_ultra_tight { "Skip ⏭" } else { "Skip ⏭" };
+                        let btn_skip = if is_ultra_tight { "⏭" } else { "Skip ⏭" };
                         if ui.button(btn_skip).clicked() {
                             self.state.questionnaire.skip_current();
                         }
@@ -519,8 +519,9 @@ impl PersonalityApp {
                 });
             });
 
-        // Restricted scroll detection: Only triggers when the pointer is hovering over the questionnaire CentralPanel region.
-        if ui.rect_contains_pointer(ui.max_rect()) {
+        // Restricted scroll detection for Desktop "Scroll to Skip" feature.
+        // We strictly disable this on mobile/tight viewports so native touch-scrolling works normally.
+        if !is_tight_height && !is_mobile_portrait && !is_ultra_tight && ui.rect_contains_pointer(ui.max_rect()) {
             let scroll_y = ui.input(|i| i.smooth_scroll_delta.y);
             if scroll_y < -15.0 {
                 // Scrolling down -> skip/defer forwards
