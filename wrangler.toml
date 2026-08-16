@@ -2,13 +2,14 @@
 name = "revisited-ipip-neo"
 compatibility_date = "2026-08-16"
 
+# Disable the default workers.dev subdomain route
+workers_dev = false
+
 # Route this Worker to your custom domain
 [[routes]]
 pattern = "tga-ipip-neo.spodeian.trade"
+zone_name = "spodeian.trade"
 custom_domain = true
-
-# Disable the default workers.dev subdomain route to keep it secure
-workers_dev = false
 
 # Directory of compiled static assets
 [assets]
