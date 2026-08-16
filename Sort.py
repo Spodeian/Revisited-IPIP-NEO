@@ -78,9 +78,23 @@ def export_optimized_keys(
 
     for step in range(N):
         rem = np.where(rem_mask)[0]
+        M_rem = len(rem)
+
+        # Pre-allocate cost vector
+        costs = np.zeros(M_rem, dtype=np.float64)
+
+        # To avoid double loops, we can vectorized-update the global LSE sum.
+        # Global sum of exp(gamma * norm) for currently inactive facets/traits/meta-traits
+        # We find the sum of exp(gamma * norm) over all categories, and then for each candidate,
+        # we subtract its category's old exp(gamma * norm) and add its new exp(gamma * norm).
+        
+        sum_lse_f = np.sum(np.exp(gamma * curr_norm_f))
+        sum_lse_t = np.sum(np.exp(gamma * curr_norm_t))
+        sum_lse_m = np.sum(np.exp(gamma * curr_norm_m))
+
         fi, ti, mi = f_idx[rem], t_idx[rem], m_idx[rem]
 
-        # 1. Compute new unnormalized SEs
+        # 1. Compute new unnormalized SEs for each candidate
         new_se_f = np.sqrt(f_sq[fi] + wf_sq[rem]) / (f_abs[fi] + wf_abs[rem])
         new_se_t = np.sqrt(t_sq[ti] + wt_sq[rem]) / (t_abs[ti] + wt_abs[rem])
         new_se_m = np.sqrt(m_sq[mi] + wm_sq[rem]) / (m_abs[mi] + wm_abs[rem])
@@ -91,17 +105,19 @@ def export_optimized_keys(
         rel_red_m = (curr_se_m[mi] - new_se_m) / curr_se_m[mi]
         total_rel_reduction = rel_red_f + rel_red_t + rel_red_m
 
-        # 3. Updated Normalized SEs
+        # 3. Updated Normalized SEs for the affected categories
         new_norm_f = new_se_f / se_min_f[fi]
         new_norm_t = new_se_t / se_min_t[ti]
         new_norm_m = new_se_m / se_min_m[mi]
 
-        # 4. Soft-Max Imbalance Penalty across lagging constructs
-        # Vectorized Log-Sum-Exp approximation for peak norm error across constructs
-        lse_f = np.exp(gamma * new_norm_f)
-        lse_t = np.exp(gamma * new_norm_t)
-        lse_m = np.exp(gamma * new_norm_m)
-        imbalance_penalty = (1.0 / gamma) * np.log(lse_f + lse_t + lse_m)
+        # 4. Global Soft-Max Worst-case construct penalty
+        # We adjust the global sum of exponentials by replacing the single affected element
+        cand_lse_f = sum_lse_f - np.exp(gamma * curr_norm_f[fi]) + np.exp(gamma * new_norm_f)
+        cand_lse_t = sum_lse_t - np.exp(gamma * curr_norm_t[ti]) + np.exp(gamma * new_norm_t)
+        cand_lse_m = sum_lse_m - np.exp(gamma * curr_norm_m[mi]) + np.exp(gamma * new_norm_m)
+
+        # Log-Sum-Exp over all categories globally
+        imbalance_penalty = (1.0 / gamma) * np.log(cand_lse_f + cand_lse_t + cand_lse_m)
 
         # 5. Composite Cost Objective
         costs = imbalance_penalty - (alpha * total_rel_reduction) - item_tie_breaker[rem]
