@@ -296,10 +296,11 @@ impl PersonalityApp {
             (q.id, q.text.clone(), q.response)
         };
 
-        // Measure available space to detect extremely tight viewport constraints
+        // Measure available space to detect viewport constraints
         let avail_height = ui.available_height();
         let avail_width = ui.available_width();
 
+        let is_mobile_portrait = avail_width < 650.0;
         let is_tight_height = avail_height < 530.0 || avail_width < 350.0;
         let is_ultra_tight = avail_width < 330.0 || avail_height < 490.0;
         let is_landscape_mobile = avail_width > avail_height && avail_height < 500.0;
@@ -307,13 +308,13 @@ impl PersonalityApp {
         let _scroll_response = egui::ScrollArea::vertical()
             .auto_shrink([false, false])
             .show(ui, |ui| {
-                // Scale spacing based on screen height
-                let top_space = if is_ultra_tight { 0.0 } else if is_tight_height { 4.0 } else { 20.0 };
+                // Scale spacing based on screen constraints
+                let top_space = if is_ultra_tight { 0.0 } else if is_tight_height { 4.0 } else if is_mobile_portrait { 8.0 } else { 20.0 };
                 ui.add_space(top_space);
 
                 // Centered question card container
                 ui.vertical_centered(|ui| {
-                    // Limit width strictly to fit 320px screens perfectly (with Firefox scrollbar space)
+                    // Limit width strictly to fit screens perfectly (with scrollbar space)
                     let max_width = (avail_width - 16.0).min(700.0);
                     ui.set_max_width(max_width);
 
@@ -332,7 +333,7 @@ impl PersonalityApp {
                                 .color(ui.visuals().hyperlink_color),
                         );
                         ui.label(format!("•  {}", status_text));
-                        if !is_tight_height {
+                        if !is_tight_height && !is_mobile_portrait {
                             ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
                                 ui.label(
                                     egui::RichText::new(format!("{} in queue", pending_remaining))
@@ -343,11 +344,11 @@ impl PersonalityApp {
                         }
                     });
 
-                    let space_before_card = if is_ultra_tight { 2.0 } else if is_tight_height { 4.0 } else { 25.0 };
+                    let space_before_card = if is_ultra_tight { 2.0 } else if is_tight_height { 4.0 } else if is_mobile_portrait { 10.0 } else { 25.0 };
                     ui.add_space(space_before_card);
 
                     // Clear Framing Instruction (omit on ultra-tight screens to fit buttons)
-                    if !is_tight_height {
+                    if !is_tight_height && !is_mobile_portrait {
                         ui.label(
                             egui::RichText::new("Rate how accurately this statement describes you:")
                                 .size(16.0)
@@ -358,8 +359,8 @@ impl PersonalityApp {
                     }
 
                     // Question Statement Box (scaled down for small screens)
-                    let card_padding = if is_ultra_tight { 8.0 } else if is_tight_height { 12.0 } else { 24.0 };
-                    let font_size = if is_ultra_tight { 15.0 } else if is_tight_height { 18.0 } else { 26.0 };
+                    let card_padding = if is_ultra_tight { 8.0 } else if is_tight_height { 12.0 } else if is_mobile_portrait { 16.0 } else { 24.0 };
+                    let font_size = if is_ultra_tight { 15.0 } else if is_tight_height { 17.0 } else if is_mobile_portrait { 20.0 } else { 26.0 };
 
                     egui::Frame::group(ui.style())
                         .inner_margin(card_padding)
@@ -374,16 +375,18 @@ impl PersonalityApp {
                             });
                         });
 
-                    let space_after_card = if is_ultra_tight { 4.0 } else if is_tight_height { 6.0 } else { 30.0 };
+                    let space_after_card = if is_ultra_tight { 4.0 } else if is_tight_height { 6.0 } else if is_mobile_portrait { 15.0 } else { 30.0 };
                     ui.add_space(space_after_card);
 
                     // Likert Response Options Header
                     if !is_tight_height {
+                        let header_size = if is_mobile_portrait { 12.0 } else { 14.0 };
                         ui.label(
                             egui::RichText::new("How well does this describe you? (Select or press 1-5):")
+                                .size(header_size)
                                 .italics()
                         );
-                        ui.add_space(10.0);
+                        ui.add_space(if is_mobile_portrait { 6.0 } else { 10.0 });
                     }
 
                     let responses = [
@@ -418,8 +421,8 @@ impl PersonalityApp {
                         });
                     } else {
                         // Portrait or Wide Layout: Align buttons vertically
-                        let button_height = if is_ultra_tight { 28.0 } else if is_tight_height { 32.0 } else { 42.0 };
-                        let button_text_size = if is_ultra_tight { 12.0 } else if is_tight_height { 13.0 } else { 16.0 };
+                        let button_height = if is_ultra_tight { 28.0 } else if is_tight_height { 32.0 } else if is_mobile_portrait { 36.0 } else { 42.0 };
+                        let button_text_size = if is_ultra_tight { 12.0 } else if is_tight_height { 13.0 } else if is_mobile_portrait { 14.0 } else { 16.0 };
                         let btn_width = (ui.available_width() - 20.0).min(340.0);
 
                         for (resp, text, shortcut) in responses {
@@ -442,7 +445,7 @@ impl PersonalityApp {
                         }
                     }
 
-                    let space_before_nav = if is_ultra_tight { 4.0 } else if is_tight_height { 6.0 } else { 25.0 };
+                    let space_before_nav = if is_ultra_tight { 4.0 } else if is_tight_height { 6.0 } else if is_mobile_portrait { 15.0 } else { 25.0 };
                     ui.add_space(space_before_nav);
                     ui.separator();
                     ui.add_space(if is_ultra_tight { 2.0 } else if is_tight_height { 4.0 } else { 10.0 });
@@ -470,7 +473,7 @@ impl PersonalityApp {
                         }
                     });
 
-                    if !is_tight_height {
+                    if !is_tight_height && !is_mobile_portrait {
                         ui.add_space(15.0);
                         ui.label(
                             egui::RichText::new(
@@ -481,7 +484,7 @@ impl PersonalityApp {
                         );
                     }
 
-                    let space_before_ref = if is_ultra_tight { 4.0 } else if is_tight_height { 6.0 } else { 35.0 };
+                    let space_before_ref = if is_ultra_tight { 4.0 } else if is_tight_height { 6.0 } else if is_mobile_portrait { 15.0 } else { 35.0 };
                     ui.add_space(space_before_ref);
                     ui.separator();
                     ui.add_space(if is_ultra_tight { 2.0 } else if is_tight_height { 4.0 } else { 10.0 });
