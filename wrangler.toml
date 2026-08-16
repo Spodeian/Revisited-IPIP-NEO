@@ -2,6 +2,9 @@
 name = "revisited-ipip-neo"
 compatibility_date = "2026-08-16"
 
+# Directory of compiled static assets for Cloudflare Pages / wrangler pages dev (Top-level)
+pages_build_output_dir = "crates/web/dist"
+
 # Disable the default workers.dev subdomain route
 workers_dev = false
 
@@ -11,12 +14,9 @@ pattern = "tga-ipip-neo.spodeian.trade"
 zone_name = "spodeian.trade"
 custom_domain = true
 
-# 1. Directory of compiled static assets for Worker Sites / wrangler dev
+# Directory of compiled static assets for Worker Sites / wrangler dev
 [assets]
 directory = "crates/web/dist"
-
-# 2. Directory of compiled static assets for Cloudflare Pages / wrangler pages dev
-pages_build_output_dir = "crates/web/dist"
 
 # Enable observability logs as configured remotely
 [observability.logs]
