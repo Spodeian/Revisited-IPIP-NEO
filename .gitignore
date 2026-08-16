@@ -1,6 +1,26 @@
-/target
+# Rust Build Artifacts
+/target/
 **/*.rs.bk
+
+# Cargo Logs & Core Files
+Cargo.lock.log
 *.log
+
+# Trunk Web & WASM Bundler Artifacts
+/dist/
+/crates/web/dist/
+.stage/
+
+# Operating System Specific
 .DS_Store
-.vscode
-.idea
+Thumbs.db
+desktop.ini
+
+# Local IDE Configurations (Optional Local Overrides)
+.vscode/
+.idea/
+*.suo
+*.ntvs*
+*.njsproj
+*.sln
+*.swp
