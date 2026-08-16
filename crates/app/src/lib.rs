@@ -6,6 +6,8 @@ use shared::{
     Response, ScoreTier, ThemeMode, Trait,
 };
 use tracing::{info, warn};
+#[cfg(target_arch = "wasm32")]
+use wasm_bindgen::JsCast;
 
 #[derive(Default)]
 pub struct PersonalityApp {
@@ -576,8 +578,35 @@ impl PersonalityApp {
                 if ui.button("{ } Export JSON").clicked() {
                     self.show_export_dialog = Some(ExportType::Json);
                 }
-                if ui.button("🖨 Print / PDF").clicked() {
-                    self.show_export_dialog = Some(ExportType::PrintableHtml);
+                if ui.button("🖨 Save PDF / Print").clicked() {
+                    #[cfg(target_arch = "wasm32")]
+                    {
+                        let html_content = export_to_printable_html(&self.state.questionnaire);
+                        if let Some(window) = web_sys::window() {
+                            if let Ok(Some(new_win)) = window.open_with_url_and_target("", "_blank") {
+                                if let Some(doc) = new_win.document() {
+                                    let html_js = wasm_bindgen::JsValue::from_str(&html_content);
+                                    let _ = doc.open();
+
+                                    // Use dynamic casting or direct write if available
+                                    // In web_sys, document.write() takes a string or html element
+                                    // We can assign to doc.body().inner_html if write is missing, but Document has write().
+                                    if let Ok(html_doc) = doc.dyn_into::<web_sys::HtmlDocument>() {
+                                        let _ = html_doc.write(&js_sys::Array::of1(&html_js));
+                                        let _ = html_doc.close();
+                                    }
+
+                                    let _ = new_win.print();
+                                }
+                            }
+                        }
+                    }
+
+                    #[cfg(not(target_arch = "wasm32"))]
+                    {
+                        // On desktop, fallback to showing the HTML in the dialog since we can't pop a browser print dialog natively easily
+                        self.show_export_dialog = Some(ExportType::PrintableHtml);
+                    }
                 }
             });
 
