@@ -87,11 +87,14 @@ version = "1.0.0"
 dependencies = [
  "eframe",
  "egui",
+ "js-sys",
  "serde",
  "shared",
  "thiserror 2.0.19",
  "tracing",
  "tracing-subscriber",
+ "wasm-bindgen",
+ "web-sys",
 ]
 
 [[package]]

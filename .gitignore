@@ -11,6 +11,9 @@ Cargo.lock.log
 /crates/web/dist/
 .stage/
 
+# Wrangler / Cloudflare Local State Caches
+.wrangler/
+
 # Operating System Specific
 .DS_Store
 Thumbs.db
