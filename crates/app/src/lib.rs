@@ -253,7 +253,13 @@ impl eframe::App for PersonalityApp {
         }
 
         // Main Central View Routing
-        egui::CentralPanel::default().show(ui, |ui| {
+        let is_tiny = ui.ctx().screen_rect().width() < 350.0 || ui.ctx().screen_rect().height() < 500.0;
+        let mut central_frame = egui::Frame::central_panel(ui.style());
+        if is_tiny {
+            central_frame.inner_margin = egui::Margin::same(4.0);
+        }
+
+        egui::CentralPanel::default().frame(central_frame).show(ui, |ui| {
             if is_mobile && self.state.questionnaire.show_results {
                 // Mobile View: Render results screen full-screen inside CentralPanel
                 egui::ScrollArea::vertical().show(ui, |ui| {
@@ -315,7 +321,7 @@ impl PersonalityApp {
                 // Centered question card container
                 ui.vertical_centered(|ui| {
                     // Limit width strictly to fit screens perfectly (with scrollbar space)
-                    let max_width = (avail_width - 16.0).min(700.0);
+                    let max_width = (avail_width - 8.0).min(700.0);
                     ui.set_max_width(max_width);
 
                     // Queue & Status indicator (hide details on very tight heights)
@@ -332,7 +338,9 @@ impl PersonalityApp {
                                 .strong()
                                 .color(ui.visuals().hyperlink_color),
                         );
-                        ui.label(format!("•  {}", status_text));
+                        if !is_ultra_tight {
+                            ui.label(format!("•  {}", status_text));
+                        }
                         if !is_tight_height && !is_mobile_portrait {
                             ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
                                 ui.label(
@@ -359,8 +367,8 @@ impl PersonalityApp {
                     }
 
                     // Question Statement Box (scaled down for small screens)
-                    let card_padding = if is_ultra_tight { 8.0 } else if is_tight_height { 12.0 } else if is_mobile_portrait { 16.0 } else { 24.0 };
-                    let font_size = if is_ultra_tight { 15.0 } else if is_tight_height { 17.0 } else if is_mobile_portrait { 20.0 } else { 26.0 };
+                    let card_padding = if is_ultra_tight { 6.0 } else if is_tight_height { 12.0 } else if is_mobile_portrait { 16.0 } else { 24.0 };
+                    let font_size = if is_ultra_tight { 14.0 } else if is_tight_height { 17.0 } else if is_mobile_portrait { 20.0 } else { 26.0 };
 
                     egui::Frame::group(ui.style())
                         .inner_margin(card_padding)
@@ -401,17 +409,16 @@ impl PersonalityApp {
                     if is_landscape_mobile {
                         // Landscape Mobile Layout: Align buttons in a compact horizontal wrapped line!
                         ui.horizontal_wrapped(|ui| {
-                            for (resp, text, shortcut) in responses {
+                            for (resp, text, _shortcut) in responses {
                                 let is_selected = q_response == Some(resp);
-                                let button_text = format!("[{}] {}", shortcut, text);
-
-                                let mut rich_text = egui::RichText::new(button_text).size(12.0);
+                                // Remove shortcut hints on tiny landscape touchscreens
+                                let mut rich_text = egui::RichText::new(text).size(12.0);
                                 if is_selected {
                                     rich_text = rich_text.strong();
                                 }
 
                                 let btn = egui::Button::new(rich_text)
-                                    .min_size(egui::vec2(ui.available_width() / 5.6, 28.0))
+                                    .min_size(egui::vec2(ui.available_width() / 5.6, 26.0))
                                     .selected(is_selected);
 
                                 if ui.add(btn).clicked() {
@@ -421,13 +428,19 @@ impl PersonalityApp {
                         });
                     } else {
                         // Portrait or Wide Layout: Align buttons vertically
-                        let button_height = if is_ultra_tight { 28.0 } else if is_tight_height { 32.0 } else if is_mobile_portrait { 36.0 } else { 42.0 };
+                        let button_height = if is_ultra_tight { 26.0 } else if is_tight_height { 32.0 } else if is_mobile_portrait { 36.0 } else { 42.0 };
                         let button_text_size = if is_ultra_tight { 12.0 } else if is_tight_height { 13.0 } else if is_mobile_portrait { 14.0 } else { 16.0 };
-                        let btn_width = (ui.available_width() - 20.0).min(340.0);
+                        let btn_width = (ui.available_width() - 8.0).min(340.0);
 
                         for (resp, text, shortcut) in responses {
                             let is_selected = q_response == Some(resp);
-                            let button_text = format!("[{}]  {}", shortcut, text);
+
+                            // Remove keyboard shortcut hints on ultra-tight touchscreens to save space
+                            let button_text = if is_ultra_tight {
+                                text.to_string()
+                            } else {
+                                format!("[{}]  {}", shortcut, text)
+                            };
 
                             let mut rich_text = egui::RichText::new(button_text).size(button_text_size);
                             if is_selected {
@@ -452,23 +465,28 @@ impl PersonalityApp {
 
                     // Navigation and Skip Actions
                     ui.horizontal_wrapped(|ui| {
-                        if ui.button("◀ Prev").clicked() {
+                        let btn_prev = if is_ultra_tight { "◀" } else { "◀ Prev" };
+                        if ui.button(btn_prev).clicked() {
                             self.state.questionnaire.navigate_previous();
                         }
 
-                        if ui.button("⏪ Unanswered").clicked() {
+                        let btn_prev_un = if is_ultra_tight { "⏪" } else { "⏪ Unanswered" };
+                        if ui.button(btn_prev_un).clicked() {
                             self.state.questionnaire.navigate_previous_unanswered();
                         }
 
-                        if q_response.is_some() && ui.button("🗑 Clear").clicked() {
+                        let btn_clear = if is_ultra_tight { "🗑" } else { "🗑 Clear" };
+                        if q_response.is_some() && ui.button(btn_clear).clicked() {
                             self.state.questionnaire.clear_response(curr_idx);
                         }
 
-                        if ui.button("Next Unanswered ⏩").clicked() {
+                        let btn_next_un = if is_ultra_tight { "⏩" } else { "Next Unanswered ⏩" };
+                        if ui.button(btn_next_un).clicked() {
                             self.state.questionnaire.navigate_next_unanswered();
                         }
 
-                        if ui.button("Skip ⏭").clicked() {
+                        let btn_skip = if is_ultra_tight { "Skip ⏭" } else { "Skip ⏭" };
+                        if ui.button(btn_skip).clicked() {
                             self.state.questionnaire.skip_current();
                         }
                     });
@@ -484,17 +502,20 @@ impl PersonalityApp {
                         );
                     }
 
-                    let space_before_ref = if is_ultra_tight { 4.0 } else if is_tight_height { 6.0 } else if is_mobile_portrait { 15.0 } else { 35.0 };
-                    ui.add_space(space_before_ref);
-                    ui.separator();
-                    ui.add_space(if is_ultra_tight { 2.0 } else if is_tight_height { 4.0 } else { 10.0 });
-                    ui.horizontal(|ui| {
-                        ui.weak("Methodology:");
-                        ui.hyperlink_to(
-                            "doi:10.1177/08902070251352590",
-                            "https://doi.org/10.1177/08902070251352590",
-                        );
-                    });
+                    // Hide methodology reference entirely on ultra tight viewports to save vertical space
+                    if !is_ultra_tight {
+                        let space_before_ref = if is_tight_height { 6.0 } else if is_mobile_portrait { 15.0 } else { 35.0 };
+                        ui.add_space(space_before_ref);
+                        ui.separator();
+                        ui.add_space(if is_tight_height { 4.0 } else { 10.0 });
+                        ui.horizontal(|ui| {
+                            ui.weak("Methodology:");
+                            ui.hyperlink_to(
+                                "doi:10.1177/08902070251352590",
+                                "https://doi.org/10.1177/08902070251352590",
+                            );
+                        });
+                    }
                 });
             });
 
