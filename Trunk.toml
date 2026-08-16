@@ -7,6 +7,9 @@ target = "crates/web/index.html"
 # Write the output assets to crates/web/dist
 dist = "crates/web/dist"
 
+# Set public asset url to root for correct Cloudflare/Wrangler resolution
+public_url = "/"
+
 # Disable wasm-opt during release builds
 wasm_opt = "off"
 
