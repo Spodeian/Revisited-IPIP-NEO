@@ -6,6 +6,8 @@ edition.workspace = true
 [dependencies]
 eframe = { workspace = true, features = ["default_fonts", "wgpu"] }
 wasm-bindgen = { workspace = true }
+wasm-bindgen-futures = { workspace = true }
+web-sys = { workspace = true }
 tracing-wasm = { workspace = true }
 tracing = { workspace = true }
 app = { workspace = true }
