@@ -98,10 +98,8 @@ impl PersonalityApp {
             }
         }
 
-        // Mouse scroll on question view to skip question
-        if input.smooth_scroll_delta.y.abs() > 20.0 || input.smooth_scroll_delta.x.abs() > 20.0 {
-            self.state.questionnaire.skip_current();
-        }
+        // Mouse scroll detection has been moved specifically to the question focus view
+        // to prevent scrolling results from skipping questions, and to respect directions.
     }
 }
 
@@ -206,7 +204,7 @@ impl PersonalityApp {
             (q.id, q.text.clone(), q.response)
         };
 
-        egui::ScrollArea::vertical().show(ui, |ui| {
+        let _scroll_response = egui::ScrollArea::vertical().show(ui, |ui| {
             ui.add_space(20.0);
 
             // Centered question card container
@@ -348,6 +346,18 @@ impl PersonalityApp {
                 });
             });
         });
+
+        // Restricted scroll detection: Only triggers when the pointer is hovering over the questionnaire CentralPanel region.
+        if ui.rect_contains_pointer(ui.max_rect()) {
+            let scroll_y = ui.input(|i| i.smooth_scroll_delta.y);
+            if scroll_y < -15.0 {
+                // Scrolling down -> skip/defer forwards
+                self.state.questionnaire.skip_current();
+            } else if scroll_y > 15.0 {
+                // Scrolling up -> navigate backwards
+                self.state.questionnaire.navigate_previous();
+            }
+        }
     }
 
     fn render_results_panel(&mut self, ui: &mut egui::Ui) {
