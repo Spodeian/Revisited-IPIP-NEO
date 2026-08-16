@@ -59,3 +59,38 @@ cargo test --workspace
     ```
     Configure the Cloudflare Pages **Build Output Directory** to `crates/web/dist` and set the Environment Variable `RUST_VERSION` to `stable`.
   - Alternatively, compile locally using `trunk build --release` and upload the static directory.
+
+## Cloudflare Pages Deployment Configuration Reference
+
+When setting up your automated deployment in the **Cloudflare Pages Dashboard**, use these exact fields:
+
+### 1. Build Settings
+- **Framework Preset**: `None` (or `Custom`)
+- **Build Command**: `bash deploy_cloudflare.sh`
+- **Build Output Directory**: `crates/web/dist`
+- **Root Directory**: *(Leave empty or use `/`)*
+
+### 2. Environment Variables (Advanced)
+Configure these three key-value pairs in the dashboard:
+- **`RUST_VERSION`**: `stable` (Installs the latest stable compiler toolchain)
+- **`CARGO_HOME`**: `/opt/buildhome/.cargo` (Caches cargo registry assets to speed up builds 5x!)
+- **`TRUNK_BUILD_NO_WASM_OPT`**: `true` (Disables wasm-opt globally to prevent download errors)
+
+---
+
+## Testing Serverless Builds with Wrangler
+You can run a local emulation of Cloudflare's serverless edge environment using **Wrangler**:
+
+1. **Install Wrangler globally**:
+   ```bash
+   npm install -g wrangler
+   ```
+2. **Compile the production assets**:
+   ```bash
+   trunk build --release
+   ```
+3. **Run the Pages emulation server**:
+   ```bash
+   wrangler pages dev
+   ```
+   *(This reads `wrangler.toml` and hosts your compiled assessment perfectly on `http://localhost:8788`)*
