@@ -51,7 +51,6 @@ if [ -d "dist" ]; then
 fi
 
 echo "Compiling and bundling web application to distribution path..."
-export TRUNK_BUILD_NO_WASM_OPT=true
 $TRUNK_BIN clean
 $TRUNK_BIN build --release
 
