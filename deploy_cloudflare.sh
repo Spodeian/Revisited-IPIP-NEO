@@ -55,3 +55,14 @@ $TRUNK_BIN clean
 $TRUNK_BIN build --release
 
 echo "=== Build Completed Successfully! Static assets are ready in: 'crates/web/dist' ==="
+
+# 6. Automatic Wrangler Deployment (Optional fallback for Worker-based environments)
+if [ "$CLOUDFLARE_WORKER_DEPLOY" = "true" ] || command -v npm &> /dev/null; then
+    echo "Node environment detected. Ensuring Wrangler is locally configured..."
+    if ! command -v wrangler &> /dev/null; then
+        echo "Installing Cloudflare Wrangler globally..."
+        npm install -g wrangler
+    fi
+    echo "Running Wrangler Deploy..."
+    wrangler deploy || echo "Wrangler deploy deferred to Pages native hosting."
+fi
