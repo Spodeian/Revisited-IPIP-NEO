@@ -147,7 +147,7 @@ impl eframe::App for PersonalityApp {
             ui.add_space(6.0);
 
             let width = ui.available_width();
-            let is_mobile = width < 650.0;
+            let is_mobile = width < 800.0;
 
             if is_mobile {
                 // Mobile layout: Two stacked rows
@@ -172,9 +172,9 @@ impl eframe::App for PersonalityApp {
                                 self.show_reset_dialog = true;
                             }
 
-                            // Results toggle
+                            // Results / Questions Toggle (Swaps screens completely on mobile)
                             let results_btn_text = if self.state.questionnaire.show_results {
-                                "📊 Hide"
+                                "📝 Questions"
                             } else {
                                 "📊 Results"
                             };
@@ -216,7 +216,7 @@ impl eframe::App for PersonalityApp {
                             self.show_reset_dialog = true;
                         }
 
-                        // Results toggle
+                        // Results toggle (Collapsible side-panel on Desktop)
                         let results_btn_text = if self.state.questionnaire.show_results {
                             "📊 Hide Results"
                         } else {
@@ -240,34 +240,36 @@ impl eframe::App for PersonalityApp {
             ui.add_space(6.0);
         });
 
-        // Side Results Panel (if enabled or completed)
+        // Side Results Panel (Only render on Desktop/Wide viewports)
         let is_mobile = ui.available_width() < 800.0;
 
-        if self.state.questionnaire.show_results {
-            if is_mobile {
-                egui::Window::new("Assessment Results")
-                    .collapsible(false)
-                    .resizable(true)
-                    .default_size(egui::vec2(ui.available_width() - 32.0, ui.available_height() - 64.0))
-                    .anchor(egui::Align2::CENTER_CENTER, egui::vec2(0.0, 0.0))
-                    .show(ui.ctx(), |ui| {
-                        egui::ScrollArea::vertical().show(ui, |ui| {
-                            self.render_results_panel(ui);
-                        });
-                    });
-            } else {
-                egui::Panel::right("results_panel")
-                    .min_size(380.0)
-                    .default_size(420.0)
-                    .show(ui, |ui| {
-                        self.render_results_panel(ui);
-                    });
-            }
+        if self.state.questionnaire.show_results && !is_mobile {
+            egui::Panel::right("results_panel")
+                .min_size(380.0)
+                .default_size(420.0)
+                .show(ui, |ui| {
+                    self.render_results_panel(ui);
+                });
         }
 
-        // Main Questionnaire Area (Single Question Focus Mode)
+        // Main Central View Routing
         egui::CentralPanel::default().show(ui, |ui| {
-            self.render_question_focus(ui);
+            if is_mobile && self.state.questionnaire.show_results {
+                // Mobile View: Render results screen full-screen inside CentralPanel
+                egui::ScrollArea::vertical().show(ui, |ui| {
+                    ui.add_space(10.0);
+                    if ui.button("📝 Return to Questions").clicked() {
+                        self.state.questionnaire.show_results = false;
+                    }
+                    ui.add_space(10.0);
+                    ui.separator();
+                    ui.add_space(10.0);
+                    self.render_results_panel(ui);
+                });
+            } else {
+                // Desktop View or Mobile Questions View: Render Question Focus Card
+                self.render_question_focus(ui);
+            }
         });
 
         // Dialogs
