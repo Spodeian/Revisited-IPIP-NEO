@@ -585,13 +585,15 @@ impl PersonalityApp {
                         if let Some(window) = web_sys::window() {
                             if let Ok(Some(new_win)) = window.open_with_url_and_target("", "_blank") {
                                 if let Some(doc) = new_win.document() {
-                                    if let Ok(html_doc) = doc.dyn_into::<web_sys::HtmlDocument>() {
-                                        let _ = html_doc.open();
-                                        let html_js = wasm_bindgen::JsValue::from_str(&html_content);
-                                        let _ = html_doc.write(&js_sys::Array::of1(&html_js));
-                                        let _ = html_doc.close();
+                                    if let Some(doc_element) = doc.document_element() {
+                                        // Overwrite the entire <html> element cleanly to preserve <head> styles and <body>
+                                        doc_element.set_inner_html(&html_content);
+
+                                        // Some browsers need a micro-tick to render the DOM before freezing for the print dialog.
+                                        // Because we can't easily wait asynchronously inside the click handler,
+                                        // we trigger print natively which generally succeeds on modern browsers after inner_html assignment.
+                                        let _ = new_win.print();
                                     }
-                                    let _ = new_win.print();
                                 }
                             }
                         }
