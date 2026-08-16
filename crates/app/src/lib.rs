@@ -144,49 +144,100 @@ impl eframe::App for PersonalityApp {
 
         // Top Navigation Bar
         egui::Panel::top("top_panel").show(ui, |ui| {
-            ui.add_space(4.0);
-            ui.horizontal(|ui| {
-                ui.heading("Revisited IPIP-NEO Personality Assessment");
+            ui.add_space(6.0);
 
-                ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
-                    // Theme toggle
-                    let theme_icon = match self.state.config.theme {
-                        ThemeMode::Light => "🌙 Dark",
-                        ThemeMode::Dark => "☀️ Light",
-                    };
-                    if ui.button(theme_icon).clicked() {
-                        self.state.config.theme = match self.state.config.theme {
-                            ThemeMode::Light => ThemeMode::Dark,
-                            ThemeMode::Dark => ThemeMode::Light,
-                        };
-                    }
+            let width = ui.available_width();
+            let is_mobile = width < 650.0;
 
-                    // Reset button
-                    if ui.button("🔄 Reset Test").clicked() {
-                        self.show_reset_dialog = true;
-                    }
+            if is_mobile {
+                // Mobile layout: Two stacked rows
+                ui.vertical(|ui| {
+                    ui.horizontal(|ui| {
+                        ui.heading("IPIP-NEO (TGA)");
+                        ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
+                            // Theme toggle
+                            let theme_icon = match self.state.config.theme {
+                                ThemeMode::Light => "🌙",
+                                ThemeMode::Dark => "☀️",
+                            };
+                            if ui.button(theme_icon).clicked() {
+                                self.state.config.theme = match self.state.config.theme {
+                                    ThemeMode::Light => ThemeMode::Dark,
+                                    ThemeMode::Dark => ThemeMode::Light,
+                                };
+                            }
 
-                    // Results toggle
-                    let results_btn_text = if self.state.questionnaire.show_results {
-                        "📊 Hide Results"
-                    } else {
-                        "📊 Show Results"
-                    };
-                    if ui.button(results_btn_text).clicked() {
-                        self.state.questionnaire.show_results = !self.state.questionnaire.show_results;
-                    }
+                            // Reset button
+                            if ui.button("🔄").clicked() {
+                                self.show_reset_dialog = true;
+                            }
 
-                    ui.separator();
+                            // Results toggle
+                            let results_btn_text = if self.state.questionnaire.show_results {
+                                "📊 Hide"
+                            } else {
+                                "📊 Results"
+                            };
+                            if ui.button(results_btn_text).clicked() {
+                                self.state.questionnaire.show_results = !self.state.questionnaire.show_results;
+                            }
+                        });
+                    });
 
-                    // Progress bar
+                    ui.add_space(4.0);
+
+                    // Row 2: Muted Progress Bar spanning wider width
                     let answered = self.state.questionnaire.answered_count();
                     let total = self.state.questionnaire.total_questions();
                     let progress = self.state.questionnaire.completion_rate();
                     let progress_text = format!("Progress: {}/{} ({:.0}%)", answered, total, progress * 100.0);
-                    ui.add(egui::ProgressBar::new(progress).text(progress_text).desired_width(220.0));
+                    ui.add(egui::ProgressBar::new(progress).text(progress_text).desired_width(ui.available_width() - 8.0));
                 });
-            });
-            ui.add_space(4.0);
+            } else {
+                // Desktop layout: Single spacious row
+                ui.horizontal(|ui| {
+                    ui.heading("Revisited IPIP-NEO Personality Assessment");
+
+                    ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
+                        // Theme toggle
+                        let theme_icon = match self.state.config.theme {
+                            ThemeMode::Light => "🌙 Dark",
+                            ThemeMode::Dark => "☀️ Light",
+                        };
+                        if ui.button(theme_icon).clicked() {
+                            self.state.config.theme = match self.state.config.theme {
+                                ThemeMode::Light => ThemeMode::Dark,
+                                ThemeMode::Dark => ThemeMode::Light,
+                            };
+                        }
+
+                        // Reset button
+                        if ui.button("🔄 Reset Test").clicked() {
+                            self.show_reset_dialog = true;
+                        }
+
+                        // Results toggle
+                        let results_btn_text = if self.state.questionnaire.show_results {
+                            "📊 Hide Results"
+                        } else {
+                            "📊 Show Results"
+                        };
+                        if ui.button(results_btn_text).clicked() {
+                            self.state.questionnaire.show_results = !self.state.questionnaire.show_results;
+                        }
+
+                        ui.separator();
+
+                        // Progress bar
+                        let answered = self.state.questionnaire.answered_count();
+                        let total = self.state.questionnaire.total_questions();
+                        let progress = self.state.questionnaire.completion_rate();
+                        let progress_text = format!("Progress: {}/{} ({:.0}%)", answered, total, progress * 100.0);
+                        ui.add(egui::ProgressBar::new(progress).text(progress_text).desired_width(220.0));
+                    });
+                });
+            }
+            ui.add_space(6.0);
         });
 
         // Side Results Panel (if enabled or completed)
