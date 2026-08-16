@@ -2,6 +2,21 @@
 name = "revisited-ipip-neo"
 compatibility_date = "2026-08-16"
 
-# Directory of compiled static assets for Pages / Worker Sites
+# Route this Worker to your custom domain
+[[routes]]
+pattern = "tga-ipip-neo.spodeian.trade"
+custom_domain = true
+
+# Disable the default workers.dev subdomain route to keep it secure
+workers_dev = false
+
+# Directory of compiled static assets
 [assets]
 directory = "crates/web/dist"
+
+# Enable observability logs as configured remotely
+[observability.logs]
+enabled = true
+
+[observability.traces]
+enabled = true
