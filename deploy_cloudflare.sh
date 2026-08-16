@@ -52,7 +52,7 @@ fi
 
 echo "Compiling and bundling web application to distribution path..."
 $TRUNK_BIN clean
-$TRUNK_BIN build --release
+$TRUNK_BIN build --release --public-url "/"
 
 echo "=== Build Completed Successfully! Static assets are ready in: 'crates/web/dist' ==="
 

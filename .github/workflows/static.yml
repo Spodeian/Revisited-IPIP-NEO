@@ -59,7 +59,7 @@ jobs:
       - name: Build Web Application
         run: |
           export TRUNK_BUILD_NO_WASM_OPT=true
-          trunk build --release
+          trunk build --release --public-url "/Revisited-IPIP-NEO/"
 
       - name: Setup Pages
         uses: actions/configure-pages@v5
