@@ -111,7 +111,31 @@ impl eframe::App for PersonalityApp {
     fn ui(&mut self, ui: &mut egui::Ui, _frame: &mut eframe::Frame) {
         // Theme visual style
         let visuals = match self.state.config.theme {
-            ThemeMode::Light => egui::Visuals::light(),
+            ThemeMode::Light => {
+                let mut light = egui::Visuals::light();
+
+                // Soothing neutral/warm light backgrounds instead of blinding pure white
+                light.panel_fill = egui::Color32::from_rgb(245, 244, 241); // Soft warm grey
+                light.window_fill = egui::Color32::from_rgb(252, 250, 246); // Warm off-white
+                light.extreme_bg_color = egui::Color32::from_rgb(238, 236, 231); // Insets background
+
+                // Soft charcoal for high-contrast, comfortable reading without harsh black
+                light.widgets.noninteractive.fg_stroke.color = egui::Color32::from_rgb(45, 44, 42);
+                light.widgets.inactive.fg_stroke.color = egui::Color32::from_rgb(55, 54, 52);
+                light.widgets.hovered.fg_stroke.color = egui::Color32::from_rgb(20, 20, 18);
+                light.widgets.active.fg_stroke.color = egui::Color32::from_rgb(0, 0, 0);
+
+                // Muted border strokes to reduce visual clutter
+                light.widgets.noninteractive.bg_stroke.color = egui::Color32::from_rgb(222, 220, 215);
+                light.widgets.inactive.bg_stroke.color = egui::Color32::from_rgb(212, 210, 205);
+
+                // Subtle buttons background
+                light.widgets.inactive.bg_fill = egui::Color32::from_rgb(252, 251, 248);
+                light.widgets.hovered.bg_fill = egui::Color32::from_rgb(236, 234, 229);
+                light.widgets.active.bg_fill = egui::Color32::from_rgb(220, 218, 212);
+
+                light
+            }
             ThemeMode::Dark => egui::Visuals::dark(),
         };
         ui.ctx().set_visuals(visuals);
