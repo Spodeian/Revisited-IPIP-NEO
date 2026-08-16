@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Cloudflare Pages Serverless Deployment Build Pipeline Script
+# Cloudflare Serverless Deployment Build Pipeline Script (Pages & Workers Hybrid)
 set -e
 
 echo "=== Initializing Cloudflare Serverless Build Pipeline ==="
@@ -55,3 +55,23 @@ $TRUNK_BIN clean
 $TRUNK_BIN build --release
 
 echo "=== Build Completed Successfully! Static assets are ready in: 'crates/web/dist' ==="
+
+# 6. Dynamic Deployment context router
+# If CLOUDFLARE_WORKER_DEPLOY is explicitly set to true, run wrangler deployment.
+# Otherwise, we default to Pages native CDN publishing which requires no worker scripts.
+if [ "$CLOUDFLARE_WORKER_DEPLOY" = "true" ]; then
+    echo "Wrangler Worker deployment context detected."
+    if ! command -v wrangler &> /dev/null; then
+        if command -v npm &> /dev/null; then
+            echo "Installing Cloudflare Wrangler globally via npm..."
+            npm install -g wrangler
+        else
+            echo "ERROR: npm is required to install Wrangler for Worker deployments."
+            exit 1
+        fi
+    fi
+    echo "Executing Wrangler Deploy..."
+    wrangler deploy
+else
+    echo "Pages / Static CDN deployment context detected. Bypassing Wrangler deploy."
+fi
