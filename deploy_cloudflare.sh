@@ -51,7 +51,8 @@ if [ -d "dist" ]; then
 fi
 
 echo "Compiling and bundling web application to distribution path..."
+export TRUNK_BUILD_NO_WASM_OPT=true
 $TRUNK_BIN clean
-$TRUNK_BIN build --release --no-wasm-opt
+$TRUNK_BIN build --release
 
 echo "=== Build Completed Successfully! Static assets are ready in: 'crates/web/dist' ==="
