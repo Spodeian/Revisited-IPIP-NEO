@@ -407,18 +407,20 @@ impl PersonalityApp {
 
                     // Dynamically select layout orientation for Likert response buttons
                     if is_landscape_mobile {
-                        // Landscape Mobile Layout: Align buttons in a compact horizontal wrapped line!
-                        ui.horizontal_wrapped(|ui| {
+                        // Landscape Mobile Layout: Align buttons in a perfect horizontal row
+                        ui.horizontal(|ui| {
+                            let spacing = ui.spacing().item_spacing.x;
+                            let btn_width = (ui.available_width() - (spacing * 4.0)) / 5.0;
+
                             for (resp, text, _shortcut) in responses {
                                 let is_selected = q_response == Some(resp);
-                                // Remove shortcut hints on tiny landscape touchscreens
                                 let mut rich_text = egui::RichText::new(text).size(12.0);
                                 if is_selected {
                                     rich_text = rich_text.strong();
                                 }
 
                                 let btn = egui::Button::new(rich_text)
-                                    .min_size(egui::vec2(ui.available_width() / 5.6, 26.0))
+                                    .min_size(egui::vec2(btn_width, 26.0))
                                     .selected(is_selected);
 
                                 if ui.add(btn).clicked() {
@@ -465,30 +467,33 @@ impl PersonalityApp {
 
                     // Navigation and Skip Actions
                     ui.horizontal_wrapped(|ui| {
-                        let btn_prev = if is_ultra_tight { "◀" } else { "◀ Prev" };
-                        if ui.button(btn_prev).clicked() {
-                            self.state.questionnaire.navigate_previous();
-                        }
+                        // Dynamically center the wrapper block using flex space
+                        ui.with_layout(egui::Layout::left_to_right(egui::Align::Center).with_main_wrap(true), |ui| {
+                            let btn_prev = if is_ultra_tight { "◀" } else { "◀ Prev" };
+                            if ui.button(btn_prev).clicked() {
+                                self.state.questionnaire.navigate_previous();
+                            }
 
-                        let btn_prev_un = if is_ultra_tight { "⏪" } else { "⏪ Unanswered" };
-                        if ui.button(btn_prev_un).clicked() {
-                            self.state.questionnaire.navigate_previous_unanswered();
-                        }
+                            let btn_prev_un = if is_ultra_tight { "⏪" } else { "⏪ Unanswered" };
+                            if ui.button(btn_prev_un).clicked() {
+                                self.state.questionnaire.navigate_previous_unanswered();
+                            }
 
-                        let btn_clear = if is_ultra_tight { "🗑" } else { "🗑 Clear" };
-                        if q_response.is_some() && ui.button(btn_clear).clicked() {
-                            self.state.questionnaire.clear_response(curr_idx);
-                        }
+                            let btn_clear = if is_ultra_tight { "🗑" } else { "🗑 Clear" };
+                            if q_response.is_some() && ui.button(btn_clear).clicked() {
+                                self.state.questionnaire.clear_response(curr_idx);
+                            }
 
-                        let btn_next_un = if is_ultra_tight { "⏩" } else { "Next Unanswered ⏩" };
-                        if ui.button(btn_next_un).clicked() {
-                            self.state.questionnaire.navigate_next_unanswered();
-                        }
+                            let btn_next_un = if is_ultra_tight { "⏩" } else { "Next Unanswered ⏩" };
+                            if ui.button(btn_next_un).clicked() {
+                                self.state.questionnaire.navigate_next_unanswered();
+                            }
 
-                        let btn_skip = if is_ultra_tight { "⏭" } else { "Skip ⏭" };
-                        if ui.button(btn_skip).clicked() {
-                            self.state.questionnaire.skip_current();
-                        }
+                            let btn_skip = if is_ultra_tight { "⏭" } else { "Skip ⏭" };
+                            if ui.button(btn_skip).clicked() {
+                                self.state.questionnaire.skip_current();
+                            }
+                        });
                     });
 
                     if !is_tight_height && !is_mobile_portrait {
