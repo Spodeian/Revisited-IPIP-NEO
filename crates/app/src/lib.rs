@@ -585,17 +585,12 @@ impl PersonalityApp {
                         if let Some(window) = web_sys::window() {
                             if let Ok(Some(new_win)) = window.open_with_url_and_target("", "_blank") {
                                 if let Some(doc) = new_win.document() {
-                                    let html_js = wasm_bindgen::JsValue::from_str(&html_content);
-                                    let _ = doc.open();
-
-                                    // Use dynamic casting or direct write if available
-                                    // In web_sys, document.write() takes a string or html element
-                                    // We can assign to doc.body().inner_html if write is missing, but Document has write().
                                     if let Ok(html_doc) = doc.dyn_into::<web_sys::HtmlDocument>() {
+                                        let _ = html_doc.open();
+                                        let html_js = wasm_bindgen::JsValue::from_str(&html_content);
                                         let _ = html_doc.write(&js_sys::Array::of1(&html_js));
                                         let _ = html_doc.close();
                                     }
-
                                     let _ = new_win.print();
                                 }
                             }
