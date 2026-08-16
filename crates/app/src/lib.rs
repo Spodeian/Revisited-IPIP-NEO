@@ -508,12 +508,21 @@ impl PersonalityApp {
                         ui.add_space(space_before_ref);
                         ui.separator();
                         ui.add_space(if is_tight_height { 4.0 } else { 10.0 });
-                        ui.horizontal(|ui| {
-                            ui.weak("Methodology:");
-                            ui.hyperlink_to(
-                                "doi:10.1177/08902070251352590",
-                                "https://doi.org/10.1177/08902070251352590",
+
+                        ui.horizontal_wrapped(|ui| {
+                            ui.label(
+                                egui::RichText::new("🔒 Privacy: 100% Local. No data ever leaves your device.")
+                                    .color(egui::Color32::from_rgb(100, 160, 100))
+                                    .small()
                             );
+
+                            ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
+                                ui.hyperlink_to(
+                                    "doi:10.1177/08902070251352590",
+                                    "https://doi.org/10.1177/08902070251352590",
+                                );
+                                ui.weak("Methodology:");
+                            });
                         });
                     }
                 });
