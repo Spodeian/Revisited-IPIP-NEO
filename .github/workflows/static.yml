@@ -39,15 +39,27 @@ jobs:
       - name: Cache Cargo Dependencies
         uses: Swatinem/rust-cache@v2
 
+      - name: Cache Trunk Binary
+        id: cache-trunk
+        uses: actions/cache@v4
+        with:
+          path: ~/.cargo/bin/trunk
+          key: ${{ runner.os }}-trunk-latest
+
       - name: Install Trunk Asset Bundler
+        if: steps.cache-trunk.outputs.cache-hit != 'true'
         run: |
-          wget -qO- https://github.com/trunk-rs/trunk/releases/latest/download/trunk-x86_64-unknown-linux-gnu.tar.gz | tar -xzf-
-          echo "$PWD" >> $GITHUB_PATH
+          mkdir -p ~/.cargo/bin
+          wget -qO- https://github.com/trunk-rs/trunk/releases/latest/download/trunk-x86_64-unknown-linux-gnu.tar.gz | tar -xzf- -C ~/.cargo/bin
+          chmod +x ~/.cargo/bin/trunk
+
+      - name: Add Cargo Bin to PATH
+        run: echo "$HOME/.cargo/bin" >> $GITHUB_PATH
 
       - name: Build Web Application
         run: |
           export TRUNK_BUILD_NO_WASM_OPT=true
-          ./trunk build --release
+          trunk build --release
 
       - name: Setup Pages
         uses: actions/configure-pages@v5
