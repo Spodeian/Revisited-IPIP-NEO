@@ -16,5 +16,5 @@ port = 8080
 value = true
 
 [tools]
-# Disable wasm-opt during release builds to bypass Cloudflare execution issues
-wasm_opt = "off"
+# Disable wasm-opt during release builds
+wasm_opt = false

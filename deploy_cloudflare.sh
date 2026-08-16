@@ -11,6 +11,7 @@ export PATH="$HOME/.cargo/bin:$PATH"
 if ! command -v rustup &> /dev/null; then
     echo "Rust compiler not detected. Installing Rust stable toolchain..."
     curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y
+
 else
     echo "Rust compiler toolchain detected: $(rustc --version)"
 fi
@@ -41,6 +42,6 @@ fi
 
 echo "Compiling and bundling web application to distribution path..."
 $TRUNK_BIN clean
-$TRUNK_BIN build --release
+$TRUNK_BIN build --release --no-wasm-opt
 
 echo "=== Build Completed Successfully! Static assets are ready in: 'crates/web/dist' ==="
