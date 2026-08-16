@@ -8,17 +8,27 @@ echo "=== Initializing Cloudflare Serverless Build Pipeline ==="
 export PATH="$HOME/.cargo/bin:$PATH"
 
 # 2. Check if rustup is installed, if not, install it quietly
-if ! command -v rustup &> /dev/null; then
+if ! command -v rustup &> /dev/null && [ ! -f "$HOME/.cargo/bin/rustup" ]; then
     echo "Rust compiler not detected. Installing Rust stable toolchain..."
     curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y
-
+    # Sourcing cargo environment is required to bind rustup on fresh installs
+    . "$HOME/.cargo/env"
 else
-    echo "Rust compiler toolchain detected: $(rustc --version)"
+    if [ -f "$HOME/.cargo/bin/env" ]; then
+        . "$HOME/.cargo/bin/env"
+    elif [ -f "$HOME/.cargo/env" ]; then
+        . "$HOME/.cargo/env"
+    fi
+    echo "Rust compiler toolchain detected: $(rustc --version || echo 'Local install active')"
 fi
 
 # 3. Add WASM compile target
 echo "Adding WebAssembly compile target (wasm32-unknown-unknown)..."
-rustup target add wasm32-unknown-unknown
+if command -v rustup &> /dev/null; then
+    rustup target add wasm32-unknown-unknown
+else
+    $HOME/.cargo/bin/rustup target add wasm32-unknown-unknown
+fi
 
 # 4. Install Trunk if missing
 if ! command -v trunk &> /dev/null; then
