@@ -253,10 +253,10 @@ impl eframe::App for PersonalityApp {
         }
 
         // Main Central View Routing
-        let is_tiny = ui.ctx().screen_rect().width() < 350.0 || ui.ctx().screen_rect().height() < 500.0;
+        let is_tiny = ui.available_width() < 350.0 || ui.available_height() < 500.0;
         let mut central_frame = egui::Frame::central_panel(ui.style());
         if is_tiny {
-            central_frame.inner_margin = egui::Margin::same(4.0);
+            central_frame.inner_margin = egui::Margin::same(4);
         }
 
         egui::CentralPanel::default().frame(central_frame).show(ui, |ui| {
