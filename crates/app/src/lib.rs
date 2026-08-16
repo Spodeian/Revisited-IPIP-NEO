@@ -241,13 +241,28 @@ impl eframe::App for PersonalityApp {
         });
 
         // Side Results Panel (if enabled or completed)
+        let is_mobile = ui.available_width() < 800.0;
+
         if self.state.questionnaire.show_results {
-            egui::Panel::right("results_panel")
-                .min_size(380.0)
-                .default_size(420.0)
-                .show(ui, |ui| {
-                    self.render_results_panel(ui);
-                });
+            if is_mobile {
+                egui::Window::new("Assessment Results")
+                    .collapsible(false)
+                    .resizable(true)
+                    .default_size(egui::vec2(ui.available_width() - 32.0, ui.available_height() - 64.0))
+                    .anchor(egui::Align2::CENTER_CENTER, egui::vec2(0.0, 0.0))
+                    .show(ui.ctx(), |ui| {
+                        egui::ScrollArea::vertical().show(ui, |ui| {
+                            self.render_results_panel(ui);
+                        });
+                    });
+            } else {
+                egui::Panel::right("results_panel")
+                    .min_size(380.0)
+                    .default_size(420.0)
+                    .show(ui, |ui| {
+                        self.render_results_panel(ui);
+                    });
+            }
         }
 
         // Main Questionnaire Area (Single Question Focus Mode)
@@ -362,7 +377,7 @@ impl PersonalityApp {
                     }
 
                     let btn = egui::Button::new(rich_text)
-                        .min_size(egui::vec2(340.0, 42.0))
+                        .min_size(egui::vec2(ui.available_width().min(340.0), 42.0))
                         .selected(is_selected);
 
                     if ui.add(btn).clicked() {
@@ -376,7 +391,7 @@ impl PersonalityApp {
                 ui.add_space(10.0);
 
                 // Navigation and Skip Actions
-                ui.horizontal(|ui| {
+                ui.horizontal_wrapped(|ui| {
                     if ui.button("◀ Prev (Left)").clicked() {
                         self.state.questionnaire.navigate_previous();
                     }
@@ -389,15 +404,13 @@ impl PersonalityApp {
                         self.state.questionnaire.clear_response(curr_idx);
                     }
 
-                    ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
-                        if ui.button("⏩ Next Unanswered (Shift+Right)").clicked() {
-                            self.state.questionnaire.navigate_next_unanswered();
-                        }
-                        let skip_btn = ui.button("Skip / Defer ⏭ (Right)");
-                        if skip_btn.clicked() {
-                            self.state.questionnaire.skip_current();
-                        }
-                    });
+                    if ui.button("⏩ Next Unanswered (Shift+Right)").clicked() {
+                        self.state.questionnaire.navigate_next_unanswered();
+                    }
+
+                    if ui.button("Skip / Defer ⏭ (Right)").clicked() {
+                        self.state.questionnaire.skip_current();
+                    }
                 });
 
                 ui.add_space(15.0);
