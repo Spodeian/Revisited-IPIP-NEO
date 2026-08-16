@@ -1,0 +1,16 @@
+# Cloudflare Wrangler Configuration for Revisited IPIP-NEO Personality Assessment
+name = "revisited-ipip-neo"
+
+# Configuration for Cloudflare Pages static hosting deployment
+[pages]
+# The path where the build command outputs the static assets
+build_output_directory = "crates/web/dist"
+
+# Build settings used by Cloudflare's serverless build pipeline
+[pages.build]
+command = "bash deploy_cloudflare.sh"
+
+[pages.build.environment_variables]
+RUST_VERSION = "stable"
+CARGO_HOME = "/opt/buildhome/.cargo"
+TRUNK_BUILD_NO_WASM_OPT = "true"
