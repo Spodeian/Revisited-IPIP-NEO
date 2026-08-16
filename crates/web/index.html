@@ -4,6 +4,7 @@
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Revisited IPIP-NEO Personality Assessment</title>
+    <link rel="rust" href="Cargo.toml" data-trunk />
     <style>
       html, body {
         margin: 0;
@@ -28,13 +29,5 @@
   </head>
   <body>
     <canvas id="egui_canvas"></canvas>
-    <script type="module">
-      import init, { start } from './pkg/web.js';
-      async function run() {
-        await init();
-        await start("egui_canvas");
-      }
-      run();
-    </script>
   </body>
 </html>

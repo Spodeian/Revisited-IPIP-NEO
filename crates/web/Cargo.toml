@@ -3,6 +3,9 @@ name = "web"
 version.workspace = true
 edition.workspace = true
 
+[lib]
+crate-type = ["cdylib", "rlib"]
+
 [dependencies]
 eframe = { workspace = true, features = ["default_fonts", "wgpu"] }
 wasm-bindgen = { workspace = true }
