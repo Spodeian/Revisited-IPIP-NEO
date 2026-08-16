@@ -11,9 +11,12 @@ pattern = "tga-ipip-neo.spodeian.trade"
 zone_name = "spodeian.trade"
 custom_domain = true
 
-# Directory of compiled static assets
+# 1. Directory of compiled static assets for Worker Sites / wrangler dev
 [assets]
 directory = "crates/web/dist"
+
+# 2. Directory of compiled static assets for Cloudflare Pages / wrangler pages dev
+pages_build_output_dir = "crates/web/dist"
 
 # Enable observability logs as configured remotely
 [observability.logs]
