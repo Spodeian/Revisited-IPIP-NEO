@@ -1,0 +1,222 @@
+Label,Question,Facet,Trait,Meta-Trait,Facet Weight,Trait Weight,Meta-Trait Weight
+Anxiety_1,Worry about things.,1 (Anxiety),1 (Neuroticism),1 (Stability),0.487,0.493,-0.422
+Vulnerability_26,Panic easily.,1 (Anxiety),1 (Neuroticism),1 (Stability),0.494,0.493,-0.422
+Anxiety_31,Fear for the worst.,1 (Anxiety),1 (Neuroticism),1 (Stability),0.453,0.493,-0.422
+Self.Consciousness_46,Am afraid that I will do the wrong thing.,1 (Anxiety),1 (Neuroticism),1 (Stability),0.306,0.493,-0.422
+Vulnerability_56,Become overwhelmed by events.,1 (Anxiety),1 (Neuroticism),1 (Stability),0.354,0.493,-0.422
+Anxiety_61,Am afraid of many things.,1 (Anxiety),1 (Neuroticism),1 (Stability),0.393,0.493,-0.422
+Vulnerability_86,Feel that I'm unable to deal with things.,1 (Anxiety),1 (Neuroticism),1 (Stability),0.376,0.493,-0.422
+Anxiety_91,Get stressed out easily.,1 (Anxiety),1 (Neuroticism),1 (Stability),0.523,0.493,-0.422
+Vulnerability_116,Can't make up my mind.,1 (Anxiety),1 (Neuroticism),1 (Stability),0.15,0.493,-0.422
+Anxiety_121,Get caught up in my problems.,1 (Anxiety),1 (Neuroticism),1 (Stability),0.332,0.493,-0.422
+Anxiety_151,Am not easily bothered by things.,1 (Anxiety),1 (Neuroticism),1 (Stability),-0.256,-0.493,0.422
+Trust_154,Think that all will be well.,1 (Anxiety),1 (Neuroticism),1 (Stability),-0.214,-0.493,0.422
+Vulnerability_176,Remain calm under pressure.,1 (Anxiety),1 (Neuroticism),1 (Stability),-0.262,-0.493,0.422
+Anxiety_181,Am relaxed most of the time.,1 (Anxiety),1 (Neuroticism),1 (Stability),-0.277,-0.493,0.422
+Anxiety_211,Am not easily disturbed by events.,1 (Anxiety),1 (Neuroticism),1 (Stability),-0.247,-0.493,0.422
+Vulnerability_236,Know how to cope.,1 (Anxiety),1 (Neuroticism),1 (Stability),-0.302,-0.493,0.422
+Anxiety_241,Don't worry about things that have already happened.,1 (Anxiety),1 (Neuroticism),1 (Stability),-0.383,-0.493,0.422
+Vulnerability_266,Readily overcome setbacks.,1 (Anxiety),1 (Neuroticism),1 (Stability),-0.185,-0.493,0.422
+Anger_6,Get angry easily.,5 (Anger),1 (Neuroticism),1 (Stability),0.57,0.629,-0.422
+Anger_36,Get irritated easily.,5 (Anger),1 (Neuroticism),1 (Stability),0.516,0.629,-0.422
+Anger_66,Get upset easily.,5 (Anger),1 (Neuroticism),1 (Stability),0.408,0.629,-0.422
+Anger_156,Rarely get irritated.,5 (Anger),1 (Neuroticism),1 (Stability),-0.488,-0.629,0.422
+Anger_186,Seldom get mad.,5 (Anger),1 (Neuroticism),1 (Stability),-0.492,-0.629,0.422
+Cooperation_199,Yell at people.,5 (Anger),1 (Neuroticism),1 (Stability),0.311,0.629,-0.422
+Anger_216,Am not easily annoyed.,5 (Anger),1 (Neuroticism),1 (Stability),-0.415,-0.629,0.422
+Anger_246,Keep my cool.,5 (Anger),1 (Neuroticism),1 (Stability),-0.282,-0.629,0.422
+Anger_276,Rarely complain.,5 (Anger),1 (Neuroticism),1 (Stability),-0.17,-0.629,0.422
+Assertiveness_12,Take charge.,8 (Dominance),1 (Neuroticism),1 (Stability),0.305,0.106,-0.422
+Cooperation_49,Can't stand confrontations.,8 (Dominance),1 (Neuroticism),1 (Stability),-0.46,-0.106,0.422
+Cooperation_79,Hate to seem pushy.,8 (Dominance),1 (Neuroticism),1 (Stability),-0.296,-0.106,0.422
+Sympathy_89,Value cooperation over competition.,8 (Dominance),1 (Neuroticism),1 (Stability),-0.153,-0.106,0.422
+Assertiveness_102,Seek to influence others.,8 (Dominance),1 (Neuroticism),1 (Stability),0.132,0.106,-0.422
+Cooperation_109,Have a sharp tongue.,8 (Dominance),1 (Neuroticism),1 (Stability),0.365,0.106,-0.422
+Activity.Level_137,React quickly.,8 (Dominance),1 (Neuroticism),1 (Stability),0.159,0.106,-0.422
+Cooperation_139,Contradict others.,8 (Dominance),1 (Neuroticism),1 (Stability),0.313,0.106,-0.422
+Cooperation_169,Love a good fight.,8 (Dominance),1 (Neuroticism),1 (Stability),0.325,0.106,-0.422
+Morality_189,Put people under pressure.,8 (Dominance),1 (Neuroticism),1 (Stability),0.392,0.106,-0.422
+Altruism_224,Make people feel uncomfortable.,8 (Dominance),1 (Neuroticism),1 (Stability),0.207,0.106,-0.422
+Cooperation_229,Insult people.,8 (Dominance),1 (Neuroticism),1 (Stability),0.32,0.106,-0.422
+Assertiveness_282,Hold back my opinions.,8 (Dominance),1 (Neuroticism),1 (Stability),-0.328,-0.106,0.422
+Self.Consciousness_286,Am able to stand up for myself.,8 (Dominance),1 (Neuroticism),1 (Stability),0.312,0.106,-0.422
+Emotionality_13,Experience my emotions intensely.,9 (Emotionality),1 (Neuroticism),1 (Stability),0.497,0.414,-0.422
+Vulnerability_146,Get overwhelmed by emotions.,9 (Emotionality),1 (Neuroticism),1 (Stability),0.414,0.414,-0.422
+Emotionality_163,Seldom get emotional.,9 (Emotionality),1 (Neuroticism),1 (Stability),-0.508,-0.414,0.422
+Emotionality_193,Am not easily affected by my emotions.,9 (Emotionality),1 (Neuroticism),1 (Stability),-0.493,-0.414,0.422
+Emotionality_223,Rarely notice my emotional reactions.,9 (Emotionality),1 (Neuroticism),1 (Stability),-0.266,-0.414,0.422
+Emotionality_253,Experience very few emotional highs and lows.,9 (Emotionality),1 (Neuroticism),1 (Stability),-0.328,-0.414,0.422
+Emotionality_283,Don't understand people who get emotional.,9 (Emotionality),1 (Neuroticism),1 (Stability),-0.324,-0.414,0.422
+Modesty_24,Dislike being the center of attention.,14 (Attention-seeking),2 (Sociability),2 (Plasticity),-0.359,-0.199,-0.466
+Modesty_54,Dislike talking about myself.,14 (Attention-seeking),2 (Sociability),2 (Plasticity),-0.337,-0.199,-0.466
+Self.Consciousness_106,Am afraid to draw attention to myself.,14 (Attention-seeking),2 (Sociability),2 (Plasticity),-0.35,-0.199,-0.466
+Modesty_114,Seldom toot my own horn.,14 (Attention-seeking),2 (Sociability),2 (Plasticity),-0.296,-0.199,-0.466
+Assertiveness_252,Don't like to draw attention to myself.,14 (Attention-seeking),2 (Sociability),2 (Plasticity),-0.534,-0.199,-0.466
+Modesty_264,Boast about my virtues.,14 (Attention-seeking),2 (Sociability),2 (Plasticity),0.276,0.199,0.466
+Modesty_294,Make myself the center of attention.,14 (Attention-seeking),2 (Sociability),2 (Plasticity),0.548,0.199,0.466
+Cheerfulness_27,Radiate joy.,15 (Cheerfulness),2 (Sociability),2 (Plasticity),0.331,0.4,0.466
+Cheerfulness_57,Have a lot of fun.,15 (Cheerfulness),2 (Sociability),2 (Plasticity),0.312,0.4,0.466
+Cheerfulness_87,Express childlike joy.,15 (Cheerfulness),2 (Sociability),2 (Plasticity),0.325,0.4,0.466
+Cheerfulness_117,Laugh my way through life.,15 (Cheerfulness),2 (Sociability),2 (Plasticity),0.409,0.4,0.466
+Friendliness_122,Cheer people up.,15 (Cheerfulness),2 (Sociability),2 (Plasticity),0.281,0.4,0.466
+Cheerfulness_207,Laugh aloud.,15 (Cheerfulness),2 (Sociability),2 (Plasticity),0.459,0.4,0.466
+Cheerfulness_237,Amuse my friends.,15 (Cheerfulness),2 (Sociability),2 (Plasticity),0.393,0.4,0.466
+Cheerfulness_267,Am not easily amused.,15 (Cheerfulness),2 (Sociability),2 (Plasticity),-0.383,-0.4,-0.466
+Cheerfulness_297,Seldom joke around.,15 (Cheerfulness),2 (Sociability),2 (Plasticity),-0.484,-0.4,-0.466
+Altruism_44,Anticipate the needs of others.,18 (Empathy),2 (Sociability),2 (Plasticity),0.223,0.397,0.466
+Sympathy_59,Feel sympathy for those who are worse off than myself.,18 (Empathy),2 (Sociability),2 (Plasticity),0.409,0.397,0.466
+Emotionality_73,Am passionate about causes.,18 (Empathy),2 (Sociability),2 (Plasticity),0.179,0.397,0.466
+Altruism_74,Love to help others.,18 (Empathy),2 (Sociability),2 (Plasticity),0.452,0.397,0.466
+Altruism_104,Am concerned about others.,18 (Empathy),2 (Sociability),2 (Plasticity),0.671,0.397,0.466
+Sympathy_119,Suffer from others' sorrows.,18 (Empathy),2 (Sociability),2 (Plasticity),0.318,0.397,0.466
+Sympathy_149,Am not interested in other people's problems.,18 (Empathy),2 (Sociability),2 (Plasticity),-0.401,-0.397,-0.466
+Sympathy_179,Tend to dislike soft-hearted people.,18 (Empathy),2 (Sociability),2 (Plasticity),-0.179,-0.397,-0.466
+Altruism_194,Am indifferent to the feelings of others.,18 (Empathy),2 (Sociability),2 (Plasticity),-0.493,-0.397,-0.466
+Morality_219,Pretend to be concerned for others.,18 (Empathy),2 (Sociability),2 (Plasticity),-0.282,-0.397,-0.466
+Sympathy_239,Try not to think about the needy.,18 (Empathy),2 (Sociability),2 (Plasticity),-0.312,-0.397,-0.466
+Friendliness_242,Am not really interested in others.,18 (Empathy),2 (Sociability),2 (Plasticity),-0.458,-0.397,-0.466
+Altruism_254,Turn my back on others.,18 (Empathy),2 (Sociability),2 (Plasticity),-0.202,-0.397,-0.466
+Altruism_284,Take no time for others.,18 (Empathy),2 (Sociability),2 (Plasticity),-0.315,-0.397,-0.466
+Friendliness_2,Make friends easily.,2 (Gregariousness),2 (Sociability),2 (Plasticity),0.432,0.746,0.466
+Gregariousness_7,Love large parties.,2 (Gregariousness),2 (Sociability),2 (Plasticity),0.47,0.746,0.466
+Altruism_14,Make people feel welcome.,2 (Gregariousness),2 (Sociability),2 (Plasticity),0.176,0.746,0.466
+Friendliness_32,Warm up quickly to others.,2 (Gregariousness),2 (Sociability),2 (Plasticity),0.383,0.746,0.466
+Gregariousness_37,Talk to a lot of different people at parties.,2 (Gregariousness),2 (Sociability),2 (Plasticity),0.49,0.746,0.466
+Friendliness_62,Feel comfortable around people.,2 (Gregariousness),2 (Sociability),2 (Plasticity),0.605,0.746,0.466
+Gregariousness_67,Enjoy being part of a group.,2 (Gregariousness),2 (Sociability),2 (Plasticity),0.39,0.746,0.466
+Self.Consciousness_76,Find it difficult to approach others.,2 (Gregariousness),2 (Sociability),2 (Plasticity),-0.345,-0.746,-0.466
+Friendliness_92,Act comfortably with others.,2 (Gregariousness),2 (Sociability),2 (Plasticity),0.449,0.746,0.466
+Gregariousness_97,Involve others in what I am doing.,2 (Gregariousness),2 (Sociability),2 (Plasticity),0.26,0.746,0.466
+Excitement.Seeking_112,Enjoy being part of a loud crowd.,2 (Gregariousness),2 (Sociability),2 (Plasticity),0.364,0.746,0.466
+Gregariousness_127,Love surprise parties.,2 (Gregariousness),2 (Sociability),2 (Plasticity),0.198,0.746,0.466
+Self.Consciousness_136,Only feel comfortable with friends.,2 (Gregariousness),2 (Sociability),2 (Plasticity),-0.307,-0.746,-0.466
+Friendliness_152,Am hard to get to know.,2 (Gregariousness),2 (Sociability),2 (Plasticity),-0.38,-0.746,-0.466
+Friendliness_182,Often feel uncomfortable around others.,2 (Gregariousness),2 (Sociability),2 (Plasticity),-0.395,-0.746,-0.466
+Gregariousness_187,Want to be left alone.,2 (Gregariousness),2 (Sociability),2 (Plasticity),-0.464,-0.746,-0.466
+Assertiveness_192,Keep in the background.,2 (Gregariousness),2 (Sociability),2 (Plasticity),-0.241,-0.746,-0.466
+Friendliness_212,Avoid contacts with others.,2 (Gregariousness),2 (Sociability),2 (Plasticity),-0.446,-0.746,-0.466
+Gregariousness_247,Avoid crowds.,2 (Gregariousness),2 (Sociability),2 (Plasticity),-0.468,-0.746,-0.466
+Self.Consciousness_256,Am not bothered by difficult social situations.,2 (Gregariousness),2 (Sociability),2 (Plasticity),0.178,0.746,0.466
+Friendliness_272,Keep others at a distance.,2 (Gregariousness),2 (Sociability),2 (Plasticity),-0.417,-0.746,-0.466
+Gregariousness_277,Seek quiet.,2 (Gregariousness),2 (Sociability),2 (Plasticity),-0.323,-0.746,-0.466
+Modesty_84,Consider myself an average person.,22 (Humility),2 (Sociability),2 (Plasticity),0.248,0.095,0.466
+Modesty_144,Believe that I am better than others.,22 (Humility),2 (Sociability),2 (Plasticity),-0.644,-0.095,-0.466
+Altruism_164,Look down on others.,22 (Humility),2 (Sociability),2 (Plasticity),-0.397,-0.095,-0.466
+Trust_4,Trust others.,3 (Trust),2 (Sociability),2 (Plasticity),0.504,0.293,0.466
+Trust_124,Believe in human goodness.,3 (Trust),2 (Sociability),2 (Plasticity),0.332,0.293,0.466
+Trust_214,Suspect hidden motives in others.,3 (Trust),2 (Sociability),2 (Plasticity),-0.452,-0.293,-0.466
+Achievement.Striving_20,Go straight for the goal.,11 (Determination),3 (Conscientiousness),1 (Stability),0.283,0.496,0.422
+Achievement.Striving_80,Turn plans into actions.,11 (Determination),3 (Conscientiousness),1 (Stability),0.446,0.496,0.422
+Self.Discipline_145,Carry out my plans.,11 (Determination),3 (Conscientiousness),1 (Stability),0.457,0.496,0.422
+Achievement.Striving_230,Am not highly motivated to succeed.,11 (Determination),3 (Conscientiousness),1 (Stability),-0.21,-0.496,-0.422
+Achievement.Striving_50,Work hard.,19 (Work Ethic),3 (Conscientiousness),1 (Stability),0.382,0.509,0.422
+Achievement.Striving_110,Plunge into tasks with all my heart.,19 (Work Ethic),3 (Conscientiousness),1 (Stability),0.209,0.509,0.422
+Achievement.Striving_140,Do more than what's expected of me.,19 (Work Ethic),3 (Conscientiousness),1 (Stability),0.426,0.509,0.422
+Achievement.Striving_260,Do just enough work to get by.,19 (Work Ethic),3 (Conscientiousness),1 (Stability),-0.499,-0.509,-0.422
+Achievement.Striving_290,Put little time and effort into my work.,19 (Work Ethic),3 (Conscientiousness),1 (Stability),-0.429,-0.509,-0.422
+Self.Discipline_115,Get to work at once.,26 (Self-discipline),3 (Conscientiousness),1 (Stability),0.352,0.591,0.422
+Self.Discipline_175,Find it difficult to get down to work.,26 (Self-discipline),3 (Conscientiousness),1 (Stability),-0.557,-0.591,-0.422
+Self.Discipline_205,Waste my time.,26 (Self-discipline),3 (Conscientiousness),1 (Stability),-0.262,-0.591,-0.422
+Self.Discipline_235,Need a push to get started.,26 (Self-discipline),3 (Conscientiousness),1 (Stability),-0.328,-0.591,-0.422
+Activity.Level_197,Like to take my time.,28 (Calmness),3 (Conscientiousness),1 (Stability),0.414,-0.126,0.422
+Activity.Level_227,Like a leisurely lifestyle.,28 (Calmness),3 (Conscientiousness),1 (Stability),0.302,-0.126,0.422
+Activity.Level_257,Let things proceed at their own pace.,28 (Calmness),3 (Conscientiousness),1 (Stability),0.337,-0.126,0.422
+Self.Efficacy_5,Complete tasks successfully.,4 (Self-efficacy),3 (Conscientiousness),1 (Stability),0.279,0.459,0.422
+Self.Efficacy_35,Excel in what I do.,4 (Self-efficacy),3 (Conscientiousness),1 (Stability),0.358,0.459,0.422
+Self.Efficacy_65,Handle tasks smoothly.,4 (Self-efficacy),3 (Conscientiousness),1 (Stability),0.41,0.459,0.422
+Activity.Level_107,Can manage many things at the same time.,4 (Self-efficacy),3 (Conscientiousness),1 (Stability),0.196,0.459,0.422
+Self.Efficacy_125,Come up with good solutions.,4 (Self-efficacy),3 (Conscientiousness),1 (Stability),0.264,0.459,0.422
+Self.Efficacy_155,Know how to get things done.,4 (Self-efficacy),3 (Conscientiousness),1 (Stability),0.383,0.459,0.422
+Self.Efficacy_245,Have little to contribute.,4 (Self-efficacy),3 (Conscientiousness),1 (Stability),-0.164,-0.459,-0.422
+Orderliness_10,Like order.,7 (Orderliness),3 (Conscientiousness),1 (Stability),0.473,0.322,0.422
+Self.Discipline_25,Get chores done right away.,7 (Orderliness),3 (Conscientiousness),1 (Stability),0.34,0.322,0.422
+Cautiousness_30,Avoid mistakes.,7 (Orderliness),3 (Conscientiousness),1 (Stability),0.168,0.322,0.422
+Orderliness_40,Like to tidy up.,7 (Orderliness),3 (Conscientiousness),1 (Stability),0.607,0.322,0.422
+Self.Discipline_55,Am always prepared.,7 (Orderliness),3 (Conscientiousness),1 (Stability),0.273,0.322,0.422
+Orderliness_70,"Want everything to be ""just right.""",7 (Orderliness),3 (Conscientiousness),1 (Stability),0.349,0.322,0.422
+Dutifulness_75,Pay my bills on time.,7 (Orderliness),3 (Conscientiousness),1 (Stability),0.158,0.322,0.422
+Orderliness_130,Do things according to a plan.,7 (Orderliness),3 (Conscientiousness),1 (Stability),0.27,0.322,0.422
+Achievement.Striving_200,Demand quality.,7 (Orderliness),3 (Conscientiousness),1 (Stability),0.124,0.322,0.422
+Orderliness_220,Leave my belongings around.,7 (Orderliness),3 (Conscientiousness),1 (Stability),-0.448,-0.322,-0.422
+Orderliness_250,Am not bothered by messy people.,7 (Orderliness),3 (Conscientiousness),1 (Stability),-0.316,-0.322,-0.422
+Morality_69,Use flattery to get ahead.,21 (Manipulativeness),4 (Integrity),3 (Disinhibition),0.205,-0.429,-0.58
+Morality_99,Use others for my own ends.,21 (Manipulativeness),4 (Integrity),3 (Disinhibition),0.488,-0.429,-0.58
+Dutifulness_225,Get others to do my duties.,21 (Manipulativeness),4 (Integrity),3 (Disinhibition),0.329,-0.429,-0.58
+Morality_249,Take advantage of others.,21 (Manipulativeness),4 (Integrity),3 (Disinhibition),0.485,-0.429,-0.58
+Dutifulness_255,Do the opposite of what is asked.,21 (Manipulativeness),4 (Integrity),3 (Disinhibition),0.155,-0.429,-0.58
+Morality_279,Obstruct others' plans.,21 (Manipulativeness),4 (Integrity),3 (Disinhibition),0.263,-0.429,-0.58
+Dutifulness_105,Tell the truth.,24 (Honesty),4 (Integrity),3 (Disinhibition),0.529,0.387,-0.58
+Dutifulness_135,Listen to my conscience.,24 (Honesty),4 (Integrity),3 (Disinhibition),0.232,0.387,-0.58
+Dutifulness_195,Break my promises.,24 (Honesty),4 (Integrity),3 (Disinhibition),-0.386,-0.387,0.58
+Morality_9,Would never cheat on my taxes.,6 (Fairness),4 (Integrity),3 (Disinhibition),0.305,0.427,-0.58
+Dutifulness_15,Try to follow the rules.,6 (Fairness),4 (Integrity),3 (Disinhibition),0.394,0.427,-0.58
+Morality_129,Know how to get around the rules.,6 (Fairness),4 (Integrity),3 (Disinhibition),-0.318,-0.427,0.58
+Morality_159,Cheat to get ahead.,6 (Fairness),4 (Integrity),3 (Disinhibition),-0.316,-0.427,0.58
+Dutifulness_165,Break rules.,6 (Fairness),4 (Integrity),3 (Disinhibition),-0.589,-0.427,0.58
+Adventurousness_18,Prefer variety to routine.,10 (Adventurousness),5 (Openness to Experience),2 (Plasticity),0.336,0.319,0.466
+Adventurousness_78,Interested in many things.,10 (Adventurousness),5 (Openness to Experience),2 (Plasticity),0.174,0.319,0.466
+Adventurousness_108,Like to begin new things.,10 (Adventurousness),5 (Openness to Experience),2 (Plasticity),0.341,0.319,0.466
+Adventurousness_138,Prefer to stick with things that I know.,10 (Adventurousness),5 (Openness to Experience),2 (Plasticity),-0.454,-0.319,-0.466
+Adventurousness_198,Don't like the idea of change.,10 (Adventurousness),5 (Openness to Experience),2 (Plasticity),-0.597,-0.319,-0.466
+Adventurousness_228,Am a creature of habit.,10 (Adventurousness),5 (Openness to Experience),2 (Plasticity),-0.357,-0.319,-0.466
+Adventurousness_258,Dislike new foods.,10 (Adventurousness),5 (Openness to Experience),2 (Plasticity),-0.111,-0.319,-0.466
+Anxiety_271,Adapt easily to new situations.,10 (Adventurousness),5 (Openness to Experience),2 (Plasticity),0.252,0.319,0.466
+Adventurousness_288,Am attached to conventional ways.,10 (Adventurousness),5 (Openness to Experience),2 (Plasticity),-0.321,-0.319,-0.466
+Intellect_23,Like to solve complex problems.,13 (Intellect),5 (Openness to Experience),2 (Plasticity),0.266,0.459,0.466
+Intellect_83,Have a rich vocabulary.,13 (Intellect),5 (Openness to Experience),2 (Plasticity),0.487,0.459,0.466
+Intellect_113,Can handle a lot of information.,13 (Intellect),5 (Openness to Experience),2 (Plasticity),0.407,0.459,0.466
+Self.Consciousness_166,Stumble over my words.,13 (Intellect),5 (Openness to Experience),2 (Plasticity),-0.137,-0.459,-0.466
+Intellect_173,Am not interested in abstract ideas.,13 (Intellect),5 (Openness to Experience),2 (Plasticity),-0.272,-0.459,-0.466
+Intellect_203,Avoid philosophical discussions.,13 (Intellect),5 (Openness to Experience),2 (Plasticity),-0.309,-0.459,-0.466
+Self.Efficacy_215,Don't understand things.,13 (Intellect),5 (Openness to Experience),2 (Plasticity),-0.305,-0.459,-0.466
+Intellect_233,Have difficulty understanding abstract ideas.,13 (Intellect),5 (Openness to Experience),2 (Plasticity),-0.569,-0.459,-0.466
+Modesty_234,Know the answers to many questions.,13 (Intellect),5 (Openness to Experience),2 (Plasticity),0.376,0.459,0.466
+Intellect_293,Avoid difficult reading material.,13 (Intellect),5 (Openness to Experience),2 (Plasticity),-0.404,-0.459,-0.466
+Liberalism_28,Tend to vote for liberal political candidates.,16 (Liberalism),5 (Openness to Experience),2 (Plasticity),0.547,0.237,0.466
+Liberalism_58,Believe that there is no absolute right or wrong.,16 (Liberalism),5 (Openness to Experience),2 (Plasticity),0.217,0.237,0.466
+Liberalism_88,Believe that criminals should receive help rather than punishment.,16 (Liberalism),5 (Openness to Experience),2 (Plasticity),0.519,0.237,0.466
+Liberalism_178,Believe that too much tax money goes to support artists.,16 (Liberalism),5 (Openness to Experience),2 (Plasticity),-0.239,-0.237,-0.466
+Liberalism_208,Believe laws should be strictly enforced.,16 (Liberalism),5 (Openness to Experience),2 (Plasticity),-0.351,-0.237,-0.466
+Sympathy_209,Believe in an eye for an eye.,16 (Liberalism),5 (Openness to Experience),2 (Plasticity),-0.378,-0.237,-0.466
+Sympathy_269,Believe people should fend for themselves.,16 (Liberalism),5 (Openness to Experience),2 (Plasticity),-0.284,-0.237,-0.466
+Liberalism_298,Like to stand during the national anthem.,16 (Liberalism),5 (Openness to Experience),2 (Plasticity),-0.251,-0.237,-0.466
+Sympathy_299,Can't stand weak people.,16 (Liberalism),5 (Openness to Experience),2 (Plasticity),-0.128,-0.237,-0.466
+Artistic.Interests_38,Like music.,17 (Artistic Interests),5 (Openness to Experience),2 (Plasticity),0.19,0.371,0.466
+Artistic.Interests_68,See beauty in things that others might not notice.,17 (Artistic Interests),5 (Openness to Experience),2 (Plasticity),0.335,0.371,0.466
+Artistic.Interests_98,Love flowers.,17 (Artistic Interests),5 (Openness to Experience),2 (Plasticity),0.367,0.371,0.466
+Artistic.Interests_128,Enjoy the beauty of nature.,17 (Artistic Interests),5 (Openness to Experience),2 (Plasticity),0.44,0.371,0.466
+Artistic.Interests_158,Do not like art.,17 (Artistic Interests),5 (Openness to Experience),2 (Plasticity),-0.525,-0.371,-0.466
+Artistic.Interests_188,Do not like poetry.,17 (Artistic Interests),5 (Openness to Experience),2 (Plasticity),-0.395,-0.371,-0.466
+Artistic.Interests_278,Do not enjoy watching dance performances.,17 (Artistic Interests),5 (Openness to Experience),2 (Plasticity),-0.307,-0.371,-0.466
+Emotionality_103,Enjoy examining myself and my life.,23 (Introspection),5 (Openness to Experience),2 (Plasticity),0.266,0.45,0.466
+Imagination_123,Indulge in my fantasies.,23 (Introspection),5 (Openness to Experience),2 (Plasticity),0.264,0.45,0.466
+Intellect_143,Enjoy thinking about things.,23 (Introspection),5 (Openness to Experience),2 (Plasticity),0.511,0.45,0.466
+Imagination_153,Spend time reflecting on things.,23 (Introspection),5 (Openness to Experience),2 (Plasticity),0.482,0.45,0.466
+Imagination_213,Do not have a good imagination.,23 (Introspection),5 (Openness to Experience),2 (Plasticity),-0.231,-0.45,-0.466
+Imagination_243,Seldom get lost in thought.,23 (Introspection),5 (Openness to Experience),2 (Plasticity),-0.359,-0.45,-0.466
+Excitement.Seeking_22,Love excitement.,12 (Excitement-seeking),6 (Impulsivity),3 (Disinhibition),0.426,0.39,0.58
+Activity.Level_47,Am always on the go.,12 (Excitement-seeking),6 (Impulsivity),3 (Disinhibition),0.126,0.39,0.58
+Adventurousness_48,Like to visit new places.,12 (Excitement-seeking),6 (Impulsivity),3 (Disinhibition),0.274,0.39,0.58
+Excitement.Seeking_52,Seek adventure.,12 (Excitement-seeking),6 (Impulsivity),3 (Disinhibition),0.547,0.39,0.58
+Excitement.Seeking_82,Love action.,12 (Excitement-seeking),6 (Impulsivity),3 (Disinhibition),0.482,0.39,0.58
+Immoderation_51,Don't know why I do some of the things I do.,20 (Cautiousness),6 (Impulsivity),3 (Disinhibition),-0.17,0.445,-0.58
+Cautiousness_60,Choose my words with care.,20 (Cautiousness),6 (Impulsivity),3 (Disinhibition),0.153,-0.445,0.58
+Cautiousness_120,Jump into things without thinking.,20 (Cautiousness),6 (Impulsivity),3 (Disinhibition),-0.588,0.445,-0.58
+Cautiousness_150,Make rash decisions.,20 (Cautiousness),6 (Impulsivity),3 (Disinhibition),-0.449,0.445,-0.58
+Cautiousness_180,Like to act on a whim.,20 (Cautiousness),6 (Impulsivity),3 (Disinhibition),-0.284,0.445,-0.58
+Self.Efficacy_185,Misjudge situations.,20 (Cautiousness),6 (Impulsivity),3 (Disinhibition),-0.159,0.445,-0.58
+Cautiousness_210,Rush into things.,20 (Cautiousness),6 (Impulsivity),3 (Disinhibition),-0.517,0.445,-0.58
+Cautiousness_270,Act without thinking.,20 (Cautiousness),6 (Impulsivity),3 (Disinhibition),-0.682,0.445,-0.58
+Self.Efficacy_275,Don't see the consequences of things.,20 (Cautiousness),6 (Impulsivity),3 (Disinhibition),-0.233,0.445,-0.58
+Cautiousness_300,Often make last-minute plans.,20 (Cautiousness),6 (Impulsivity),3 (Disinhibition),-0.189,0.445,-0.58
+Immoderation_111,Go on binges.,25 (Immoderation),6 (Impulsivity),3 (Disinhibition),0.376,0.178,0.58
+Immoderation_141,Love to eat.,25 (Immoderation),6 (Impulsivity),3 (Disinhibition),0.273,0.178,0.58
+Immoderation_171,Rarely overindulge.,25 (Immoderation),6 (Impulsivity),3 (Disinhibition),-0.623,-0.178,-0.58
+Immoderation_201,Easily resist temptations.,25 (Immoderation),6 (Impulsivity),3 (Disinhibition),-0.341,-0.178,-0.58
+Immoderation_231,Am able to control my cravings.,25 (Immoderation),6 (Impulsivity),3 (Disinhibition),-0.506,-0.178,-0.58
+Immoderation_291,Never splurge.,25 (Immoderation),6 (Impulsivity),3 (Disinhibition),-0.222,-0.178,-0.58
+Excitement.Seeking_142,Enjoy being reckless.,27 (Recklessness),6 (Impulsivity),3 (Disinhibition),0.433,0.546,0.58
+Excitement.Seeking_172,Act wild and crazy.,27 (Recklessness),6 (Impulsivity),3 (Disinhibition),0.235,0.546,0.58
+Excitement.Seeking_202,Willing to try anything once.,27 (Recklessness),6 (Impulsivity),3 (Disinhibition),0.262,0.546,0.58
+Excitement.Seeking_232,Seek danger.,27 (Recklessness),6 (Impulsivity),3 (Disinhibition),0.5,0.546,0.58
+Excitement.Seeking_262,Would never go hang gliding or bungee jumping.,27 (Recklessness),6 (Impulsivity),3 (Disinhibition),-0.349,-0.546,-0.58

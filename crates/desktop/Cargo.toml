@@ -1,0 +1,10 @@
+[package]
+name = "desktop"
+version.workspace = true
+edition.workspace = true
+
+[dependencies]
+eframe = { workspace = true, features = ["default_fonts", "wgpu", "persistence"] }
+tracing = { workspace = true }
+tracing-subscriber = { workspace = true }
+app = { workspace = true }

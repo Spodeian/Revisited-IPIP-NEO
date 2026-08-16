@@ -1,0 +1,16 @@
+# Trunk Configuration for Cloudflare Pages Deployment
+
+[build]
+# The index.html file of the web package
+target = "crates/web/index.html"
+
+# Write the output assets to crates/web/dist
+dist = "crates/web/dist"
+
+[serve]
+# Use port 8080 during local testing
+port = 8080
+
+[clean]
+# Clean the dist directory before building
+value = true

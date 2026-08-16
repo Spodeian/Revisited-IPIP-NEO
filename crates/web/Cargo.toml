@@ -1,0 +1,14 @@
+[package]
+name = "web"
+version.workspace = true
+edition.workspace = true
+
+[dependencies]
+eframe = { workspace = true, features = ["default_fonts", "wgpu"] }
+wasm-bindgen = { workspace = true }
+tracing-wasm = { workspace = true }
+tracing = { workspace = true }
+app = { workspace = true }
+
+[dev-dependencies]
+app = { workspace = true }

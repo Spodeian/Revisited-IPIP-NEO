@@ -1,0 +1,13 @@
+[package]
+name = "app"
+version.workspace = true
+edition.workspace = true
+
+[dependencies]
+eframe = { workspace = true, features = ["default_fonts", "wgpu", "persistence"] }
+egui = { workspace = true, features = ["default_fonts"] }
+serde = { workspace = true, features = ["derive"] }
+tracing = { workspace = true }
+tracing-subscriber = { workspace = true }
+shared = { workspace = true }
+thiserror = { workspace = true }
