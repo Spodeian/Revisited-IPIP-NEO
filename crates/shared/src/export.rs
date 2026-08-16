@@ -1,3 +1,6 @@
+//! Data export generators for the Revisited IPIP-NEO Personality Assessment.
+//! Supports exporting structured summaries and raw logs to CSV, JSON, and printable HTML.
+
 use crate::questionnaire::{Aspect, Facet, MetaTrait, QuestionnaireState, Trait};
 use serde::Serialize;
 

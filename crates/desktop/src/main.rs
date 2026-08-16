@@ -1,9 +1,13 @@
+//! Native desktop application runner for the Revisited IPIP-NEO Personality Assessment.
+
 use app::PersonalityApp;
 use eframe::egui;
 use eframe::NativeOptions;
 use tracing_subscriber::{fmt, prelude::*, EnvFilter};
 
 fn main() -> eframe::Result<()> {
+    // Advanced logging setup:
+    // Filter by INFO level for application logs, WARN for external library modules.
     tracing_subscriber::registry()
         .with(fmt::layer())
         .with(
@@ -12,6 +16,7 @@ fn main() -> eframe::Result<()> {
         )
         .init();
 
+    // Native window viewport configurations
     let options = NativeOptions {
         viewport: egui::ViewportBuilder::default()
             .with_title("Revisited IPIP-NEO Personality Assessment")

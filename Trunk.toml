@@ -7,6 +7,9 @@ target = "crates/web/index.html"
 # Write the output assets to crates/web/dist
 dist = "crates/web/dist"
 
+# Disable wasm-opt during release builds
+wasm_opt = "off"
+
 [serve]
 # Use port 8080 during local testing
 port = 8080
