@@ -14,7 +14,3 @@ port = 8080
 [clean]
 # Clean the dist directory before building
 value = true
-
-[tools]
-# Disable wasm-opt during release builds
-wasm_opt = false
