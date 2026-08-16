@@ -294,19 +294,28 @@ impl PersonalityApp {
             (q.id, q.text.clone(), q.response)
         };
 
+        // Measure available space to detect extremely tight viewport constraints
+        let avail_height = ui.available_height();
+        let avail_width = ui.available_width();
+
+        let is_tight_height = avail_height < 530.0;
+        let is_landscape_mobile = avail_width > avail_height && avail_height < 500.0;
+
         let _scroll_response = egui::ScrollArea::vertical().show(ui, |ui| {
-            ui.add_space(20.0);
+            // Scale spacing based on screen height
+            let top_space = if is_tight_height { 4.0 } else { 20.0 };
+            ui.add_space(top_space);
 
             // Centered question card container
             ui.vertical_centered(|ui| {
                 ui.set_max_width(700.0);
 
-                // Queue & Status indicator
+                // Queue & Status indicator (hide details on very tight heights)
                 let pending_remaining = self.state.questionnaire.pending_queue.len();
                 let status_text = if q_response.is_some() {
-                    "✓ Answered (Reviewing / Modifying)"
+                    "✓ Answered"
                 } else {
-                    "Pending Answer"
+                    "Pending"
                 };
 
                 ui.horizontal(|ui| {
@@ -316,48 +325,59 @@ impl PersonalityApp {
                             .color(ui.visuals().hyperlink_color),
                     );
                     ui.label(format!("•  {}", status_text));
-                    ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
-                        ui.label(
-                            egui::RichText::new(format!("{} remaining in queue", pending_remaining))
-                                .italics()
-                                .small(),
-                        );
-                    });
+                    if !is_tight_height {
+                        ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
+                            ui.label(
+                                egui::RichText::new(format!("{} in queue", pending_remaining))
+                                    .italics()
+                                    .small(),
+                            );
+                        });
+                    }
                 });
 
-                ui.add_space(25.0);
+                let space_before_card = if is_tight_height { 4.0 } else { 25.0 };
+                ui.add_space(space_before_card);
 
-                // Clear Framing Instruction
-                ui.label(
-                    egui::RichText::new("Rate how accurately this statement describes you:")
-                        .size(16.0)
-                        .strong()
-                        .color(ui.visuals().text_color()),
-                );
-                ui.add_space(10.0);
+                // Clear Framing Instruction (omit on ultra-tight screens to fit buttons)
+                if !is_tight_height {
+                    ui.label(
+                        egui::RichText::new("Rate how accurately this statement describes you:")
+                            .size(16.0)
+                            .strong()
+                            .color(ui.visuals().text_color()),
+                    );
+                    ui.add_space(10.0);
+                }
 
-                // Question Statement Box
+                // Question Statement Box (scaled down for small screens)
+                let card_padding = if is_tight_height { 10.0 } else { 24.0 };
+                let font_size = if is_tight_height { 18.0 } else { 26.0 };
+
                 egui::Frame::group(ui.style())
-                    .inner_margin(24.0)
+                    .inner_margin(card_padding)
                     .corner_radius(8.0)
                     .show(ui, |ui| {
                         ui.vertical_centered(|ui| {
                             ui.label(
                                 egui::RichText::new(&q_text)
-                                    .size(26.0)
+                                    .size(font_size)
                                     .strong(),
                             );
                         });
                     });
 
-                ui.add_space(30.0);
+                let space_after_card = if is_tight_height { 6.0 } else { 30.0 };
+                ui.add_space(space_after_card);
 
-                // Likert Response Options
-                ui.label(
-                    egui::RichText::new("How well does this describe you? (Select or press 1-5):")
-                        .italics()
-                );
-                ui.add_space(10.0);
+                // Likert Response Options Header
+                if !is_tight_height {
+                    ui.label(
+                        egui::RichText::new("How well does this describe you? (Select or press 1-5):")
+                            .italics()
+                    );
+                    ui.add_space(10.0);
+                }
 
                 let responses = [
                     (Response::StronglyDisagree, "Strongly Disagree", "1"),
@@ -367,66 +387,98 @@ impl PersonalityApp {
                     (Response::StronglyAgree, "Strongly Agree", "5"),
                 ];
 
-                for (resp, text, shortcut) in responses {
-                    let is_selected = q_response == Some(resp);
-                    let button_text = format!("[{}]  {}", shortcut, text);
+                // Dynamically select layout orientation for Likert response buttons
+                if is_landscape_mobile {
+                    // Landscape Mobile Layout: Align buttons in a compact horizontal wrapped line!
+                    ui.horizontal_wrapped(|ui| {
+                        for (resp, text, shortcut) in responses {
+                            let is_selected = q_response == Some(resp);
+                            let button_text = format!("[{}] {}", shortcut, text);
 
-                    let mut rich_text = egui::RichText::new(button_text).size(16.0);
-                    if is_selected {
-                        rich_text = rich_text.strong();
+                            let mut rich_text = egui::RichText::new(button_text).size(13.0);
+                            if is_selected {
+                                rich_text = rich_text.strong();
+                            }
+
+                            let btn = egui::Button::new(rich_text)
+                                .min_size(egui::vec2(ui.available_width() / 5.5, 32.0))
+                                .selected(is_selected);
+
+                            if ui.add(btn).clicked() {
+                                self.state.questionnaire.answer_question(curr_idx, resp);
+                            }
+                        }
+                    });
+                } else {
+                    // Portrait or Wide Layout: Align buttons vertically
+                    let button_height = if is_tight_height { 32.0 } else { 42.0 };
+                    let button_text_size = if is_tight_height { 13.0 } else { 16.0 };
+
+                    for (resp, text, shortcut) in responses {
+                        let is_selected = q_response == Some(resp);
+                        let button_text = format!("[{}]  {}", shortcut, text);
+
+                        let mut rich_text = egui::RichText::new(button_text).size(button_text_size);
+                        if is_selected {
+                            rich_text = rich_text.strong();
+                        }
+
+                        let btn = egui::Button::new(rich_text)
+                            .min_size(egui::vec2(ui.available_width().min(340.0), button_height))
+                            .selected(is_selected);
+
+                        if ui.add(btn).clicked() {
+                            self.state.questionnaire.answer_question(curr_idx, resp);
+                        }
+                        ui.add_space(if is_tight_height { 4.0 } else { 6.0 });
                     }
-
-                    let btn = egui::Button::new(rich_text)
-                        .min_size(egui::vec2(ui.available_width().min(340.0), 42.0))
-                        .selected(is_selected);
-
-                    if ui.add(btn).clicked() {
-                        self.state.questionnaire.answer_question(curr_idx, resp);
-                    }
-                    ui.add_space(6.0);
                 }
 
-                ui.add_space(25.0);
+                let space_before_nav = if is_tight_height { 6.0 } else { 25.0 };
+                ui.add_space(space_before_nav);
                 ui.separator();
-                ui.add_space(10.0);
+                ui.add_space(if is_tight_height { 4.0 } else { 10.0 });
 
                 // Navigation and Skip Actions
                 ui.horizontal_wrapped(|ui| {
-                    if ui.button("◀ Prev (Left)").clicked() {
+                    if ui.button("◀ Prev").clicked() {
                         self.state.questionnaire.navigate_previous();
                     }
 
-                    if ui.button("⏪ Prev Unanswered (Shift+Left)").clicked() {
+                    if ui.button("⏪ Unanswered").clicked() {
                         self.state.questionnaire.navigate_previous_unanswered();
                     }
 
-                    if q_response.is_some() && ui.button("🗑 Clear Answer").clicked() {
+                    if q_response.is_some() && ui.button("🗑 Clear").clicked() {
                         self.state.questionnaire.clear_response(curr_idx);
                     }
 
-                    if ui.button("⏩ Next Unanswered (Shift+Right)").clicked() {
+                    if ui.button("Next Unanswered ⏩").clicked() {
                         self.state.questionnaire.navigate_next_unanswered();
                     }
 
-                    if ui.button("Skip / Defer ⏭ (Right)").clicked() {
+                    if ui.button("Skip ⏭").clicked() {
                         self.state.questionnaire.skip_current();
                     }
                 });
 
-                ui.add_space(15.0);
-                ui.label(
-                    egui::RichText::new(
-                        "Navigation: Use Left/Right arrow keys to move. Use Shift + Left/Right arrow keys to jump directly to unanswered questions. Scroll to skip.",
-                    )
-                    .small()
-                    .weak(),
-                );
+                if !is_tight_height {
+                    ui.add_space(15.0);
+                    ui.label(
+                        egui::RichText::new(
+                            "Navigation: Use Left/Right arrow keys to move. Use Shift + Left/Right arrow keys to jump directly to unanswered questions. Scroll to skip.",
+                        )
+                        .small()
+                        .weak(),
+                    );
+                }
 
-                ui.add_space(35.0);
+                let space_before_ref = if is_tight_height { 6.0 } else { 35.0 };
+                ui.add_space(space_before_ref);
                 ui.separator();
-                ui.add_space(10.0);
+                ui.add_space(if is_tight_height { 4.0 } else { 10.0 });
                 ui.horizontal(|ui| {
-                    ui.weak("Reference Methodology:");
+                    ui.weak("Methodology:");
                     ui.hyperlink_to(
                         "doi:10.1177/08902070251352590",
                         "https://doi.org/10.1177/08902070251352590",
