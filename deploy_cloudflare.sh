@@ -31,7 +31,16 @@ else
 fi
 
 # 5. Build static production assets
+echo "Purging old Trunk build caches for a guaranteed up-to-date compile..."
+if [ -d "crates/web/dist" ]; then
+    rm -rf crates/web/dist
+fi
+if [ -d "dist" ]; then
+    rm -rf dist
+fi
+
 echo "Compiling and bundling web application to distribution path..."
+$TRUNK_BIN clean
 $TRUNK_BIN build --release
 
 echo "=== Build Completed Successfully! Static assets are ready in: 'crates/web/dist' ==="
