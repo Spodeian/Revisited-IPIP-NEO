@@ -361,7 +361,6 @@ impl PersonalityApp {
         let is_mobile_portrait = avail_width < 650.0;
         let is_tight_height = avail_height < 530.0 || avail_width < 350.0;
         let is_ultra_tight = avail_width < 330.0 || avail_height < 490.0;
-        let is_landscape_mobile = avail_width > avail_height && avail_height < 500.0;
 
         let _scroll_response = egui::ScrollArea::vertical()
             .auto_shrink([false, false])
@@ -414,63 +413,34 @@ impl PersonalityApp {
                         (Response::StronglyAgree, "Strongly Agree", "5"),
                     ];
 
-                    // Dynamically select layout orientation for Likert response buttons
-                    if is_landscape_mobile {
-                        // Landscape Mobile Layout: Align buttons in a perfect centered horizontal row
-                        ui.allocate_ui_with_layout(
-                            egui::vec2(ui.available_width(), 0.0),
-                            egui::Layout::left_to_right(egui::Align::Center).with_main_align(egui::Align::Center),
-                            |ui| {
-                                let spacing = ui.spacing().item_spacing.x;
-                                let btn_width = ((ui.available_width() - (spacing * 4.0)) / 5.0).max(40.0);
+                    // Clean vertical stack for Likert buttons across all orientations
+                    let button_height = if is_ultra_tight { 26.0 } else if is_tight_height { 32.0 } else if is_mobile_portrait { 36.0 } else { 42.0 };
+                    let button_text_size = if is_ultra_tight { 12.0 } else if is_tight_height { 13.0 } else if is_mobile_portrait { 14.0 } else { 16.0 };
+                    let btn_width = (ui.available_width() - 8.0).min(340.0);
 
-                                for (resp, text, _shortcut) in responses {
-                                    let is_selected = q_response == Some(resp);
-                                    let mut rich_text = egui::RichText::new(text).size(12.0);
-                                    if is_selected {
-                                        rich_text = rich_text.strong();
-                                    }
+                    for (resp, text, shortcut) in responses {
+                        let is_selected = q_response == Some(resp);
 
-                                    let btn = egui::Button::new(rich_text)
-                                        .min_size(egui::vec2(btn_width, 26.0))
-                                        .selected(is_selected);
+                        // Remove keyboard shortcut hints on ultra-tight touchscreens to save space
+                        let button_text = if is_ultra_tight {
+                            text.to_string()
+                        } else {
+                            format!("[{}]  {}", shortcut, text)
+                        };
 
-                                    if ui.add(btn).clicked() {
-                                        self.state.questionnaire.answer_question(curr_idx, resp);
-                                    }
-                                }
-                            },
-                        );
-                    } else {
-                        // Portrait or Wide Layout: Align buttons vertically
-                        let button_height = if is_ultra_tight { 26.0 } else if is_tight_height { 32.0 } else if is_mobile_portrait { 36.0 } else { 42.0 };
-                        let button_text_size = if is_ultra_tight { 12.0 } else if is_tight_height { 13.0 } else if is_mobile_portrait { 14.0 } else { 16.0 };
-                        let btn_width = (ui.available_width() - 8.0).min(340.0);
-
-                        for (resp, text, shortcut) in responses {
-                            let is_selected = q_response == Some(resp);
-
-                            // Remove keyboard shortcut hints on ultra-tight touchscreens to save space
-                            let button_text = if is_ultra_tight {
-                                text.to_string()
-                            } else {
-                                format!("[{}]  {}", shortcut, text)
-                            };
-
-                            let mut rich_text = egui::RichText::new(button_text).size(button_text_size);
-                            if is_selected {
-                                rich_text = rich_text.strong();
-                            }
-
-                            let btn = egui::Button::new(rich_text)
-                                .min_size(egui::vec2(btn_width, button_height))
-                                .selected(is_selected);
-
-                            if ui.add(btn).clicked() {
-                                self.state.questionnaire.answer_question(curr_idx, resp);
-                            }
-                            ui.add_space(if is_ultra_tight { 2.0 } else if is_tight_height { 4.0 } else { 6.0 });
+                        let mut rich_text = egui::RichText::new(button_text).size(button_text_size);
+                        if is_selected {
+                            rich_text = rich_text.strong();
                         }
+
+                        let btn = egui::Button::new(rich_text)
+                            .min_size(egui::vec2(btn_width, button_height))
+                            .selected(is_selected);
+
+                        if ui.add(btn).clicked() {
+                            self.state.questionnaire.answer_question(curr_idx, resp);
+                        }
+                        ui.add_space(if is_ultra_tight { 2.0 } else if is_tight_height { 4.0 } else { 6.0 });
                     }
 
                     let space_before_nav = if is_ultra_tight { 4.0 } else if is_tight_height { 6.0 } else if is_mobile_portrait { 15.0 } else { 25.0 };
