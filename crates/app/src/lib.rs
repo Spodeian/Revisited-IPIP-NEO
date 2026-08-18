@@ -184,50 +184,50 @@ impl eframe::App for PersonalityApp {
         egui::Panel::top("top_panel").show(ui, |ui| {
             let width = ui.available_width();
             let is_mobile = width < 800.0;
-            let top_pad = if is_mobile { 10.0 } else { 6.0 };
+            let top_pad = if is_mobile { 14.0 } else { 8.0 };
             ui.add_space(top_pad);
 
             let title_text = if is_mobile { "IPIP-NEO (TGA)" } else { "Revisited IPIP-NEO Personality Assessment" };
 
             ui.horizontal(|ui| {
                 if is_mobile {
-                    ui.label(egui::RichText::new(title_text).size(18.0).strong());
+                    ui.label(egui::RichText::new(title_text).size(20.0).strong());
                 } else {
                     ui.heading(title_text);
                 }
 
                 ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
                     if is_mobile {
-                        ui.spacing_mut().item_spacing.x = 6.0;
+                        ui.spacing_mut().item_spacing.x = 8.0;
 
-                        // Mobile larger touch-target buttons (min 38x38px for easy thumb tapping)
+                        // Mobile larger touch-target buttons (min 44x44px standard for easy thumb tapping)
                         let results_btn_text = if self.state.questionnaire.show_results { "📝 Questions" } else { "📊 Results" };
-                        let res_btn = egui::Button::new(egui::RichText::new(results_btn_text).size(13.0).strong())
-                            .min_size(egui::vec2(78.0, 38.0));
+                        let res_btn = egui::Button::new(egui::RichText::new(results_btn_text).size(14.0).strong())
+                            .min_size(egui::vec2(96.0, 44.0));
                         if ui.add(res_btn).on_hover_text("Toggle assessment results").clicked() {
                             self.state.questionnaire.show_results = !self.state.questionnaire.show_results;
                         }
 
-                        let reset_btn = egui::Button::new(egui::RichText::new("🔄").size(18.0))
-                            .min_size(egui::vec2(38.0, 38.0));
+                        let reset_btn = egui::Button::new(egui::RichText::new("🔄").size(20.0))
+                            .min_size(egui::vec2(44.0, 44.0));
                         if ui.add(reset_btn).on_hover_text("Reset test and clear all answers").clicked() {
                             self.show_reset_dialog = true;
                         }
 
-                        let gh_btn = egui::Button::new(egui::RichText::new("🐙").size(18.0))
-                            .min_size(egui::vec2(38.0, 38.0));
+                        let gh_btn = egui::Button::new(egui::RichText::new("🐙").size(20.0))
+                            .min_size(egui::vec2(44.0, 44.0));
                         if ui.add(gh_btn).on_hover_text("View source on GitHub").clicked() {
                             ui.ctx().open_url(egui::OpenUrl::new_tab("https://github.com/Spodeian/Revisited-IPIP-NEO"));
                         }
 
-                        let doi_btn = egui::Button::new(egui::RichText::new("📖").size(18.0))
-                            .min_size(egui::vec2(38.0, 38.0));
+                        let doi_btn = egui::Button::new(egui::RichText::new("📖").size(20.0))
+                            .min_size(egui::vec2(44.0, 44.0));
                         if ui.add(doi_btn).on_hover_text("Read the research").clicked() {
                             ui.ctx().open_url(egui::OpenUrl::new_tab("https://doi.org/10.1177/08902070251352590"));
                         }
 
-                        let help_btn = egui::Button::new(egui::RichText::new("❓").size(18.0))
-                            .min_size(egui::vec2(38.0, 38.0));
+                        let help_btn = egui::Button::new(egui::RichText::new("❓").size(20.0))
+                            .min_size(egui::vec2(44.0, 44.0));
                         if ui.add(help_btn).on_hover_text("Help, shortcuts & privacy").clicked() {
                             self.show_help_dialog = true;
                         }
@@ -236,8 +236,8 @@ impl eframe::App for PersonalityApp {
                             ThemeMode::Light => "🌙",
                             ThemeMode::Dark => "☀️",
                         };
-                        let theme_btn = egui::Button::new(egui::RichText::new(theme_icon).size(18.0))
-                            .min_size(egui::vec2(38.0, 38.0));
+                        let theme_btn = egui::Button::new(egui::RichText::new(theme_icon).size(20.0))
+                            .min_size(egui::vec2(44.0, 44.0));
                         if ui.add(theme_btn).on_hover_text("Toggle dark / light theme").clicked() {
                             self.state.config.theme = match self.state.config.theme {
                                 ThemeMode::Light => ThemeMode::Dark,
@@ -707,22 +707,26 @@ impl PersonalityApp {
     }
 
     fn render_dialogs(&mut self, ui: &mut egui::Ui) {
-        // Help & Shortcuts Dialog (Docked to the bottom-left, auto-sizing to fit contents)
+        // Help & Shortcuts Dialog (Docked to bottom-left, expanding upward & outward with generous sizing)
         if self.show_help_dialog {
             let mut open = true;
-            let max_w = (ui.available_width() - 24.0).min(480.0);
-            let max_h = (ui.available_height() - 32.0).min(520.0);
+            let win_w = (ui.available_width() - 24.0).clamp(320.0, 480.0);
+            let win_h = (ui.available_height() - 32.0).clamp(380.0, 460.0);
 
             egui::Window::new("❓ Help & Information")
                 .open(&mut open)
                 .resizable(true)
                 .collapsible(true)
-                .auto_sized()
-                .max_width(max_w)
-                .max_height(max_h)
+                .default_size(egui::vec2(win_w, win_h))
+                .min_width(300.0)
+                .min_height(340.0)
+                .max_width((ui.available_width() - 16.0).min(520.0))
+                .max_height(ui.available_height() - 20.0)
                 .anchor(egui::Align2::LEFT_BOTTOM, egui::vec2(12.0, -12.0))
                 .show(ui.ctx(), |ui| {
-                    egui::ScrollArea::vertical().show(ui, |ui| {
+                    egui::ScrollArea::vertical()
+                        .auto_shrink([false, false])
+                        .show(ui, |ui| {
                         ui.heading("Keyboard Shortcuts & Navigation");
                         ui.add_space(4.0);
                         ui.label("• 1, 2, 3, 4, 5: Select response (Strongly Disagree to Strongly Agree)");
