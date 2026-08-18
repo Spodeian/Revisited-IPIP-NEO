@@ -193,6 +193,21 @@ pub fn export_to_csv(state: &QuestionnaireState) -> String {
     out
 }
 
+fn escape_html(input: &str) -> String {
+    let mut out = String::with_capacity(input.len());
+    for c in input.chars() {
+        match c {
+            '&' => out.push_str("&amp;"),
+            '<' => out.push_str("&lt;"),
+            '>' => out.push_str("&gt;"),
+            '"' => out.push_str("&quot;"),
+            '\'' => out.push_str("&#39;"),
+            _ => out.push(c),
+        }
+    }
+    out
+}
+
 pub fn export_to_printable_html(state: &QuestionnaireState) -> String {
     let report = FullAssessmentReport::from_state(state);
 
@@ -220,8 +235,8 @@ pub fn export_to_printable_html(state: &QuestionnaireState) -> String {
         </div>
     </div>
     <div class="traits-container">"#,
-            meta.display_name(),
-            meta_tier,
+            escape_html(meta.display_name()),
+            escape_html(meta_tier),
             meta_score,
             meta_se,
             meta_acc.raw_score,
@@ -262,8 +277,8 @@ pub fn export_to_printable_html(state: &QuestionnaireState) -> String {
                 </tr>
             </thead>
             <tbody>"#,
-                trait_item.display_name(),
-                trait_tier,
+                escape_html(trait_item.display_name()),
+                escape_html(trait_tier),
                 trait_score,
                 trait_se,
                 trait_acc.raw_score,
@@ -286,8 +301,8 @@ pub fn export_to_printable_html(state: &QuestionnaireState) -> String {
                         <td>{:.2}</td>
                         <td>{}/{}</td>
                     </tr>"#,
-                    facet.display_name(),
-                    facet_tier,
+                    escape_html(facet.display_name()),
+                    escape_html(facet_tier),
                     facet_score,
                     facet_se,
                     facet_acc.raw_score,
@@ -316,12 +331,12 @@ pub fn export_to_printable_html(state: &QuestionnaireState) -> String {
         item_rows.push_str(&format!(
             "<tr><td>{}</td><td><strong>{}</strong></td><td>{}</td><td>{}</td><td>{}</td><td>{}</td><td><span class='badge'>{}</span></td><td>{}</td></tr>",
             item.question_number,
-            item.label,
-            item.text,
-            item.meta_trait,
-            item.r#trait,
-            item.facet,
-            resp_label,
+            escape_html(&item.label),
+            escape_html(&item.text),
+            escape_html(&item.meta_trait),
+            escape_html(&item.r#trait),
+            escape_html(&item.facet),
+            escape_html(resp_label),
             resp_score
         ));
     }

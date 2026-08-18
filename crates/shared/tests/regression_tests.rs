@@ -49,6 +49,6 @@ fn test_export_generation() {
     assert!(json.contains("\"answered_questions\": 1"));
 
     let html = export_to_printable_html(&state);
-    assert!(html.contains("Revisited IPIP-NEO Personality Assessment Report"));
-    assert!(html.contains("Meta-Traits"));
+    assert!(html.contains("Revisited IPIP-NEO (TGA) Personality Assessment Report"));
+    assert!(html.contains("Hierarchical Psychometric Breakdown"));
 }

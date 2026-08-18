@@ -1,0 +1,263 @@
+# CONSTRUCT SCORES
+Level,Construct,Tier,Normalized Score [-1 to +1],Standard Error (SE),Raw Score,Abs Weight Sum,Answered Items,Total Items
+"Meta-Trait","Stability","Low",-0.5000,1.0000,-0.2110,0.4220,1,82
+"Meta-Trait","Plasticity","Average",0.0000,1.0000,0.0000,0.4660,1,99
+"Meta-Trait","Disinhibition","N/A",N/A,N/A,0.0000,0.0000,0,40
+"Trait","Neuroticism","High",0.5000,1.0000,0.2070,0.4140,1,48
+"Trait","Sociability","Average",0.0000,1.0000,0.0000,0.1990,1,58
+"Trait","Conscientiousness","N/A",N/A,N/A,0.0000,0.0000,0,34
+"Trait","Integrity","N/A",N/A,N/A,0.0000,0.0000,0,14
+"Trait","Openness to Experience","N/A",N/A,N/A,0.0000,0.0000,0,41
+"Trait","Impulsivity","N/A",N/A,N/A,0.0000,0.0000,0,26
+"Facet","Anxiety","N/A",N/A,N/A,0.0000,0.0000,0,18
+"Facet","Gregariousness","N/A",N/A,N/A,0.0000,0.0000,0,22
+"Facet","Trust","N/A",N/A,N/A,0.0000,0.0000,0,3
+"Facet","Self-efficacy","N/A",N/A,N/A,0.0000,0.0000,0,7
+"Facet","Anger","N/A",N/A,N/A,0.0000,0.0000,0,9
+"Facet","Fairness","N/A",N/A,N/A,0.0000,0.0000,0,5
+"Facet","Orderliness","N/A",N/A,N/A,0.0000,0.0000,0,11
+"Facet","Dominance","N/A",N/A,N/A,0.0000,0.0000,0,14
+"Facet","Emotionality","High",0.5000,1.0000,0.2485,0.4970,1,7
+"Facet","Adventurousness","N/A",N/A,N/A,0.0000,0.0000,0,9
+"Facet","Determination","N/A",N/A,N/A,0.0000,0.0000,0,4
+"Facet","Excitement-seeking","N/A",N/A,N/A,0.0000,0.0000,0,5
+"Facet","Intellect","N/A",N/A,N/A,0.0000,0.0000,0,10
+"Facet","Attention-seeking","Average",0.0000,1.0000,0.0000,0.5340,1,7
+"Facet","Cheerfulness","N/A",N/A,N/A,0.0000,0.0000,0,9
+"Facet","Liberalism","N/A",N/A,N/A,0.0000,0.0000,0,9
+"Facet","Artistic Interests","N/A",N/A,N/A,0.0000,0.0000,0,7
+"Facet","Empathy","N/A",N/A,N/A,0.0000,0.0000,0,14
+"Facet","Work Ethic","N/A",N/A,N/A,0.0000,0.0000,0,5
+"Facet","Cautiousness","N/A",N/A,N/A,0.0000,0.0000,0,10
+"Facet","Manipulativeness","N/A",N/A,N/A,0.0000,0.0000,0,6
+"Facet","Humility","N/A",N/A,N/A,0.0000,0.0000,0,3
+"Facet","Introspection","N/A",N/A,N/A,0.0000,0.0000,0,6
+"Facet","Honesty","N/A",N/A,N/A,0.0000,0.0000,0,3
+"Facet","Immoderation","N/A",N/A,N/A,0.0000,0.0000,0,6
+"Facet","Self-discipline","N/A",N/A,N/A,0.0000,0.0000,0,4
+"Facet","Recklessness","N/A",N/A,N/A,0.0000,0.0000,0,5
+"Facet","Calmness","N/A",N/A,N/A,0.0000,0.0000,0,3
+
+# ITEM RESPONSES
+Question #,Label,Question Text,Meta-Trait,Meta Weight,Trait,Trait Weight,Facet,Facet Weight,Response,Numeric Score
+1,"Assertiveness_252","Don't like to draw attention to myself.","Plasticity",-0.466,"Sociability",-0.199,"Attention-seeking",-0.534,"Neutral",0.0
+2,"Anxiety_1","Worry about things.","Stability",-0.422,"Neuroticism",0.493,"Anxiety",0.487,"Unanswered",N/A
+3,"Intellect_233","Have difficulty understanding abstract ideas.","Plasticity",-0.466,"Openness to Experience",-0.459,"Intellect",-0.569,"Unanswered",N/A
+4,"Cautiousness_270","Act without thinking.","Disinhibition",-0.580,"Impulsivity",0.445,"Cautiousness",-0.682,"Unanswered",N/A
+5,"Orderliness_40","Like to tidy up.","Stability",0.422,"Conscientiousness",0.322,"Orderliness",0.607,"Unanswered",N/A
+6,"Friendliness_62","Feel comfortable around people.","Plasticity",0.466,"Sociability",0.746,"Gregariousness",0.605,"Unanswered",N/A
+7,"Morality_99","Use others for my own ends.","Disinhibition",-0.580,"Integrity",-0.429,"Manipulativeness",0.488,"Unanswered",N/A
+8,"Emotionality_13","Experience my emotions intensely.","Stability",-0.422,"Neuroticism",0.414,"Emotionality",0.497,"Agree",0.5
+9,"Intellect_143","Enjoy thinking about things.","Plasticity",0.466,"Openness to Experience",0.450,"Introspection",0.511,"Unanswered",N/A
+10,"Self.Efficacy_65","Handle tasks smoothly.","Stability",0.422,"Conscientiousness",0.459,"Self-efficacy",0.410,"Unanswered",N/A
+11,"Altruism_104","Am concerned about others.","Plasticity",0.466,"Sociability",0.397,"Empathy",0.671,"Unanswered",N/A
+12,"Cooperation_49","Can't stand confrontations.","Stability",0.422,"Neuroticism",-0.106,"Dominance",-0.460,"Unanswered",N/A
+13,"Excitement.Seeking_52","Seek adventure.","Disinhibition",0.580,"Impulsivity",0.390,"Excitement-seeking",0.547,"Unanswered",N/A
+14,"Dutifulness_165","Break rules.","Disinhibition",0.580,"Integrity",-0.427,"Fairness",-0.589,"Unanswered",N/A
+15,"Cheerfulness_207","Laugh aloud.","Plasticity",0.466,"Sociability",0.400,"Cheerfulness",0.459,"Unanswered",N/A
+16,"Adventurousness_198","Don't like the idea of change.","Plasticity",-0.466,"Openness to Experience",-0.319,"Adventurousness",-0.597,"Unanswered",N/A
+17,"Anger_6","Get angry easily.","Stability",-0.422,"Neuroticism",0.629,"Anger",0.570,"Unanswered",N/A
+18,"Gregariousness_37","Talk to a lot of different people at parties.","Plasticity",0.466,"Sociability",0.746,"Gregariousness",0.490,"Unanswered",N/A
+19,"Achievement.Striving_80","Turn plans into actions.","Stability",0.422,"Conscientiousness",0.496,"Determination",0.446,"Unanswered",N/A
+20,"Liberalism_28","Tend to vote for liberal political candidates.","Plasticity",0.466,"Openness to Experience",0.237,"Liberalism",0.547,"Unanswered",N/A
+21,"Vulnerability_26","Panic easily.","Stability",-0.422,"Neuroticism",0.493,"Anxiety",0.494,"Unanswered",N/A
+22,"Excitement.Seeking_232","Seek danger.","Disinhibition",0.580,"Impulsivity",0.546,"Recklessness",0.500,"Unanswered",N/A
+23,"Artistic.Interests_158","Do not like art.","Plasticity",-0.466,"Openness to Experience",-0.371,"Artistic Interests",-0.525,"Unanswered",N/A
+24,"Dutifulness_105","Tell the truth.","Disinhibition",-0.580,"Integrity",0.387,"Honesty",0.529,"Unanswered",N/A
+25,"Achievement.Striving_260","Do just enough work to get by.","Stability",-0.422,"Conscientiousness",-0.509,"Work Ethic",-0.499,"Unanswered",N/A
+26,"Immoderation_171","Rarely overindulge.","Disinhibition",-0.580,"Impulsivity",-0.178,"Immoderation",-0.623,"Unanswered",N/A
+27,"Altruism_194","Am indifferent to the feelings of others.","Plasticity",-0.466,"Sociability",-0.397,"Empathy",-0.493,"Unanswered",N/A
+28,"Morality_189","Put people under pressure.","Stability",-0.422,"Neuroticism",0.106,"Dominance",0.392,"Unanswered",N/A
+29,"Self.Discipline_175","Find it difficult to get down to work.","Stability",-0.422,"Conscientiousness",-0.591,"Self-discipline",-0.557,"Unanswered",N/A
+30,"Morality_249","Take advantage of others.","Disinhibition",-0.580,"Integrity",-0.429,"Manipulativeness",0.485,"Unanswered",N/A
+31,"Cautiousness_120","Jump into things without thinking.","Disinhibition",-0.580,"Impulsivity",0.445,"Cautiousness",-0.588,"Unanswered",N/A
+32,"Trust_4","Trust others.","Plasticity",0.466,"Sociability",0.293,"Trust",0.504,"Unanswered",N/A
+33,"Intellect_83","Have a rich vocabulary.","Plasticity",0.466,"Openness to Experience",0.459,"Intellect",0.487,"Unanswered",N/A
+34,"Anger_36","Get irritated easily.","Stability",-0.422,"Neuroticism",0.629,"Anger",0.516,"Unanswered",N/A
+35,"Orderliness_10","Like order.","Stability",0.422,"Conscientiousness",0.322,"Orderliness",0.473,"Unanswered",N/A
+36,"Dutifulness_195","Break my promises.","Disinhibition",0.580,"Integrity",-0.387,"Honesty",-0.386,"Unanswered",N/A
+37,"Cheerfulness_297","Seldom joke around.","Plasticity",-0.466,"Sociability",-0.400,"Cheerfulness",-0.484,"Unanswered",N/A
+38,"Excitement.Seeking_82","Love action.","Disinhibition",0.580,"Impulsivity",0.390,"Excitement-seeking",0.482,"Unanswered",N/A
+39,"Emotionality_193","Am not easily affected by my emotions.","Stability",0.422,"Neuroticism",-0.414,"Emotionality",-0.493,"Unanswered",N/A
+40,"Gregariousness_7","Love large parties.","Plasticity",0.466,"Sociability",0.746,"Gregariousness",0.470,"Unanswered",N/A
+41,"Adventurousness_138","Prefer to stick with things that I know.","Plasticity",-0.466,"Openness to Experience",-0.319,"Adventurousness",-0.454,"Unanswered",N/A
+42,"Activity.Level_197","Like to take my time.","Stability",0.422,"Conscientiousness",-0.126,"Calmness",0.414,"Unanswered",N/A
+43,"Liberalism_88","Believe that criminals should receive help rather than punishment.","Plasticity",0.466,"Openness to Experience",0.237,"Liberalism",0.519,"Unanswered",N/A
+44,"Excitement.Seeking_142","Enjoy being reckless.","Disinhibition",0.580,"Impulsivity",0.546,"Recklessness",0.433,"Unanswered",N/A
+45,"Self.Efficacy_155","Know how to get things done.","Stability",0.422,"Conscientiousness",0.459,"Self-efficacy",0.383,"Unanswered",N/A
+46,"Dutifulness_15","Try to follow the rules.","Disinhibition",-0.580,"Integrity",0.427,"Fairness",0.394,"Unanswered",N/A
+47,"Artistic.Interests_128","Enjoy the beauty of nature.","Plasticity",0.466,"Openness to Experience",0.371,"Artistic Interests",0.440,"Unanswered",N/A
+48,"Modesty_144","Believe that I am better than others.","Plasticity",-0.466,"Sociability",-0.095,"Humility",-0.644,"Unanswered",N/A
+49,"Self.Discipline_145","Carry out my plans.","Stability",0.422,"Conscientiousness",0.496,"Determination",0.457,"Unanswered",N/A
+50,"Achievement.Striving_290","Put little time and effort into my work.","Stability",-0.422,"Conscientiousness",-0.509,"Work Ethic",-0.429,"Unanswered",N/A
+51,"Imagination_153","Spend time reflecting on things.","Plasticity",0.466,"Openness to Experience",0.450,"Introspection",0.482,"Unanswered",N/A
+52,"Anxiety_91","Get stressed out easily.","Stability",-0.422,"Neuroticism",0.493,"Anxiety",0.523,"Unanswered",N/A
+53,"Modesty_294","Make myself the center of attention.","Plasticity",0.466,"Sociability",0.199,"Attention-seeking",0.548,"Unanswered",N/A
+54,"Immoderation_231","Am able to control my cravings.","Disinhibition",-0.580,"Impulsivity",-0.178,"Immoderation",-0.506,"Unanswered",N/A
+55,"Trust_214","Suspect hidden motives in others.","Plasticity",-0.466,"Sociability",-0.293,"Trust",-0.452,"Unanswered",N/A
+56,"Self.Discipline_115","Get to work at once.","Stability",0.422,"Conscientiousness",0.591,"Self-discipline",0.352,"Unanswered",N/A
+57,"Activity.Level_257","Let things proceed at their own pace.","Stability",0.422,"Conscientiousness",-0.126,"Calmness",0.337,"Unanswered",N/A
+58,"Altruism_164","Look down on others.","Plasticity",-0.466,"Sociability",-0.095,"Humility",-0.397,"Unanswered",N/A
+59,"Friendliness_242","Am not really interested in others.","Plasticity",-0.466,"Sociability",-0.397,"Empathy",-0.458,"Unanswered",N/A
+60,"Cautiousness_210","Rush into things.","Disinhibition",-0.580,"Impulsivity",0.445,"Cautiousness",-0.517,"Unanswered",N/A
+61,"Cooperation_109","Have a sharp tongue.","Stability",-0.422,"Neuroticism",0.106,"Dominance",0.365,"Unanswered",N/A
+62,"Gregariousness_247","Avoid crowds.","Plasticity",-0.466,"Sociability",-0.746,"Gregariousness",-0.468,"Unanswered",N/A
+63,"Morality_129","Know how to get around the rules.","Disinhibition",0.580,"Integrity",-0.427,"Fairness",-0.318,"Unanswered",N/A
+64,"Anger_186","Seldom get mad.","Stability",0.422,"Neuroticism",-0.629,"Anger",-0.492,"Unanswered",N/A
+65,"Excitement.Seeking_22","Love excitement.","Disinhibition",0.580,"Impulsivity",0.390,"Excitement-seeking",0.426,"Unanswered",N/A
+66,"Dutifulness_225","Get others to do my duties.","Disinhibition",-0.580,"Integrity",-0.429,"Manipulativeness",0.329,"Unanswered",N/A
+67,"Emotionality_163","Seldom get emotional.","Stability",0.422,"Neuroticism",-0.414,"Emotionality",-0.508,"Unanswered",N/A
+68,"Intellect_113","Can handle a lot of information.","Plasticity",0.466,"Openness to Experience",0.459,"Intellect",0.407,"Unanswered",N/A
+69,"Orderliness_220","Leave my belongings around.","Stability",-0.422,"Conscientiousness",-0.322,"Orderliness",-0.448,"Unanswered",N/A
+70,"Cheerfulness_117","Laugh my way through life.","Plasticity",0.466,"Sociability",0.400,"Cheerfulness",0.409,"Unanswered",N/A
+71,"Excitement.Seeking_262","Would never go hang gliding or bungee jumping.","Disinhibition",-0.580,"Impulsivity",-0.546,"Recklessness",-0.349,"Unanswered",N/A
+72,"Anxiety_31","Fear for the worst.","Stability",-0.422,"Neuroticism",0.493,"Anxiety",0.453,"Unanswered",N/A
+73,"Artistic.Interests_188","Do not like poetry.","Plasticity",-0.466,"Openness to Experience",-0.371,"Artistic Interests",-0.395,"Unanswered",N/A
+74,"Self.Efficacy_35","Excel in what I do.","Stability",0.422,"Conscientiousness",0.459,"Self-efficacy",0.358,"Unanswered",N/A
+75,"Adventurousness_228","Am a creature of habit.","Plasticity",-0.466,"Openness to Experience",-0.319,"Adventurousness",-0.357,"Unanswered",N/A
+76,"Achievement.Striving_140","Do more than what's expected of me.","Stability",0.422,"Conscientiousness",0.509,"Work Ethic",0.426,"Unanswered",N/A
+77,"Dutifulness_135","Listen to my conscience.","Disinhibition",-0.580,"Integrity",0.387,"Honesty",0.232,"Unanswered",N/A
+78,"Sympathy_209","Believe in an eye for an eye.","Plasticity",-0.466,"Openness to Experience",-0.237,"Liberalism",-0.378,"Unanswered",N/A
+79,"Self.Discipline_235","Need a push to get started.","Stability",-0.422,"Conscientiousness",-0.591,"Self-discipline",-0.328,"Unanswered",N/A
+80,"Imagination_243","Seldom get lost in thought.","Plasticity",-0.466,"Openness to Experience",-0.450,"Introspection",-0.359,"Unanswered",N/A
+81,"Immoderation_111","Go on binges.","Disinhibition",0.580,"Impulsivity",0.178,"Immoderation",0.376,"Unanswered",N/A
+82,"Trust_124","Believe in human goodness.","Plasticity",0.466,"Sociability",0.293,"Trust",0.332,"Unanswered",N/A
+83,"Achievement.Striving_20","Go straight for the goal.","Stability",0.422,"Conscientiousness",0.496,"Determination",0.283,"Unanswered",N/A
+84,"Modesty_24","Dislike being the center of attention.","Plasticity",-0.466,"Sociability",-0.199,"Attention-seeking",-0.359,"Unanswered",N/A
+85,"Activity.Level_227","Like a leisurely lifestyle.","Stability",0.422,"Conscientiousness",-0.126,"Calmness",0.302,"Unanswered",N/A
+86,"Morality_159","Cheat to get ahead.","Disinhibition",0.580,"Integrity",-0.427,"Fairness",-0.316,"Unanswered",N/A
+87,"Gregariousness_187","Want to be left alone.","Plasticity",-0.466,"Sociability",-0.746,"Gregariousness",-0.464,"Unanswered",N/A
+88,"Altruism_74","Love to help others.","Plasticity",0.466,"Sociability",0.397,"Empathy",0.452,"Unanswered",N/A
+89,"Anger_156","Rarely get irritated.","Stability",0.422,"Neuroticism",-0.629,"Anger",-0.488,"Unanswered",N/A
+90,"Cautiousness_150","Make rash decisions.","Disinhibition",-0.580,"Impulsivity",0.445,"Cautiousness",-0.449,"Unanswered",N/A
+91,"Assertiveness_282","Hold back my opinions.","Stability",0.422,"Neuroticism",-0.106,"Dominance",-0.328,"Unanswered",N/A
+92,"Vulnerability_146","Get overwhelmed by emotions.","Stability",-0.422,"Neuroticism",0.414,"Emotionality",0.414,"Unanswered",N/A
+93,"Morality_279","Obstruct others' plans.","Disinhibition",-0.580,"Integrity",-0.429,"Manipulativeness",0.263,"Unanswered",N/A
+94,"Intellect_293","Avoid difficult reading material.","Plasticity",-0.466,"Openness to Experience",-0.459,"Intellect",-0.404,"Unanswered",N/A
+95,"Cheerfulness_237","Amuse my friends.","Plasticity",0.466,"Sociability",0.400,"Cheerfulness",0.393,"Unanswered",N/A
+96,"Anxiety_61","Am afraid of many things.","Stability",-0.422,"Neuroticism",0.493,"Anxiety",0.393,"Unanswered",N/A
+97,"Artistic.Interests_98","Love flowers.","Plasticity",0.466,"Openness to Experience",0.371,"Artistic Interests",0.367,"Unanswered",N/A
+98,"Excitement.Seeking_202","Willing to try anything once.","Disinhibition",0.580,"Impulsivity",0.546,"Recklessness",0.262,"Unanswered",N/A
+99,"Achievement.Striving_50","Work hard.","Stability",0.422,"Conscientiousness",0.509,"Work Ethic",0.382,"Unanswered",N/A
+100,"Adventurousness_108","Like to begin new things.","Plasticity",0.466,"Openness to Experience",0.319,"Adventurousness",0.341,"Unanswered",N/A
+101,"Orderliness_70","Want everything to be just right.","Stability",0.422,"Conscientiousness",0.322,"Orderliness",0.349,"Unanswered",N/A
+102,"Modesty_84","Consider myself an average person.","Plasticity",0.466,"Sociability",0.095,"Humility",0.248,"Unanswered",N/A
+103,"Adventurousness_48","Like to visit new places.","Disinhibition",0.580,"Impulsivity",0.390,"Excitement-seeking",0.274,"Unanswered",N/A
+104,"Liberalism_208","Believe laws should be strictly enforced.","Plasticity",-0.466,"Openness to Experience",-0.237,"Liberalism",-0.351,"Unanswered",N/A
+105,"Self.Efficacy_5","Complete tasks successfully.","Stability",0.422,"Conscientiousness",0.459,"Self-efficacy",0.279,"Unanswered",N/A
+106,"Immoderation_201","Easily resist temptations.","Disinhibition",-0.580,"Impulsivity",-0.178,"Immoderation",-0.341,"Unanswered",N/A
+107,"Morality_9","Would never cheat on my taxes.","Disinhibition",-0.580,"Integrity",0.427,"Fairness",0.305,"Unanswered",N/A
+108,"Friendliness_92","Act comfortably with others.","Plasticity",0.466,"Sociability",0.746,"Gregariousness",0.449,"Unanswered",N/A
+109,"Self.Consciousness_106","Am afraid to draw attention to myself.","Plasticity",-0.466,"Sociability",-0.199,"Attention-seeking",-0.350,"Unanswered",N/A
+110,"Self.Discipline_205","Waste my time.","Stability",-0.422,"Conscientiousness",-0.591,"Self-discipline",-0.262,"Unanswered",N/A
+111,"Emotionality_103","Enjoy examining myself and my life.","Plasticity",0.466,"Openness to Experience",0.450,"Introspection",0.266,"Unanswered",N/A
+112,"Sympathy_59","Feel sympathy for those who are worse off than myself.","Plasticity",0.466,"Sociability",0.397,"Empathy",0.409,"Unanswered",N/A
+113,"Anger_216","Am not easily annoyed.","Stability",0.422,"Neuroticism",-0.629,"Anger",-0.415,"Unanswered",N/A
+114,"Achievement.Striving_230","Am not highly motivated to succeed.","Stability",-0.422,"Conscientiousness",-0.496,"Determination",-0.210,"Unanswered",N/A
+115,"Anxiety_241","Don't worry about things that have already happened.","Stability",0.422,"Neuroticism",-0.493,"Anxiety",-0.383,"Unanswered",N/A
+116,"Cooperation_169","Love a good fight.","Stability",-0.422,"Neuroticism",0.106,"Dominance",0.325,"Unanswered",N/A
+117,"Cheerfulness_267","Am not easily amused.","Plasticity",-0.466,"Sociability",-0.400,"Cheerfulness",-0.383,"Unanswered",N/A
+118,"Modesty_234","Know the answers to many questions.","Plasticity",0.466,"Openness to Experience",0.459,"Intellect",0.376,"Unanswered",N/A
+119,"Morality_69","Use flattery to get ahead.","Disinhibition",-0.580,"Integrity",-0.429,"Manipulativeness",0.205,"Unanswered",N/A
+120,"Excitement.Seeking_172","Act wild and crazy.","Disinhibition",0.580,"Impulsivity",0.546,"Recklessness",0.235,"Unanswered",N/A
+121,"Adventurousness_18","Prefer variety to routine.","Plasticity",0.466,"Openness to Experience",0.319,"Adventurousness",0.336,"Unanswered",N/A
+122,"Emotionality_253","Experience very few emotional highs and lows.","Stability",0.422,"Neuroticism",-0.414,"Emotionality",-0.328,"Unanswered",N/A
+123,"Self.Discipline_25","Get chores done right away.","Stability",0.422,"Conscientiousness",0.322,"Orderliness",0.340,"Unanswered",N/A
+124,"Artistic.Interests_68","See beauty in things that others might not notice.","Plasticity",0.466,"Openness to Experience",0.371,"Artistic Interests",0.335,"Unanswered",N/A
+125,"Self.Efficacy_125","Come up with good solutions.","Stability",0.422,"Conscientiousness",0.459,"Self-efficacy",0.264,"Unanswered",N/A
+126,"Cautiousness_180","Like to act on a whim.","Disinhibition",-0.580,"Impulsivity",0.445,"Cautiousness",-0.284,"Unanswered",N/A
+127,"Friendliness_212","Avoid contacts with others.","Plasticity",-0.466,"Sociability",-0.746,"Gregariousness",-0.446,"Unanswered",N/A
+128,"Imagination_123","Indulge in my fantasies.","Plasticity",0.466,"Openness to Experience",0.450,"Introspection",0.264,"Unanswered",N/A
+129,"Modesty_54","Dislike talking about myself.","Plasticity",-0.466,"Sociability",-0.199,"Attention-seeking",-0.337,"Unanswered",N/A
+130,"Immoderation_141","Love to eat.","Disinhibition",0.580,"Impulsivity",0.178,"Immoderation",0.273,"Unanswered",N/A
+131,"Sympathy_149","Am not interested in other people's problems.","Plasticity",-0.466,"Sociability",-0.397,"Empathy",-0.401,"Unanswered",N/A
+132,"Sympathy_269","Believe people should fend for themselves.","Plasticity",-0.466,"Openness to Experience",-0.237,"Liberalism",-0.284,"Unanswered",N/A
+133,"Vulnerability_86","Feel that I'm unable to deal with things.","Stability",-0.422,"Neuroticism",0.493,"Anxiety",0.376,"Unanswered",N/A
+134,"Anger_66","Get upset easily.","Stability",-0.422,"Neuroticism",0.629,"Anger",0.408,"Unanswered",N/A
+135,"Emotionality_283","Don't understand people who get emotional.","Stability",0.422,"Neuroticism",-0.414,"Emotionality",-0.324,"Unanswered",N/A
+136,"Cooperation_229","Insult people.","Stability",-0.422,"Neuroticism",0.106,"Dominance",0.320,"Unanswered",N/A
+137,"Cheerfulness_27","Radiate joy.","Plasticity",0.466,"Sociability",0.400,"Cheerfulness",0.331,"Unanswered",N/A
+138,"Adventurousness_288","Am attached to conventional ways.","Plasticity",-0.466,"Openness to Experience",-0.319,"Adventurousness",-0.321,"Unanswered",N/A
+139,"Dutifulness_255","Do the opposite of what is asked.","Disinhibition",-0.580,"Integrity",-0.429,"Manipulativeness",0.155,"Unanswered",N/A
+140,"Orderliness_250","Am not bothered by messy people.","Stability",-0.422,"Conscientiousness",-0.322,"Orderliness",-0.316,"Unanswered",N/A
+141,"Artistic.Interests_278","Do not enjoy watching dance performances.","Plasticity",-0.466,"Openness to Experience",-0.371,"Artistic Interests",-0.307,"Unanswered",N/A
+142,"Achievement.Striving_110","Plunge into tasks with all my heart.","Stability",0.422,"Conscientiousness",0.509,"Work Ethic",0.209,"Unanswered",N/A
+143,"Friendliness_2","Make friends easily.","Plasticity",0.466,"Sociability",0.746,"Gregariousness",0.432,"Unanswered",N/A
+144,"Intellect_203","Avoid philosophical discussions.","Plasticity",-0.466,"Openness to Experience",-0.459,"Intellect",-0.309,"Unanswered",N/A
+145,"Self.Efficacy_275","Don't see the consequences of things.","Disinhibition",-0.580,"Impulsivity",0.445,"Cautiousness",-0.233,"Unanswered",N/A
+146,"Vulnerability_56","Become overwhelmed by events.","Stability",-0.422,"Neuroticism",0.493,"Anxiety",0.354,"Unanswered",N/A
+147,"Imagination_213","Do not have a good imagination.","Plasticity",-0.466,"Openness to Experience",-0.450,"Introspection",-0.231,"Unanswered",N/A
+148,"Modesty_114","Seldom toot my own horn.","Plasticity",-0.466,"Sociability",-0.199,"Attention-seeking",-0.296,"Unanswered",N/A
+149,"Activity.Level_107","Can manage many things at the same time.","Stability",0.422,"Conscientiousness",0.459,"Self-efficacy",0.196,"Unanswered",N/A
+150,"Immoderation_291","Never splurge.","Disinhibition",-0.580,"Impulsivity",-0.178,"Immoderation",-0.222,"Unanswered",N/A
+151,"Liberalism_298","Like to stand during the national anthem.","Plasticity",-0.466,"Openness to Experience",-0.237,"Liberalism",-0.251,"Unanswered",N/A
+152,"Sympathy_119","Suffer from others' sorrows.","Plasticity",0.466,"Sociability",0.397,"Empathy",0.318,"Unanswered",N/A
+153,"Cheerfulness_87","Express childlike joy.","Plasticity",0.466,"Sociability",0.400,"Cheerfulness",0.325,"Unanswered",N/A
+154,"Cooperation_139","Contradict others.","Stability",-0.422,"Neuroticism",0.106,"Dominance",0.313,"Unanswered",N/A
+155,"Activity.Level_47","Am always on the go.","Disinhibition",0.580,"Impulsivity",0.390,"Excitement-seeking",0.126,"Unanswered",N/A
+156,"Cooperation_199","Yell at people.","Stability",-0.422,"Neuroticism",0.629,"Anger",0.311,"Unanswered",N/A
+157,"Self.Efficacy_215","Don't understand things.","Plasticity",-0.466,"Openness to Experience",-0.459,"Intellect",-0.305,"Unanswered",N/A
+158,"Emotionality_223","Rarely notice my emotional reactions.","Stability",0.422,"Neuroticism",-0.414,"Emotionality",-0.266,"Unanswered",N/A
+159,"Self.Discipline_55","Am always prepared.","Stability",0.422,"Conscientiousness",0.322,"Orderliness",0.273,"Unanswered",N/A
+160,"Friendliness_272","Keep others at a distance.","Plasticity",-0.466,"Sociability",-0.746,"Gregariousness",-0.417,"Unanswered",N/A
+161,"Cautiousness_300","Often make last-minute plans.","Disinhibition",-0.580,"Impulsivity",0.445,"Cautiousness",-0.189,"Unanswered",N/A
+162,"Anxiety_271","Adapt easily to new situations.","Plasticity",0.466,"Openness to Experience",0.319,"Adventurousness",0.252,"Unanswered",N/A
+163,"Anxiety_121","Get caught up in my problems.","Stability",-0.422,"Neuroticism",0.493,"Anxiety",0.332,"Unanswered",N/A
+164,"Altruism_284","Take no time for others.","Plasticity",-0.466,"Sociability",-0.397,"Empathy",-0.315,"Unanswered",N/A
+165,"Liberalism_178","Believe that too much tax money goes to support artists.","Plasticity",-0.466,"Openness to Experience",-0.237,"Liberalism",-0.239,"Unanswered",N/A
+166,"Modesty_264","Boast about my virtues.","Plasticity",0.466,"Sociability",0.199,"Attention-seeking",0.276,"Unanswered",N/A
+167,"Self.Efficacy_245","Have little to contribute.","Stability",-0.422,"Conscientiousness",-0.459,"Self-efficacy",-0.164,"Unanswered",N/A
+168,"Cheerfulness_57","Have a lot of fun.","Plasticity",0.466,"Sociability",0.400,"Cheerfulness",0.312,"Unanswered",N/A
+169,"Orderliness_130","Do things according to a plan.","Stability",0.422,"Conscientiousness",0.322,"Orderliness",0.270,"Unanswered",N/A
+170,"Self.Consciousness_286","Am able to stand up for myself.","Stability",-0.422,"Neuroticism",0.106,"Dominance",0.312,"Unanswered",N/A
+171,"Anger_246","Keep my cool.","Stability",0.422,"Neuroticism",-0.629,"Anger",-0.282,"Unanswered",N/A
+172,"Intellect_173","Am not interested in abstract ideas.","Plasticity",-0.466,"Openness to Experience",-0.459,"Intellect",-0.272,"Unanswered",N/A
+173,"Immoderation_51","Don't know why I do some of the things I do.","Disinhibition",-0.580,"Impulsivity",0.445,"Cautiousness",-0.170,"Unanswered",N/A
+174,"Friendliness_182","Often feel uncomfortable around others.","Plasticity",-0.466,"Sociability",-0.746,"Gregariousness",-0.395,"Unanswered",N/A
+175,"Self.Consciousness_46","Am afraid that I will do the wrong thing.","Stability",-0.422,"Neuroticism",0.493,"Anxiety",0.306,"Unanswered",N/A
+176,"Sympathy_239","Try not to think about the needy.","Plasticity",-0.466,"Sociability",-0.397,"Empathy",-0.312,"Unanswered",N/A
+177,"Artistic.Interests_38","Like music.","Plasticity",0.466,"Openness to Experience",0.371,"Artistic Interests",0.190,"Unanswered",N/A
+178,"Liberalism_58","Believe that there is no absolute right or wrong.","Plasticity",0.466,"Openness to Experience",0.237,"Liberalism",0.217,"Unanswered",N/A
+179,"Self.Efficacy_185","Misjudge situations.","Disinhibition",-0.580,"Impulsivity",0.445,"Cautiousness",-0.159,"Unanswered",N/A
+180,"Friendliness_122","Cheer people up.","Plasticity",0.466,"Sociability",0.400,"Cheerfulness",0.281,"Unanswered",N/A
+181,"Assertiveness_12","Take charge.","Stability",-0.422,"Neuroticism",0.106,"Dominance",0.305,"Unanswered",N/A
+182,"Intellect_23","Like to solve complex problems.","Plasticity",0.466,"Openness to Experience",0.459,"Intellect",0.266,"Unanswered",N/A
+183,"Vulnerability_236","Know how to cope.","Stability",0.422,"Neuroticism",-0.493,"Anxiety",-0.302,"Unanswered",N/A
+184,"Gregariousness_67","Enjoy being part of a group.","Plasticity",0.466,"Sociability",0.746,"Gregariousness",0.390,"Unanswered",N/A
+185,"Cautiousness_60","Choose my words with care.","Disinhibition",0.580,"Impulsivity",-0.445,"Cautiousness",0.153,"Unanswered",N/A
+186,"Morality_219","Pretend to be concerned for others.","Plasticity",-0.466,"Sociability",-0.397,"Empathy",-0.282,"Unanswered",N/A
+187,"Adventurousness_78","Interested in many things.","Plasticity",0.466,"Openness to Experience",0.319,"Adventurousness",0.174,"Unanswered",N/A
+188,"Cooperation_79","Hate to seem pushy.","Stability",0.422,"Neuroticism",-0.106,"Dominance",-0.296,"Unanswered",N/A
+189,"Anxiety_181","Am relaxed most of the time.","Stability",0.422,"Neuroticism",-0.493,"Anxiety",-0.277,"Unanswered",N/A
+190,"Friendliness_32","Warm up quickly to others.","Plasticity",0.466,"Sociability",0.746,"Gregariousness",0.383,"Unanswered",N/A
+191,"Cautiousness_30","Avoid mistakes.","Stability",0.422,"Conscientiousness",0.322,"Orderliness",0.168,"Unanswered",N/A
+192,"Vulnerability_176","Remain calm under pressure.","Stability",0.422,"Neuroticism",-0.493,"Anxiety",-0.262,"Unanswered",N/A
+193,"Friendliness_152","Am hard to get to know.","Plasticity",-0.466,"Sociability",-0.746,"Gregariousness",-0.380,"Unanswered",N/A
+194,"Dutifulness_75","Pay my bills on time.","Stability",0.422,"Conscientiousness",0.322,"Orderliness",0.158,"Unanswered",N/A
+195,"Anger_276","Rarely complain.","Stability",0.422,"Neuroticism",-0.629,"Anger",-0.170,"Unanswered",N/A
+196,"Altruism_44","Anticipate the needs of others.","Plasticity",0.466,"Sociability",0.397,"Empathy",0.223,"Unanswered",N/A
+197,"Anxiety_151","Am not easily bothered by things.","Stability",0.422,"Neuroticism",-0.493,"Anxiety",-0.256,"Unanswered",N/A
+198,"Excitement.Seeking_112","Enjoy being part of a loud crowd.","Plasticity",0.466,"Sociability",0.746,"Gregariousness",0.364,"Unanswered",N/A
+199,"Sympathy_299","Can't stand weak people.","Plasticity",-0.466,"Openness to Experience",-0.237,"Liberalism",-0.128,"Unanswered",N/A
+200,"Altruism_224","Make people feel uncomfortable.","Stability",-0.422,"Neuroticism",0.106,"Dominance",0.207,"Unanswered",N/A
+201,"Anxiety_211","Am not easily disturbed by events.","Stability",0.422,"Neuroticism",-0.493,"Anxiety",-0.247,"Unanswered",N/A
+202,"Altruism_254","Turn my back on others.","Plasticity",-0.466,"Sociability",-0.397,"Empathy",-0.202,"Unanswered",N/A
+203,"Self.Consciousness_76","Find it difficult to approach others.","Plasticity",-0.466,"Sociability",-0.746,"Gregariousness",-0.345,"Unanswered",N/A
+204,"Achievement.Striving_200","Demand quality.","Stability",0.422,"Conscientiousness",0.322,"Orderliness",0.124,"Unanswered",N/A
+205,"Adventurousness_258","Dislike new foods.","Plasticity",-0.466,"Openness to Experience",-0.319,"Adventurousness",-0.111,"Unanswered",N/A
+206,"Self.Consciousness_166","Stumble over my words.","Plasticity",-0.466,"Openness to Experience",-0.459,"Intellect",-0.137,"Unanswered",N/A
+207,"Trust_154","Think that all will be well.","Stability",0.422,"Neuroticism",-0.493,"Anxiety",-0.214,"Unanswered",N/A
+208,"Gregariousness_277","Seek quiet.","Plasticity",-0.466,"Sociability",-0.746,"Gregariousness",-0.323,"Unanswered",N/A
+209,"Emotionality_73","Am passionate about causes.","Plasticity",0.466,"Sociability",0.397,"Empathy",0.179,"Unanswered",N/A
+210,"Sympathy_179","Tend to dislike soft-hearted people.","Plasticity",-0.466,"Sociability",-0.397,"Empathy",-0.179,"Unanswered",N/A
+211,"Activity.Level_137","React quickly.","Stability",-0.422,"Neuroticism",0.106,"Dominance",0.159,"Unanswered",N/A
+212,"Self.Consciousness_136","Only feel comfortable with friends.","Plasticity",-0.466,"Sociability",-0.746,"Gregariousness",-0.307,"Unanswered",N/A
+213,"Vulnerability_266","Readily overcome setbacks.","Stability",0.422,"Neuroticism",-0.493,"Anxiety",-0.185,"Unanswered",N/A
+214,"Sympathy_89","Value cooperation over competition.","Stability",0.422,"Neuroticism",-0.106,"Dominance",-0.153,"Unanswered",N/A
+215,"Gregariousness_97","Involve others in what I am doing.","Plasticity",0.466,"Sociability",0.746,"Gregariousness",0.260,"Unanswered",N/A
+216,"Vulnerability_116","Can't make up my mind.","Stability",-0.422,"Neuroticism",0.493,"Anxiety",0.150,"Unanswered",N/A
+217,"Assertiveness_192","Keep in the background.","Plasticity",-0.466,"Sociability",-0.746,"Gregariousness",-0.241,"Unanswered",N/A
+218,"Assertiveness_102","Seek to influence others.","Stability",-0.422,"Neuroticism",0.106,"Dominance",0.132,"Unanswered",N/A
+219,"Gregariousness_127","Love surprise parties.","Plasticity",0.466,"Sociability",0.746,"Gregariousness",0.198,"Unanswered",N/A
+220,"Self.Consciousness_256","Am not bothered by difficult social situations.","Plasticity",0.466,"Sociability",0.746,"Gregariousness",0.178,"Unanswered",N/A
+221,"Altruism_14","Make people feel welcome.","Plasticity",0.466,"Sociability",0.746,"Gregariousness",0.176,"Unanswered",N/A
