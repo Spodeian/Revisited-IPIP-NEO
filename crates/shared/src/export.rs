@@ -193,6 +193,167 @@ pub fn export_to_csv(state: &QuestionnaireState) -> String {
     out
 }
 
+fn tier_color_hex(tier_label: &str) -> &'static str {
+    match tier_label {
+        "Very Low" => "#ef4444",
+        "Low" => "#f97316",
+        "Average" => "#94a3b8",
+        "High" => "#22c55e",
+        "Very High" => "#3b82f6",
+        _ => "#94a3b8",
+    }
+}
+
+pub fn export_to_svg(state: &QuestionnaireState) -> String {
+    let report = FullAssessmentReport::from_state(state);
+    let mut svg_elements = String::new();
+    let mut y: i32 = 110;
+
+    for &meta in &MetaTrait::ALL {
+        let meta_acc = state.meta_trait_acc.get(&meta).copied().unwrap_or_default();
+        let meta_tier = meta_acc.tier().map(|t| t.label()).unwrap_or("N/A");
+        let meta_score_str = meta_acc.normalized_score().map_or("N/A".to_string(), |s| format!("{:.2}", s));
+        let meta_se_str = meta_acc.standard_error().map_or("N/A".to_string(), |s| format!("{:.2}", s));
+        let tier_color = tier_color_hex(meta_tier);
+
+        // Meta-Trait Header Bar
+        svg_elements.push_str(&format!(
+            r#"<rect x="30" y="{}" width="840" height="42" rx="6" fill="{}" stroke="{}" stroke-width="2"/>
+<text x="45" y="{}" font-family="system-ui, -apple-system, sans-serif" font-size="15" font-weight="700" fill="{}">META-TRAIT: {}</text>
+<rect x="420" y="{}" width="80" height="22" rx="4" fill="{}"/>
+<text x="460" y="{}" font-family="system-ui, sans-serif" font-size="11" font-weight="700" fill="{}" text-anchor="middle">{}</text>
+<text x="520" y="{}" font-family="system-ui, sans-serif" font-size="12" fill="{}">Score: <tspan font-weight="700" fill="{}">{}</tspan>  (SE: {})  Raw: {:.1}</text>
+"#,
+            y,
+            "#1e293b",
+            "#3b82f6",
+            y + 26,
+            "#93c5fd",
+            escape_html(meta.display_name()),
+            y + 10,
+            tier_color,
+            y + 25,
+            "#ffffff",
+            escape_html(meta_tier),
+            y + 26,
+            "#cbd5e1",
+            "#ffffff",
+            meta_score_str,
+            meta_se_str,
+            meta_acc.raw_score
+        ));
+        y += 52;
+
+        for trait_item in meta.child_traits() {
+            let trait_acc = state.trait_acc.get(&trait_item).copied().unwrap_or_default();
+            let trait_tier = trait_acc.tier().map(|t| t.label()).unwrap_or("N/A");
+            let trait_score_str = trait_acc.normalized_score().map_or("N/A".to_string(), |s| format!("{:.2}", s));
+            let trait_se_str = trait_acc.standard_error().map_or("N/A".to_string(), |s| format!("{:.2}", s));
+            let trait_tier_color = tier_color_hex(trait_tier);
+
+            // Trait Section Box
+            svg_elements.push_str(&format!(
+                r#"<rect x="50" y="{}" width="820" height="34" rx="4" fill="{}" stroke="{}" stroke-width="1"/>
+<text x="65" y="{}" font-family="system-ui, sans-serif" font-size="13" font-weight="700" fill="{}">Trait: {}</text>
+<rect x="420" y="{}" width="75" height="20" rx="3" fill="{}"/>
+<text x="457" y="{}" font-family="system-ui, sans-serif" font-size="10" font-weight="700" fill="{}" text-anchor="middle">{}</text>
+<text x="520" y="{}" font-family="system-ui, sans-serif" font-size="11" fill="{}">Score: <tspan font-weight="700" fill="{}">{}</tspan> (SE: {}) Raw: {:.1}</text>
+"#,
+                y,
+                "#0f172a",
+                "#334155",
+                y + 22,
+                "#f8fafc",
+                escape_html(trait_item.display_name()),
+                y + 7,
+                trait_tier_color,
+                y + 21,
+                "#ffffff",
+                escape_html(trait_tier),
+                y + 22,
+                "#94a3b8",
+                "#e2e8f0",
+                trait_score_str,
+                trait_se_str,
+                trait_acc.raw_score
+            ));
+            y += 40;
+
+            for facet in trait_item.child_facets() {
+                let facet_acc = state.facet_acc.get(&facet).copied().unwrap_or_default();
+                let facet_tier = facet_acc.tier().map(|t| t.label()).unwrap_or("N/A");
+                let facet_score_str = facet_acc.normalized_score().map_or("N/A".to_string(), |s| format!("{:.2}", s));
+                let facet_se_str = facet_acc.standard_error().map_or("N/A".to_string(), |s| format!("{:.2}", s));
+                let f_color = tier_color_hex(facet_tier);
+
+                // Facet Row
+                svg_elements.push_str(&format!(
+                    r#"<rect x="70" y="{}" width="800" height="24" rx="3" fill="{}" opacity="0.6"/>
+<text x="85" y="{}" font-family="system-ui, sans-serif" font-size="11" fill="{}">└─ {}</text>
+<rect x="420" y="{}" width="70" height="16" rx="3" fill="{}"/>
+<text x="455" y="{}" font-family="system-ui, sans-serif" font-size="9" font-weight="700" fill="{}" text-anchor="middle">{}</text>
+<text x="520" y="{}" font-family="system-ui, sans-serif" font-size="11" fill="{}">Score: <tspan font-weight="600" fill="{}">{}</tspan> (SE: {}) Raw: {:.1} [{}/{} items]</text>
+"#,
+                    y,
+                    "#1e293b",
+                    y + 16,
+                    "#cbd5e1",
+                    escape_html(facet.display_name()),
+                    y + 4,
+                    f_color,
+                    y + 16,
+                    "#ffffff",
+                    escape_html(facet_tier),
+                    y + 16,
+                    "#94a3b8",
+                    "#f1f5f9",
+                    facet_score_str,
+                    facet_se_str,
+                    facet_acc.raw_score,
+                    facet_acc.answered_count,
+                    facet_acc.total_items
+                ));
+                y += 28;
+            }
+            y += 6;
+        }
+        y += 14;
+    }
+
+    let total_height = y + 40;
+
+    format!(
+        r#"<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 900 {}" width="900" height="{}">
+  <rect width="900" height="{}" fill="{}"/>
+  <!-- Header Banner -->
+  <text x="30" y="42" font-family="system-ui, -apple-system, sans-serif" font-size="20" font-weight="800" fill="{}">Revisited IPIP-NEO (TGA) Personality Assessment Results</text>
+  <text x="30" y="68" font-family="system-ui, sans-serif" font-size="12" fill="{}">Answered: {} / {} questions ({:.1}%) • Model: 3 Meta-Traits ➔ 6 Traits ➔ 28 Facets</text>
+  <text x="30" y="86" font-family="system-ui, sans-serif" font-size="11" fill="{}">Methodology DOI: 10.1177/08902070251352590 • Client-side 100% Local Execution</text>
+  <line x1="30" y1="96" x2="870" y2="96" stroke="{}" stroke-width="1.5"/>
+
+  <!-- Hierarchical Psychometric Tree -->
+  {}
+
+  <!-- Footer -->
+  <text x="450" y="{}" font-family="system-ui, sans-serif" font-size="11" fill="{}" text-anchor="middle">Generated by Revisited IPIP-NEO (TGA) • https://tga-ipip-neo.spodeian.trade/</text>
+</svg>"#,
+        total_height,
+        total_height,
+        total_height,
+        "#0b0f19",
+        "#f8fafc",
+        "#94a3b8",
+        report.answered_questions,
+        report.total_questions,
+        report.completion_percentage,
+        "#64748b",
+        "#334155",
+        svg_elements,
+        total_height - 15,
+        "#64748b"
+    )
+}
+
 fn escape_html(input: &str) -> String {
     let mut out = String::with_capacity(input.len());
     for c in input.chars() {

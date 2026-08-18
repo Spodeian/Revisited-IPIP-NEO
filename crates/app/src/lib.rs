@@ -2,8 +2,8 @@
 
 use eframe::egui;
 use shared::{
-    export_to_csv, export_to_json, export_to_printable_html, AppState, Aspect, Facet, MetaTrait,
-    Response, ScoreTier, ThemeMode, Trait,
+    export_to_csv, export_to_json, export_to_printable_html, export_to_svg, AppState, Aspect,
+    Facet, MetaTrait, Response, ScoreTier, ThemeMode, Trait,
 };
 use tracing::{info, warn};
 #[cfg(target_arch = "wasm32")]
@@ -118,6 +118,19 @@ impl PersonalityApp {
 
         // Navigation shortcuts:
         let shift_held = input.modifiers.shift;
+
+        // Escape key to dismiss dialogs or close results screen
+        if input.key_pressed(egui::Key::Escape) {
+            if self.show_help_dialog {
+                self.show_help_dialog = false;
+            } else if self.show_reset_dialog {
+                self.show_reset_dialog = false;
+            } else if self.show_export_dialog.is_some() {
+                self.show_export_dialog = None;
+            } else if self.state.questionnaire.show_results {
+                self.state.questionnaire.show_results = false;
+            }
+        }
 
         // Left/Up arrow
         if input.key_pressed(egui::Key::ArrowLeft) || input.key_pressed(egui::Key::ArrowUp) {
@@ -566,6 +579,10 @@ impl PersonalityApp {
                     let json_content = export_to_json(&self.state.questionnaire);
                     trigger_file_download("ipip_neo_tga_results.json", &json_content, "application/json;charset=utf-8");
                 }
+                if ui.button("🖼 Export SVG").on_hover_text("Download high-resolution vector SVG graphic of your results hierarchy").clicked() {
+                    let svg_content = export_to_svg(&self.state.questionnaire);
+                    trigger_file_download("ipip_neo_tga_results.svg", &svg_content, "image/svg+xml;charset=utf-8");
+                }
                 if ui.button("🖨 Save PDF / Print").on_hover_text("Open formatted hierarchical report for printing or saving to PDF").clicked() {
                     #[cfg(target_arch = "wasm32")]
                     {
@@ -699,6 +716,14 @@ impl PersonalityApp {
                     egui::ScrollArea::vertical()
                         .auto_shrink([false, false])
                         .show(ui, |ui| {
+                        ui.heading("Estimated Time");
+                        ui.add_space(4.0);
+                        ui.label("⏱ ~10–15 minutes (221 items). Take your time to answer honestly without overthinking.");
+
+                        ui.add_space(12.0);
+                        ui.separator();
+                        ui.add_space(8.0);
+
                         ui.heading("Keyboard Shortcuts & Navigation");
                         ui.add_space(4.0);
                         ui.label("• 1, 2, 3, 4, 5: Select response (Strongly Disagree to Strongly Agree)");
@@ -706,6 +731,7 @@ impl PersonalityApp {
                         ui.label("• Right / Down Arrow: Skip question (defers to back of queue)");
                         ui.label("• Shift + Left Arrow: Jump to previous unanswered question");
                         ui.label("• Shift + Right Arrow: Jump to next unanswered question");
+                        ui.label("• Escape: Close open menus or return from results");
                         ui.label("• Mouse Scroll: Scroll to skip / navigate questions (Desktop)");
 
                         ui.add_space(12.0);
