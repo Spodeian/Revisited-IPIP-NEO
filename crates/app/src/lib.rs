@@ -656,13 +656,18 @@ impl PersonalityApp {
     }
 
     fn render_dialogs(&mut self, ui: &mut egui::Ui) {
-        // Help & Shortcuts Dialog
+        // Help & Shortcuts Dialog (Docked to the bottom-left, expanding upward and outward)
         if self.show_help_dialog {
             let mut open = true;
-            egui::Window::new("Help & Information")
+            let max_w = (ui.available_width() - 24.0).min(440.0);
+            let max_h = (ui.available_height() - 40.0).min(380.0);
+
+            egui::Window::new("❓ Help & Information")
                 .open(&mut open)
-                .default_size(egui::vec2(480.0, 360.0))
-                .anchor(egui::Align2::CENTER_CENTER, egui::vec2(0.0, 0.0))
+                .resizable(true)
+                .collapsible(true)
+                .default_size(egui::vec2(max_w, max_h))
+                .anchor(egui::Align2::LEFT_BOTTOM, egui::vec2(12.0, -12.0))
                 .show(ui.ctx(), |ui| {
                     egui::ScrollArea::vertical().show(ui, |ui| {
                         ui.heading("Keyboard Shortcuts & Navigation");
