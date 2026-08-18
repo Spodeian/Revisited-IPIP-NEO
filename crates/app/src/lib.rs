@@ -189,7 +189,7 @@ impl eframe::App for PersonalityApp {
 
             let title_text = if is_mobile { "IPIP-NEO (TGA)" } else { "Revisited IPIP-NEO Personality Assessment" };
 
-            ui.horizontal(|ui| {
+            ui.horizontal_centered(|ui| {
                 if is_mobile {
                     ui.label(egui::RichText::new(title_text).size(20.0).strong());
                 } else {
