@@ -34,8 +34,8 @@ fn trigger_file_download(filename: &str, content: &str, _mime_type: &str) {
             if let Some(document) = window.document() {
                 let blob_parts = js_sys::Array::new();
                 blob_parts.push(&wasm_bindgen::JsValue::from_str(content));
-                let mut blob_props = web_sys::BlobPropertyBag::new();
-                blob_props.type_(_mime_type);
+                let blob_props = web_sys::BlobPropertyBag::new();
+                blob_props.set_type(_mime_type);
                 if let Ok(blob) = web_sys::Blob::new_with_str_sequence_and_options(&blob_parts, &blob_props) {
                     if let Ok(url) = web_sys::Url::create_object_url_with_blob(&blob) {
                         if let Ok(element) = document.create_element("a") {
