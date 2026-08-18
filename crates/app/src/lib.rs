@@ -186,121 +186,58 @@ impl eframe::App for PersonalityApp {
 
             let width = ui.available_width();
             let is_mobile = width < 800.0;
-            let curr_focus = self.state.questionnaire.current_focus_idx + 1;
-            let total = self.state.questionnaire.total_questions();
-            let progress = self.state.questionnaire.completion_rate();
-            let progress_text = format!("Item #{} of {} ({:.0}%)", curr_focus, total, progress * 100.0);
+            let title_text = if is_mobile { "IPIP-NEO (TGA)" } else { "Revisited IPIP-NEO Personality Assessment" };
 
-            if is_mobile {
-                // Mobile layout: Two stacked rows
-                ui.vertical(|ui| {
-                    ui.horizontal(|ui| {
-                        ui.heading("IPIP-NEO (TGA)");
-                        ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
-                            // Theme toggle
-                            let theme_icon = match self.state.config.theme {
-                                ThemeMode::Light => "🌙",
-                                ThemeMode::Dark => "☀️",
-                            };
-                            if ui.button(theme_icon).on_hover_text("Toggle dark / light theme").clicked() {
-                                self.state.config.theme = match self.state.config.theme {
-                                    ThemeMode::Light => ThemeMode::Dark,
-                                    ThemeMode::Dark => ThemeMode::Light,
-                                };
-                            }
+            ui.horizontal(|ui| {
+                ui.heading(title_text);
 
-                            // Help Icon
-                            if ui.button("❓").on_hover_text("Help, shortcuts & privacy").clicked() {
-                                self.show_help_dialog = true;
-                            }
-
-                            // Research DOI Icon
-                            if ui.button("📖").on_hover_text("Read the research").clicked() {
-                                ui.ctx().open_url(egui::OpenUrl::new_tab("https://doi.org/10.1177/08902070251352590"));
-                            }
-
-                            // GitHub Icon (Icon only, visually obvious)
-                            if ui.button("🐙").on_hover_text("View source on GitHub").clicked() {
-                                ui.ctx().open_url(egui::OpenUrl::new_tab("https://github.com/Spodeian/Revisited-IPIP-NEO"));
-                            }
-
-                            // Reset button
-                            if ui.button("🔄").on_hover_text("Reset test and clear all answers").clicked() {
-                                self.show_reset_dialog = true;
-                            }
-
-                            // Results / Questions Toggle (Swaps screens completely on mobile)
-                            let results_btn_text = if self.state.questionnaire.show_results {
-                                "📝 Questions"
-                            } else {
-                                "📊 Results"
-                            };
-                            if ui.button(results_btn_text).on_hover_text("Toggle assessment results").clicked() {
-                                self.state.questionnaire.show_results = !self.state.questionnaire.show_results;
-                            }
-                        });
-                    });
-
-                    ui.add_space(4.0);
-
-                    // Row 2: Progress Bar displaying Item #x of 221
-                    ui.add(egui::ProgressBar::new(progress).text(progress_text).desired_width(ui.available_width() - 8.0));
-                });
-            } else {
-                // Desktop layout: Single spacious row
-                ui.horizontal(|ui| {
-                    ui.heading("Revisited IPIP-NEO Personality Assessment");
-
-                    ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
-                        // Theme toggle
-                        let theme_icon = match self.state.config.theme {
-                            ThemeMode::Light => "🌙 Dark",
-                            ThemeMode::Dark => "☀️ Light",
+                ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
+                    // Theme toggle
+                    let theme_icon = match self.state.config.theme {
+                        ThemeMode::Light => "🌙",
+                        ThemeMode::Dark => "☀️",
+                    };
+                    if ui.button(theme_icon).on_hover_text("Toggle dark / light theme").clicked() {
+                        self.state.config.theme = match self.state.config.theme {
+                            ThemeMode::Light => ThemeMode::Dark,
+                            ThemeMode::Dark => ThemeMode::Light,
                         };
-                        if ui.button(theme_icon).on_hover_text("Toggle dark / light theme").clicked() {
-                            self.state.config.theme = match self.state.config.theme {
-                                ThemeMode::Light => ThemeMode::Dark,
-                                ThemeMode::Dark => ThemeMode::Light,
-                            };
-                        }
+                    }
 
-                        // Help Icon
-                        if ui.button("❓").on_hover_text("Help, shortcuts & privacy").clicked() {
-                            self.show_help_dialog = true;
-                        }
+                    // Help Icon
+                    if ui.button("❓").on_hover_text("Help, shortcuts & privacy").clicked() {
+                        self.show_help_dialog = true;
+                    }
 
-                        // Research DOI Icon
-                        if ui.button("📖").on_hover_text("Read the research").clicked() {
-                            ui.ctx().open_url(egui::OpenUrl::new_tab("https://doi.org/10.1177/08902070251352590"));
-                        }
+                    // Research DOI Icon
+                    if ui.button("📖").on_hover_text("Read the research").clicked() {
+                        ui.ctx().open_url(egui::OpenUrl::new_tab("https://doi.org/10.1177/08902070251352590"));
+                    }
 
-                        // GitHub Icon (Icon only)
-                        if ui.button("🐙").on_hover_text("View source on GitHub").clicked() {
-                            ui.ctx().open_url(egui::OpenUrl::new_tab("https://github.com/Spodeian/Revisited-IPIP-NEO"));
-                        }
+                    // GitHub Icon (Icon only)
+                    if ui.button("🐙").on_hover_text("View source on GitHub").clicked() {
+                        ui.ctx().open_url(egui::OpenUrl::new_tab("https://github.com/Spodeian/Revisited-IPIP-NEO"));
+                    }
 
-                        // Reset button
-                        if ui.button("🔄 Reset").on_hover_text("Reset test and clear all answers").clicked() {
-                            self.show_reset_dialog = true;
-                        }
+                    // Reset button
+                    let reset_text = if is_mobile { "🔄" } else { "🔄 Reset" };
+                    if ui.button(reset_text).on_hover_text("Reset test and clear all answers").clicked() {
+                        self.show_reset_dialog = true;
+                    }
 
-                        // Results toggle (Collapsible side-panel on Desktop)
-                        let results_btn_text = if self.state.questionnaire.show_results {
-                            "📊 Hide Results"
-                        } else {
-                            "📊 Show Results"
-                        };
-                        if ui.button(results_btn_text).on_hover_text("Toggle results side-panel").clicked() {
-                            self.state.questionnaire.show_results = !self.state.questionnaire.show_results;
-                        }
-
-                        ui.separator();
-
-                        // Progress bar displaying Item #x of 221
-                        ui.add(egui::ProgressBar::new(progress).text(progress_text).desired_width(220.0));
-                    });
+                    // Results / Questions Toggle
+                    let results_btn_text = if is_mobile {
+                        if self.state.questionnaire.show_results { "📝 Questions" } else { "📊 Results" }
+                    } else if self.state.questionnaire.show_results {
+                        "📊 Hide Results"
+                    } else {
+                        "📊 Show Results"
+                    };
+                    if ui.button(results_btn_text).on_hover_text("Toggle assessment results").clicked() {
+                        self.state.questionnaire.show_results = !self.state.questionnaire.show_results;
+                    }
                 });
-            }
+            });
             ui.add_space(6.0);
         });
 
@@ -490,23 +427,35 @@ impl PersonalityApp {
                     ui.separator();
                     ui.add_space(if is_ultra_tight { 2.0 } else if is_tight_height { 4.0 } else { 10.0 });
 
-                    // Navigation and Skip Actions: Centered horizontally with item spacing across full width
-                    ui.allocate_ui_with_layout(
-                        egui::vec2(ui.available_width(), 0.0),
-                        egui::Layout::left_to_right(egui::Align::Center)
-                            .with_main_align(egui::Align::Center)
-                            .with_main_wrap(true),
-                        |ui| {
-                            ui.spacing_mut().item_spacing.x = if is_ultra_tight { 4.0 } else { 6.0 };
+                    // Navigation and Progress Row: Left buttons, Center Progress Bar (Item #x of 221), Right buttons
+                    let curr_focus = curr_idx + 1;
+                    let progress = self.state.questionnaire.completion_rate();
+                    let progress_text = format!("Item #{} of {} ({:.0}%)", curr_focus, total, progress * 100.0);
 
-                            let btn_prev = if is_ultra_tight { "◀" } else { "◀ Prev" };
-                            if ui.button(btn_prev).on_hover_text("Previous item (Left Arrow)").clicked() {
-                                self.state.questionnaire.navigate_previous();
+                    ui.horizontal(|ui| {
+                        ui.spacing_mut().item_spacing.x = if is_ultra_tight { 4.0 } else { 6.0 };
+
+                        // Left Action Cluster
+                        let btn_prev = if is_ultra_tight { "◀" } else { "◀ Prev" };
+                        if ui.button(btn_prev).on_hover_text("Previous item (Left Arrow)").clicked() {
+                            self.state.questionnaire.navigate_previous();
+                        }
+
+                        let btn_prev_un = if is_ultra_tight { "⏪" } else { "⏪ Unanswered" };
+                        if ui.button(btn_prev_un).on_hover_text("Jump to previous unanswered (Shift + Left Arrow)").clicked() {
+                            self.state.questionnaire.navigate_previous_unanswered();
+                        }
+
+                        // Right Action Cluster + Center Expanding Progress Bar
+                        ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
+                            let btn_skip = if is_ultra_tight { "⏭" } else { "Skip ⏭" };
+                            if ui.button(btn_skip).on_hover_text("Skip question and defer to end of queue (Right Arrow / Scroll)").clicked() {
+                                self.state.questionnaire.skip_current();
                             }
 
-                            let btn_prev_un = if is_ultra_tight { "⏪" } else { "⏪ Unanswered" };
-                            if ui.button(btn_prev_un).on_hover_text("Jump to previous unanswered (Shift + Left Arrow)").clicked() {
-                                self.state.questionnaire.navigate_previous_unanswered();
+                            let btn_next_un = if is_ultra_tight { "⏩" } else { "Next Unanswered ⏩" };
+                            if ui.button(btn_next_un).on_hover_text("Jump to next unanswered (Shift + Right Arrow)").clicked() {
+                                self.state.questionnaire.navigate_next_unanswered();
                             }
 
                             if q_response.is_some() {
@@ -516,17 +465,17 @@ impl PersonalityApp {
                                 }
                             }
 
-                            let btn_next_un = if is_ultra_tight { "⏩" } else { "Next Unanswered ⏩" };
-                            if ui.button(btn_next_un).on_hover_text("Jump to next unanswered (Shift + Right Arrow)").clicked() {
-                                self.state.questionnaire.navigate_next_unanswered();
+                            // Center Progress Bar filling remaining horizontal space
+                            let remaining_width = ui.available_width() - 8.0;
+                            if remaining_width > 40.0 {
+                                ui.add(
+                                    egui::ProgressBar::new(progress)
+                                        .text(progress_text)
+                                        .desired_width(remaining_width),
+                                );
                             }
-
-                            let btn_skip = if is_ultra_tight { "⏭" } else { "Skip ⏭" };
-                            if ui.button(btn_skip).on_hover_text("Skip question and defer to end of queue (Right Arrow / Scroll)").clicked() {
-                                self.state.questionnaire.skip_current();
-                            }
-                        },
-                    );
+                        });
+                    });
                 });
             });
 
