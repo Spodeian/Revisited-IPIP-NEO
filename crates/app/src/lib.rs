@@ -2,8 +2,9 @@
 
 use eframe::egui;
 use shared::{
-    export_to_csv, export_to_json, export_to_printable_html, export_to_svg, AppState, Aspect,
-    Facet, MetaTrait, Response, ScoreTier, ThemeMode, Trait,
+    export_to_csv, export_to_json, export_to_printable_html, export_to_svg,
+    import_responses_from_csv, import_responses_from_json, AppState, Aspect, Facet, MetaTrait,
+    Response, ScoreTier, ThemeMode, Trait,
 };
 use tracing::{info, warn};
 #[cfg(target_arch = "wasm32")]
@@ -14,6 +15,9 @@ pub struct PersonalityApp {
     pub state: AppState,
     pub show_reset_dialog: bool,
     pub show_help_dialog: bool,
+    pub show_import_dialog: bool,
+    pub import_text_buffer: String,
+    pub import_result_message: Option<Result<String, String>>,
     pub show_export_dialog: Option<ExportType>,
     pub export_copied_notification: Option<f64>,
     pub last_scroll_time: f64,
@@ -83,6 +87,9 @@ impl PersonalityApp {
             state,
             show_reset_dialog: false,
             show_help_dialog: false,
+            show_import_dialog: false,
+            import_text_buffer: String::new(),
+            import_result_message: None,
             show_export_dialog: None,
             export_copied_notification: None,
             last_scroll_time: 0.0,
@@ -125,6 +132,10 @@ impl PersonalityApp {
                 self.show_help_dialog = false;
             } else if self.show_reset_dialog {
                 self.show_reset_dialog = false;
+            } else if self.show_import_dialog {
+                self.show_import_dialog = false;
+                self.import_text_buffer.clear();
+                self.import_result_message = None;
             } else if self.show_export_dialog.is_some() {
                 self.show_export_dialog = None;
             } else if self.state.questionnaire.show_results {
@@ -277,6 +288,13 @@ impl eframe::App for PersonalityApp {
                             self.show_help_dialog = true;
                         }
 
+                        // Import Button
+                        if ui.button("📥 Import").on_hover_text("Import CSV or JSON answers to resume your assessment").clicked() {
+                            self.show_import_dialog = true;
+                            self.import_text_buffer.clear();
+                            self.import_result_message = None;
+                        }
+
                         // Research DOI Icon
                         if ui.button("📖").on_hover_text("Read the research").clicked() {
                             ui.ctx().open_url(egui::OpenUrl::new_tab("https://doi.org/10.1177/08902070251352590"));
@@ -285,6 +303,15 @@ impl eframe::App for PersonalityApp {
                         // GitHub Icon (Icon only)
                         if ui.button("🐙").on_hover_text("View source on GitHub").clicked() {
                             ui.ctx().open_url(egui::OpenUrl::new_tab("https://github.com/Spodeian/Revisited-IPIP-NEO"));
+                        }
+
+                        // Import Button (Mobile)
+                        let import_btn = egui::Button::new(egui::RichText::new("📥").size(18.0))
+                            .min_size(egui::vec2(38.0, 38.0));
+                        if ui.add(import_btn).on_hover_text("Import CSV or JSON answers to resume assessment").clicked() {
+                            self.show_import_dialog = true;
+                            self.import_text_buffer.clear();
+                            self.import_result_message = None;
                         }
 
                         // Reset button
@@ -853,6 +880,81 @@ impl PersonalityApp {
 
             if !open {
                 self.show_export_dialog = None;
+            }
+        }
+
+        // Import Progress Dialog
+        if self.show_import_dialog {
+            let mut open = true;
+            egui::Window::new("📥 Import Saved Progress")
+                .open(&mut open)
+                .default_size(egui::vec2(500.0, 400.0))
+                .anchor(egui::Align2::CENTER_CENTER, egui::vec2(0.0, 0.0))
+                .show(ui.ctx(), |ui| {
+                    ui.label("Paste the contents of your exported CSV or JSON file below to restore your answers and resume the assessment:");
+                    ui.add_space(8.0);
+
+                    egui::ScrollArea::both()
+                        .max_height(240.0)
+                        .show(ui, |ui| {
+                            ui.add(
+                                egui::TextEdit::multiline(&mut self.import_text_buffer)
+                                    .font(egui::TextStyle::Monospace)
+                                    .hint_text("Paste CSV or JSON content here...")
+                                    .desired_width(f32::INFINITY)
+                                    .desired_rows(12),
+                            );
+                        });
+
+                    ui.add_space(12.0);
+                    ui.horizontal(|ui| {
+                        if ui.button("▶ Apply and Resume").clicked() {
+                            let input = self.import_text_buffer.trim();
+                            if input.is_empty() {
+                                self.import_result_message = Some(Err("Input is empty.".to_string()));
+                            } else if input.starts_with('{') {
+                                // Attempt JSON parse
+                                match import_responses_from_json(&mut self.state.questionnaire, input) {
+                                    Ok(count) => {
+                                        self.import_result_message = Some(Ok(format!("Successfully imported {} answers!", count)));
+                                    }
+                                    Err(e) => {
+                                        self.import_result_message = Some(Err(e.to_string()));
+                                    }
+                                }
+                            } else {
+                                // Attempt CSV parse
+                                match import_responses_from_csv(&mut self.state.questionnaire, input) {
+                                    Ok(count) => {
+                                        self.import_result_message = Some(Ok(format!("Successfully imported {} answers!", count)));
+                                    }
+                                    Err(e) => {
+                                        self.import_result_message = Some(Err(e.to_string()));
+                                    }
+                                }
+                            }
+                        }
+
+                        if ui.button("Cancel").clicked() {
+                            self.show_import_dialog = false;
+                        }
+                    });
+
+                    ui.add_space(8.0);
+                    if let Some(ref result) = self.import_result_message {
+                        match result {
+                            Ok(msg) => {
+                                ui.label(egui::RichText::new(msg).color(egui::Color32::from_rgb(80, 180, 90)).strong());
+                            }
+                            Err(msg) => {
+                                ui.label(egui::RichText::new(msg).color(egui::Color32::from_rgb(220, 70, 70)).strong());
+                            }
+                        }
+                    }
+                });
+
+            if !open {
+                self.show_import_dialog = false;
             }
         }
     }

@@ -837,7 +837,7 @@ pub fn load_optimized_questions() -> Vec<Question> {
     ordered_questions
 }
 
-fn parse_csv_line(line: &str) -> Vec<String> {
+pub fn parse_csv_line(line: &str) -> Vec<String> {
     let mut fields = Vec::new();
     let mut current = String::new();
     let mut in_quotes = false;

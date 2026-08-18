@@ -1,10 +1,14 @@
-//! Data export generators for the Revisited IPIP-NEO Personality Assessment.
-//! Supports exporting structured summaries and raw logs to CSV, JSON, and printable HTML.
+//! Data export and import generators for the Revisited IPIP-NEO Personality Assessment.
+//! Supports exporting structured summaries and raw logs to CSV, JSON, vector SVG, and printable HTML,
+//! as well as importing previously saved CSV/JSON progress to resume testing.
 
-use crate::questionnaire::{Aspect, Facet, MetaTrait, QuestionnaireState, Trait};
-use serde::Serialize;
+use crate::questionnaire::{
+    parse_csv_line, Aspect, Facet, MetaTrait, QuestionnaireState, Response, Trait,
+};
+use serde::{Deserialize, Serialize};
+use std::collections::HashMap;
 
-#[derive(Serialize)]
+#[derive(Serialize, Deserialize)]
 pub struct FullAssessmentReport {
     pub total_questions: usize,
     pub answered_questions: usize,
@@ -16,7 +20,7 @@ pub struct FullAssessmentReport {
     pub item_responses: Vec<ItemResponseReport>,
 }
 
-#[derive(Serialize)]
+#[derive(Serialize, Deserialize)]
 pub struct ConstructReport {
     pub level: String,
     pub name: String,
@@ -29,7 +33,7 @@ pub struct ConstructReport {
     pub total_items: usize,
 }
 
-#[derive(Serialize)]
+#[derive(Serialize, Deserialize)]
 pub struct ItemResponseReport {
     pub question_number: usize,
     pub label: String,
@@ -613,4 +617,118 @@ pub fn export_to_printable_html(state: &QuestionnaireState) -> String {
         report.completion_percentage,
         hierarchy_html
     )
+}
+
+/// Imports and applies answers from a previously exported JSON results string.
+/// Returns the number of successfully applied answers.
+pub fn import_responses_from_json(state: &mut QuestionnaireState, json_str: &str) -> Result<usize, &'static str> {
+    let report: FullAssessmentReport = serde_json::from_str(json_str)
+        .map_err(|_| "Invalid JSON format. Please ensure this is a valid Revisited IPIP-NEO results file.")?;
+
+    let mut applied_count = 0;
+
+    // Build a map: Label -> Response Score
+    let response_map: HashMap<String, f32> = report
+        .item_responses
+        .iter()
+        .filter_map(|item| {
+            item.response_score.map(|score| (item.label.clone(), score))
+        })
+        .collect();
+
+    for q in state.questions.iter_mut() {
+        if let Some(&score) = response_map.get(&q.label) {
+            // Map floating point score back to Response enum
+            let resp = if (score - 1.0).abs() < 0.1 {
+                Some(Response::StronglyAgree)
+            } else if (score - 0.5).abs() < 0.1 {
+                Some(Response::Agree)
+            } else if (score - 0.0).abs() < 0.1 {
+                Some(Response::Neutral)
+            } else if (score - (-0.5)).abs() < 0.1 {
+                Some(Response::Disagree)
+            } else if (score - (-1.0)).abs() < 0.1 {
+                Some(Response::StronglyDisagree)
+            } else {
+                None
+            };
+
+            if let Some(r) = resp {
+                q.response = Some(r);
+                applied_count += 1;
+            }
+        }
+    }
+
+    if applied_count > 0 {
+        state.rebuild_cache();
+        Ok(applied_count)
+    } else {
+        Err("No matching answered questions found in the imported JSON file.")
+    }
+}
+
+/// Imports and applies answers from a previously exported CSV results string.
+/// Returns the number of successfully applied answers.
+pub fn import_responses_from_csv(state: &mut QuestionnaireState, csv_str: &str) -> Result<usize, &'static str> {
+    let mut applied_count = 0;
+    let mut in_responses_section = false;
+
+    for line in csv_str.lines() {
+        let line = line.trim();
+        if line.is_empty() {
+            continue;
+        }
+
+        if line.contains("# ITEM RESPONSES") {
+            in_responses_section = true;
+            continue;
+        }
+
+        if in_responses_section {
+            if line.starts_with('#') || line.starts_with("Question #") {
+                continue; // Skip comments and header rows
+            }
+
+            let fields = parse_csv_line(line);
+            if fields.len() < 11 {
+                continue;
+            }
+
+            let label = &fields[1];
+            let resp_score_str = &fields[10];
+
+            if let Ok(score) = resp_score_str.parse::<f32>() {
+                for q in &mut state.questions {
+                    if q.label == *label {
+                        let resp = if (score - 1.0).abs() < 0.1 {
+                            Some(Response::StronglyAgree)
+                        } else if (score - 0.5).abs() < 0.1 {
+                            Some(Response::Agree)
+                        } else if (score - 0.0).abs() < 0.1 {
+                            Some(Response::Neutral)
+                        } else if (score - (-0.5)).abs() < 0.1 {
+                            Some(Response::Disagree)
+                        } else if (score - (-1.0)).abs() < 0.1 {
+                            Some(Response::StronglyDisagree)
+                        } else {
+                            None
+                        };
+
+                        if let Some(r) = resp {
+                            q.response = Some(r);
+                            applied_count += 1;
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    if applied_count > 0 {
+        state.rebuild_cache();
+        Ok(applied_count)
+    } else {
+        Err("No matching answered questions found in the imported CSV file.")
+    }
 }
