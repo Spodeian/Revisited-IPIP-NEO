@@ -91,17 +91,17 @@ Revisited IPIP-NEO/
 
 ---
 
-## 4. Implementation Steps
+## 5. UI Polish & Refinements Plan
 
-- [x] Create planning documentation (`PLAN.md`).
-- [x] Implement embedded dataset loader & CSV parser in `crates/shared`.
-- [x] Implement questionnaire state machine & scoring engine with $SE$ computation in `crates/shared`.
-- [x] Implement CSV and JSON export generators in `crates/shared`.
-- [x] Implement `egui` frontend in `crates/app`:
-  - Top header (Progress, completion %, Show Results toggle, Reset, Theme).
-  - Single question card with keyboard shortcuts (`1`–`5`, Arrows, Wheel scroll skip).
-  - Side results panel with 5-tier badges and detailed $SE$ metrics.
-  - Export dialogs.
-- [x] Update `crates/desktop` and `crates/web` runners and `index.html`.
-- [x] Replace obsolete task tests with psychometric, queuing, and persistence tests.
-- [x] Validate with `cargo test --workspace` and `cargo clippy --workspace --all-targets`.
+- [x] **Header Icon Controls with Tooltips**:
+  - Add DOI Research icon (📖) with tooltip `"Read the research"` opening `https://doi.org/10.1177/08902070251352590`.
+  - Add GitHub icon (💻) with tooltip `"View source on GitHub"` opening `https://github.com/Spodeian/Revisited-IPIP-NEO`.
+  - Add Privacy Shield icon (🔒) with tooltip `"Privacy: 100% Local. No data ever leaves your device."`.
+  - Add tooltips to Theme toggle and Reset buttons.
+- [x] **Remove Question Card Footer Clutter**:
+  - Move methodology, external links, and privacy notices out of the card footer and into the header.
+- [x] **Navigation Buttons Row Centering**:
+  - Replace left-biased wrapping with true horizontally centered layout calculation (`with_main_align(egui::Align::Center)`).
+- [x] **Scroll Debounce & Cooldown Engine**:
+  - Add `last_scroll_time: f64` and `scroll_accumulator: f32` to `PersonalityApp`.
+  - Enforce a 350ms cooldown and accumulated delta threshold to prevent rapid skipping.

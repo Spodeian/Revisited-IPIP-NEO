@@ -15,6 +15,8 @@ pub struct PersonalityApp {
     pub show_reset_dialog: bool,
     pub show_export_dialog: Option<ExportType>,
     pub export_copied_notification: Option<f64>,
+    pub last_scroll_time: f64,
+    pub scroll_accumulator: f32,
 }
 
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
@@ -51,6 +53,8 @@ impl PersonalityApp {
             show_reset_dialog: false,
             show_export_dialog: None,
             export_copied_notification: None,
+            last_scroll_time: 0.0,
+            scroll_accumulator: 0.0,
         }
     }
 
@@ -162,15 +166,28 @@ impl eframe::App for PersonalityApp {
                                 ThemeMode::Light => "🌙",
                                 ThemeMode::Dark => "☀️",
                             };
-                            if ui.button(theme_icon).clicked() {
+                            if ui.button(theme_icon).on_hover_text("Toggle dark / light theme").clicked() {
                                 self.state.config.theme = match self.state.config.theme {
                                     ThemeMode::Light => ThemeMode::Dark,
                                     ThemeMode::Dark => ThemeMode::Light,
                                 };
                             }
 
+                            // Research DOI Icon
+                            if ui.button("📖").on_hover_text("Read the research").clicked() {
+                                ui.ctx().open_url(egui::OpenUrl::new_tab("https://doi.org/10.1177/08902070251352590"));
+                            }
+
+                            // GitHub Icon
+                            if ui.button("💻").on_hover_text("View source on GitHub").clicked() {
+                                ui.ctx().open_url(egui::OpenUrl::new_tab("https://github.com/Spodeian/Revisited-IPIP-NEO"));
+                            }
+
+                            // Privacy Icon
+                            ui.label("🔒").on_hover_text("Privacy: 100% Local. No data ever leaves your device.");
+
                             // Reset button
-                            if ui.button("🔄").clicked() {
+                            if ui.button("🔄").on_hover_text("Reset test and clear all answers").clicked() {
                                 self.show_reset_dialog = true;
                             }
 
@@ -180,7 +197,7 @@ impl eframe::App for PersonalityApp {
                             } else {
                                 "📊 Results"
                             };
-                            if ui.button(results_btn_text).clicked() {
+                            if ui.button(results_btn_text).on_hover_text("Toggle assessment results").clicked() {
                                 self.state.questionnaire.show_results = !self.state.questionnaire.show_results;
                             }
                         });
@@ -206,15 +223,28 @@ impl eframe::App for PersonalityApp {
                             ThemeMode::Light => "🌙 Dark",
                             ThemeMode::Dark => "☀️ Light",
                         };
-                        if ui.button(theme_icon).clicked() {
+                        if ui.button(theme_icon).on_hover_text("Toggle dark / light theme").clicked() {
                             self.state.config.theme = match self.state.config.theme {
                                 ThemeMode::Light => ThemeMode::Dark,
                                 ThemeMode::Dark => ThemeMode::Light,
                             };
                         }
 
+                        // Research DOI Icon
+                        if ui.button("📖 Research").on_hover_text("Read the research publication").clicked() {
+                            ui.ctx().open_url(egui::OpenUrl::new_tab("https://doi.org/10.1177/08902070251352590"));
+                        }
+
+                        // GitHub Icon
+                        if ui.button("💻 GitHub").on_hover_text("View source on GitHub").clicked() {
+                            ui.ctx().open_url(egui::OpenUrl::new_tab("https://github.com/Spodeian/Revisited-IPIP-NEO"));
+                        }
+
+                        // Privacy Icon
+                        ui.label("🔒").on_hover_text("Privacy: 100% Local. No data ever leaves your device.");
+
                         // Reset button
-                        if ui.button("🔄 Reset Test").clicked() {
+                        if ui.button("🔄 Reset").on_hover_text("Reset test and clear all answers").clicked() {
                             self.show_reset_dialog = true;
                         }
 
@@ -224,7 +254,7 @@ impl eframe::App for PersonalityApp {
                         } else {
                             "📊 Show Results"
                         };
-                        if ui.button(results_btn_text).clicked() {
+                        if ui.button(results_btn_text).on_hover_text("Toggle results side-panel").clicked() {
                             self.state.questionnaire.show_results = !self.state.questionnaire.show_results;
                         }
 
@@ -467,85 +497,87 @@ impl PersonalityApp {
                     ui.separator();
                     ui.add_space(if is_ultra_tight { 2.0 } else if is_tight_height { 4.0 } else { 10.0 });
 
-                    // Navigation and Skip Actions
-                    ui.horizontal_wrapped(|ui| {
-                        // Dynamically center the wrapper block using flex space
-                        ui.with_layout(egui::Layout::left_to_right(egui::Align::Center).with_main_wrap(true), |ui| {
-                            let btn_prev = if is_ultra_tight { "◀" } else { "◀ Prev" };
-                            if ui.button(btn_prev).clicked() {
-                                self.state.questionnaire.navigate_previous();
-                            }
+                    // Navigation and Skip Actions: Centered horizontally with item spacing
+                    ui.horizontal(|ui| {
+                        ui.spacing_mut().item_spacing.x = if is_ultra_tight { 4.0 } else { 6.0 };
+                        ui.with_layout(
+                            egui::Layout::left_to_right(egui::Align::Center)
+                                .with_main_align(egui::Align::Center)
+                                .with_main_wrap(true),
+                            |ui| {
+                                let btn_prev = if is_ultra_tight { "◀" } else { "◀ Prev" };
+                                if ui.button(btn_prev).on_hover_text("Previous item (Left Arrow)").clicked() {
+                                    self.state.questionnaire.navigate_previous();
+                                }
 
-                            let btn_prev_un = if is_ultra_tight { "⏪" } else { "⏪ Unanswered" };
-                            if ui.button(btn_prev_un).clicked() {
-                                self.state.questionnaire.navigate_previous_unanswered();
-                            }
+                                let btn_prev_un = if is_ultra_tight { "⏪" } else { "⏪ Unanswered" };
+                                if ui.button(btn_prev_un).on_hover_text("Jump to previous unanswered (Shift + Left Arrow)").clicked() {
+                                    self.state.questionnaire.navigate_previous_unanswered();
+                                }
 
-                            let btn_clear = if is_ultra_tight { "🗑" } else { "🗑 Clear" };
-                            if q_response.is_some() && ui.button(btn_clear).clicked() {
-                                self.state.questionnaire.clear_response(curr_idx);
-                            }
+                                if q_response.is_some() {
+                                    let btn_clear = if is_ultra_tight { "🗑" } else { "🗑 Clear" };
+                                    if ui.button(btn_clear).on_hover_text("Clear recorded answer").clicked() {
+                                        self.state.questionnaire.clear_response(curr_idx);
+                                    }
+                                }
 
-                            let btn_next_un = if is_ultra_tight { "⏩" } else { "Next Unanswered ⏩" };
-                            if ui.button(btn_next_un).clicked() {
-                                self.state.questionnaire.navigate_next_unanswered();
-                            }
+                                let btn_next_un = if is_ultra_tight { "⏩" } else { "Next Unanswered ⏩" };
+                                if ui.button(btn_next_un).on_hover_text("Jump to next unanswered (Shift + Right Arrow)").clicked() {
+                                    self.state.questionnaire.navigate_next_unanswered();
+                                }
 
-                            let btn_skip = if is_ultra_tight { "⏭" } else { "Skip ⏭" };
-                            if ui.button(btn_skip).clicked() {
-                                self.state.questionnaire.skip_current();
-                            }
-                        });
+                                let btn_skip = if is_ultra_tight { "⏭" } else { "Skip ⏭" };
+                                if ui.button(btn_skip).on_hover_text("Skip question and defer to end of queue (Right Arrow / Scroll)").clicked() {
+                                    self.state.questionnaire.skip_current();
+                                }
+                            },
+                        );
                     });
 
                     if !is_tight_height && !is_mobile_portrait {
-                        ui.add_space(15.0);
+                        ui.add_space(12.0);
                         ui.label(
                             egui::RichText::new(
-                                "Navigation: Use Left/Right arrow keys to move. Use Shift + Left/Right arrow keys to jump directly to unanswered questions. Scroll to skip.",
+                                "Tip: Press 1-5 to answer, Left/Right arrow keys to navigate, and Shift+Arrows to jump between unanswered questions.",
                             )
                             .small()
                             .weak(),
                         );
                     }
-
-                    // Hide methodology reference entirely on ultra tight viewports to save vertical space
-                    if !is_ultra_tight {
-                        let space_before_ref = if is_tight_height { 6.0 } else if is_mobile_portrait { 15.0 } else { 35.0 };
-                        ui.add_space(space_before_ref);
-                        ui.separator();
-                        ui.add_space(if is_tight_height { 4.0 } else { 10.0 });
-
-                        ui.horizontal_wrapped(|ui| {
-                            ui.label(
-                                egui::RichText::new("🔒 Privacy: 100% Local. No data ever leaves your device.")
-                                    .color(egui::Color32::from_rgb(100, 160, 100))
-                                    .small()
-                            );
-
-                            ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
-                                ui.hyperlink_to(
-                                    "doi:10.1177/08902070251352590",
-                                    "https://doi.org/10.1177/08902070251352590",
-                                );
-                                ui.weak("Methodology:");
-                            });
-                        });
-                    }
                 });
             });
 
-        // Restricted scroll detection for Desktop "Scroll to Skip" feature.
-        // We strictly disable this on mobile/tight viewports so native touch-scrolling works normally.
+        // Throttled and debounced scroll detection for Desktop "Scroll to Skip"
+        let current_time = ui.input(|i| i.time);
+        let scroll_y = ui.input(|i| i.smooth_scroll_delta.y);
+
         if !is_tight_height && !is_mobile_portrait && !is_ultra_tight && ui.rect_contains_pointer(ui.max_rect()) {
-            let scroll_y = ui.input(|i| i.smooth_scroll_delta.y);
-            if scroll_y < -15.0 {
-                // Scrolling down -> skip/defer forwards
-                self.state.questionnaire.skip_current();
-            } else if scroll_y > 15.0 {
-                // Scrolling up -> navigate backwards
-                self.state.questionnaire.navigate_previous();
+            if scroll_y.abs() > 1.0 {
+                self.scroll_accumulator += scroll_y;
             }
+
+            // Cooldown of 350ms and delta accumulation threshold of 40.0
+            if current_time - self.last_scroll_time > 0.35 {
+                if self.scroll_accumulator < -40.0 {
+                    // Scrolling down -> skip/defer forwards
+                    self.state.questionnaire.skip_current();
+                    self.last_scroll_time = current_time;
+                    self.scroll_accumulator = 0.0;
+                } else if self.scroll_accumulator > 40.0 {
+                    // Scrolling up -> navigate backwards
+                    self.state.questionnaire.navigate_previous();
+                    self.last_scroll_time = current_time;
+                    self.scroll_accumulator = 0.0;
+                }
+            }
+
+            // Reset accumulator if user stopped scrolling for half a second
+            if current_time - self.last_scroll_time > 0.5 && scroll_y.abs() < 1.0 {
+                self.scroll_accumulator = 0.0;
+            }
+        } else {
+            self.scroll_accumulator = 0.0;
         }
     }
 
