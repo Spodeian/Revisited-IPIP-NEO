@@ -14,6 +14,13 @@ Cargo.lock.log
 # Wrangler / Cloudflare Local State Caches
 .wrangler/
 
+# Exported Local Result Files
+*.csv.log
+ipip_neo_tga_results.csv
+ipip_neo_tga_results.json
+personality_results.csv
+personality_results.json
+
 # Operating System Specific
 .DS_Store
 Thumbs.db
