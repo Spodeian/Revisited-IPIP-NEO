@@ -583,7 +583,7 @@ impl PersonalityApp {
                     let svg_content = export_to_svg(&self.state.questionnaire);
                     trigger_file_download("ipip_neo_tga_results.svg", &svg_content, "image/svg+xml;charset=utf-8");
                 }
-                if ui.button("🖨 Save PDF / Print").on_hover_text("Open formatted hierarchical report for printing or saving to PDF").clicked() {
+                if ui.button("📋 Save PDF / Print").on_hover_text("Open formatted hierarchical report for printing or saving to PDF").clicked() {
                     #[cfg(target_arch = "wasm32")]
                     {
                         let html_content = export_to_printable_html(&self.state.questionnaire);
