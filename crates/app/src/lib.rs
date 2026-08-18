@@ -356,7 +356,7 @@ impl PersonalityApp {
                     let max_width = (avail_width - 8.0).min(700.0);
                     ui.set_max_width(max_width);
 
-                    // Queue & Status indicator (hide details on very tight heights)
+                    // Queue & Status indicator (centered across available width)
                     let pending_remaining = self.state.questionnaire.pending_queue.len();
                     let status_text = if q_response.is_some() {
                         "✓ Answered"
@@ -364,25 +364,25 @@ impl PersonalityApp {
                         "Pending"
                     };
 
-                    ui.horizontal(|ui| {
-                        ui.label(
-                            egui::RichText::new(format!("Item #{} of {}", q_id, total))
-                                .strong()
-                                .color(ui.visuals().hyperlink_color),
-                        );
-                        if !is_ultra_tight {
+                    ui.allocate_ui_with_layout(
+                        egui::vec2(ui.available_width(), 0.0),
+                        egui::Layout::left_to_right(egui::Align::Center).with_main_align(egui::Align::Center),
+                        |ui| {
+                            ui.label(
+                                egui::RichText::new(format!("Item #{} of {}", q_id, total))
+                                    .strong()
+                                    .color(ui.visuals().hyperlink_color),
+                            );
                             ui.label(format!("•  {}", status_text));
-                        }
-                        if !is_tight_height && !is_mobile_portrait {
-                            ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
+                            if !is_tight_height && !is_mobile_portrait {
                                 ui.label(
-                                    egui::RichText::new(format!("{} in queue", pending_remaining))
+                                    egui::RichText::new(format!("({} remaining in queue)", pending_remaining))
                                         .italics()
                                         .small(),
                                 );
-                            });
-                        }
-                    });
+                            }
+                        },
+                    );
 
                     let space_before_card = if is_ultra_tight { 2.0 } else if is_tight_height { 4.0 } else if is_mobile_portrait { 10.0 } else { 25.0 };
                     ui.add_space(space_before_card);
@@ -439,27 +439,31 @@ impl PersonalityApp {
 
                     // Dynamically select layout orientation for Likert response buttons
                     if is_landscape_mobile {
-                        // Landscape Mobile Layout: Align buttons in a perfect horizontal row
-                        ui.horizontal(|ui| {
-                            let spacing = ui.spacing().item_spacing.x;
-                            let btn_width = (ui.available_width() - (spacing * 4.0)) / 5.0;
+                        // Landscape Mobile Layout: Align buttons in a perfect centered horizontal row
+                        ui.allocate_ui_with_layout(
+                            egui::vec2(ui.available_width(), 0.0),
+                            egui::Layout::left_to_right(egui::Align::Center).with_main_align(egui::Align::Center),
+                            |ui| {
+                                let spacing = ui.spacing().item_spacing.x;
+                                let btn_width = ((ui.available_width() - (spacing * 4.0)) / 5.0).max(40.0);
 
-                            for (resp, text, _shortcut) in responses {
-                                let is_selected = q_response == Some(resp);
-                                let mut rich_text = egui::RichText::new(text).size(12.0);
-                                if is_selected {
-                                    rich_text = rich_text.strong();
+                                for (resp, text, _shortcut) in responses {
+                                    let is_selected = q_response == Some(resp);
+                                    let mut rich_text = egui::RichText::new(text).size(12.0);
+                                    if is_selected {
+                                        rich_text = rich_text.strong();
+                                    }
+
+                                    let btn = egui::Button::new(rich_text)
+                                        .min_size(egui::vec2(btn_width, 26.0))
+                                        .selected(is_selected);
+
+                                    if ui.add(btn).clicked() {
+                                        self.state.questionnaire.answer_question(curr_idx, resp);
+                                    }
                                 }
-
-                                let btn = egui::Button::new(rich_text)
-                                    .min_size(egui::vec2(btn_width, 26.0))
-                                    .selected(is_selected);
-
-                                if ui.add(btn).clicked() {
-                                    self.state.questionnaire.answer_question(curr_idx, resp);
-                                }
-                            }
-                        });
+                            },
+                        );
                     } else {
                         // Portrait or Wide Layout: Align buttons vertically
                         let button_height = if is_ultra_tight { 26.0 } else if is_tight_height { 32.0 } else if is_mobile_portrait { 36.0 } else { 42.0 };
@@ -497,43 +501,43 @@ impl PersonalityApp {
                     ui.separator();
                     ui.add_space(if is_ultra_tight { 2.0 } else if is_tight_height { 4.0 } else { 10.0 });
 
-                    // Navigation and Skip Actions: Centered horizontally with item spacing
-                    ui.horizontal(|ui| {
-                        ui.spacing_mut().item_spacing.x = if is_ultra_tight { 4.0 } else { 6.0 };
-                        ui.with_layout(
-                            egui::Layout::left_to_right(egui::Align::Center)
-                                .with_main_align(egui::Align::Center)
-                                .with_main_wrap(true),
-                            |ui| {
-                                let btn_prev = if is_ultra_tight { "◀" } else { "◀ Prev" };
-                                if ui.button(btn_prev).on_hover_text("Previous item (Left Arrow)").clicked() {
-                                    self.state.questionnaire.navigate_previous();
-                                }
+                    // Navigation and Skip Actions: Centered horizontally with item spacing across full width
+                    ui.allocate_ui_with_layout(
+                        egui::vec2(ui.available_width(), 0.0),
+                        egui::Layout::left_to_right(egui::Align::Center)
+                            .with_main_align(egui::Align::Center)
+                            .with_main_wrap(true),
+                        |ui| {
+                            ui.spacing_mut().item_spacing.x = if is_ultra_tight { 4.0 } else { 6.0 };
 
-                                let btn_prev_un = if is_ultra_tight { "⏪" } else { "⏪ Unanswered" };
-                                if ui.button(btn_prev_un).on_hover_text("Jump to previous unanswered (Shift + Left Arrow)").clicked() {
-                                    self.state.questionnaire.navigate_previous_unanswered();
-                                }
+                            let btn_prev = if is_ultra_tight { "◀" } else { "◀ Prev" };
+                            if ui.button(btn_prev).on_hover_text("Previous item (Left Arrow)").clicked() {
+                                self.state.questionnaire.navigate_previous();
+                            }
 
-                                if q_response.is_some() {
-                                    let btn_clear = if is_ultra_tight { "🗑" } else { "🗑 Clear" };
-                                    if ui.button(btn_clear).on_hover_text("Clear recorded answer").clicked() {
-                                        self.state.questionnaire.clear_response(curr_idx);
-                                    }
-                                }
+                            let btn_prev_un = if is_ultra_tight { "⏪" } else { "⏪ Unanswered" };
+                            if ui.button(btn_prev_un).on_hover_text("Jump to previous unanswered (Shift + Left Arrow)").clicked() {
+                                self.state.questionnaire.navigate_previous_unanswered();
+                            }
 
-                                let btn_next_un = if is_ultra_tight { "⏩" } else { "Next Unanswered ⏩" };
-                                if ui.button(btn_next_un).on_hover_text("Jump to next unanswered (Shift + Right Arrow)").clicked() {
-                                    self.state.questionnaire.navigate_next_unanswered();
+                            if q_response.is_some() {
+                                let btn_clear = if is_ultra_tight { "🗑" } else { "🗑 Clear" };
+                                if ui.button(btn_clear).on_hover_text("Clear recorded answer").clicked() {
+                                    self.state.questionnaire.clear_response(curr_idx);
                                 }
+                            }
 
-                                let btn_skip = if is_ultra_tight { "⏭" } else { "Skip ⏭" };
-                                if ui.button(btn_skip).on_hover_text("Skip question and defer to end of queue (Right Arrow / Scroll)").clicked() {
-                                    self.state.questionnaire.skip_current();
-                                }
-                            },
-                        );
-                    });
+                            let btn_next_un = if is_ultra_tight { "⏩" } else { "Next Unanswered ⏩" };
+                            if ui.button(btn_next_un).on_hover_text("Jump to next unanswered (Shift + Right Arrow)").clicked() {
+                                self.state.questionnaire.navigate_next_unanswered();
+                            }
+
+                            let btn_skip = if is_ultra_tight { "⏭" } else { "Skip ⏭" };
+                            if ui.button(btn_skip).on_hover_text("Skip question and defer to end of queue (Right Arrow / Scroll)").clicked() {
+                                self.state.questionnaire.skip_current();
+                            }
+                        },
+                    );
 
                     if !is_tight_height && !is_mobile_portrait {
                         ui.add_space(12.0);
