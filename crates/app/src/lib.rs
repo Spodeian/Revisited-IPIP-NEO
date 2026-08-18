@@ -184,12 +184,14 @@ impl eframe::App for PersonalityApp {
         egui::Panel::top("top_panel").show(ui, |ui| {
             let width = ui.available_width();
             let is_mobile = width < 800.0;
-            let top_pad = 6.0;
-            ui.add_space(top_pad);
+            ui.add_space(4.0);
 
             let title_text = if is_mobile { "IPIP-NEO (TGA)" } else { "Revisited IPIP-NEO Personality Assessment" };
+            let header_row_height = if is_mobile { 44.0 } else { 32.0 };
 
-            ui.with_layout(egui::Layout::left_to_right(egui::Align::Center), |ui| {
+            ui.horizontal(|ui| {
+                ui.set_height(header_row_height);
+
                 if is_mobile {
                     ui.label(egui::RichText::new(title_text).size(18.0).strong());
                 } else {
@@ -289,7 +291,7 @@ impl eframe::App for PersonalityApp {
                     }
                 });
             });
-            ui.add_space(top_pad);
+            ui.add_space(4.0);
         });
 
         // Side Results Panel (Only render on Desktop/Wide viewports)
