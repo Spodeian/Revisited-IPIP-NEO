@@ -1,0 +1,19 @@
+{
+  "name": "Revisited IPIP-NEO (TGA) Personality Assessment",
+  "short_name": "IPIP-NEO TGA",
+  "description": "Scientific, mathematically optimized 221-item TGA personality assessment with full offline support.",
+  "start_url": "./",
+  "scope": "./",
+  "display": "standalone",
+  "background_color": "#121212",
+  "theme_color": "#121212",
+  "orientation": "any",
+  "icons": [
+    {
+      "src": "https://tga-ipip-neo.spodeian.trade/og-image.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any maskable"
+    }
+  ]
+}

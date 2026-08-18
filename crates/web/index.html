@@ -27,9 +27,28 @@
     <meta property="twitter:description" content="Take a scientifically robust personality assessment based on TGA (Taxonomic Graph Analysis)—a mathematically-derived framework that extends and refines the Big Five model. Measures 3 Meta-Traits, 6 Traits, and 28 Facets.">
     <meta property="twitter:image" content="https://tga-ipip-neo.spodeian.trade/og-image.png">
 
-    <!-- Trunk Rust WebAssembly link -->
+    <!-- Progressive Web App & Offline Capabilities -->
+    <link rel="manifest" href="manifest.json" />
+    <meta name="theme-color" content="#121212" />
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+
+    <!-- Trunk Rust WebAssembly link & Offline assets -->
     <link rel="rust" href="Cargo.toml" data-trunk data-wasm-opt="0" />
     <link rel="copy-file" href="_headers" data-trunk />
+    <link rel="copy-file" href="sw.js" data-trunk />
+    <link rel="copy-file" href="manifest.json" data-trunk />
+
+    <script>
+      // Register Service Worker for seamless offline capability
+      if ('serviceWorker' in navigator) {
+        window.addEventListener('load', () => {
+          navigator.serviceWorker.register('./sw.js').catch((err) => {
+            console.log('ServiceWorker registration deferred:', err);
+          });
+        });
+      }
+    </script>
     <style>
       html, body {
         margin: 0;

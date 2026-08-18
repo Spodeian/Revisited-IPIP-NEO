@@ -720,6 +720,12 @@ impl PersonalityApp {
                         ui.label(
                             "This application runs entirely in your local browser using client-side WebAssembly. Your responses, scores, and exports are never transmitted to any server or external database.",
                         );
+                        ui.add_space(4.0);
+                        ui.label(
+                            egui::RichText::new("⚡ 100% Offline Capable: Once loaded, you can complete the entire assessment and export results even without an internet connection.")
+                                .italics()
+                                .small(),
+                        );
 
                         ui.add_space(12.0);
                         ui.separator();
