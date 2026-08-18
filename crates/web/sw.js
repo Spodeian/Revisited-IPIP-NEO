@@ -28,7 +28,13 @@ self.addEventListener('fetch', (event) => {
 
   // Bypass analytics beacons
   const url = new URL(event.request.url);
-  if (url.hostname.includes('cloudflareinsights.com') || url.hostname.includes('google-analytics.com')) {
+  const isAllowedHostOrSubdomain = (hostname, domain) => {
+    return hostname === domain || hostname.endsWith(`.${domain}`);
+  };
+  if (
+    isAllowedHostOrSubdomain(url.hostname, 'cloudflareinsights.com') ||
+    isAllowedHostOrSubdomain(url.hostname, 'google-analytics.com')
+  ) {
     return;
   }
 
