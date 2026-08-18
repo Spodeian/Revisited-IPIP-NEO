@@ -485,23 +485,6 @@ pub fn export_to_printable_html(state: &QuestionnaireState) -> String {
         );
     }
 
-    let mut item_rows = String::new();
-    for item in &report.item_responses {
-        let resp_label = item.response_label.as_deref().unwrap_or("Unanswered");
-        let resp_score = item.response_score.map_or("N/A".to_string(), |s| format!("{:.1}", s));
-        item_rows.push_str(&format!(
-            "<tr><td>{}</td><td><strong>{}</strong></td><td>{}</td><td>{}</td><td>{}</td><td>{}</td><td><span class='badge'>{}</span></td><td>{}</td></tr>",
-            item.question_number,
-            escape_html(&item.label),
-            escape_html(&item.text),
-            escape_html(&item.meta_trait),
-            escape_html(&item.r#trait),
-            escape_html(&item.facet),
-            escape_html(resp_label),
-            resp_score
-        ));
-    }
-
     format!(
         r#"<!DOCTYPE html>
 <html lang="en">
@@ -623,32 +606,11 @@ pub fn export_to_printable_html(state: &QuestionnaireState) -> String {
 <h2>Hierarchical Psychometric Breakdown</h2>
 {}
 
-<h2>Item Responses (All {} Questionnaire Items)</h2>
-<table>
-    <thead>
-        <tr>
-            <th>#</th>
-            <th>Item Key</th>
-            <th>Statement</th>
-            <th>Meta-Trait</th>
-            <th>Trait</th>
-            <th>Facet</th>
-            <th>Your Response</th>
-            <th>Score</th>
-        </tr>
-    </thead>
-    <tbody>
-        {}
-    </tbody>
-</table>
-
 </body>
 </html>"#,
         report.answered_questions,
         report.total_questions,
         report.completion_percentage,
-        hierarchy_html,
-        report.total_questions,
-        item_rows
+        hierarchy_html
     )
 }
