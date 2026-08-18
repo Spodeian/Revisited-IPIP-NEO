@@ -184,14 +184,14 @@ impl eframe::App for PersonalityApp {
         egui::Panel::top("top_panel").show(ui, |ui| {
             let width = ui.available_width();
             let is_mobile = width < 800.0;
-            let top_pad = if is_mobile { 14.0 } else { 8.0 };
+            let top_pad = 6.0;
             ui.add_space(top_pad);
 
             let title_text = if is_mobile { "IPIP-NEO (TGA)" } else { "Revisited IPIP-NEO Personality Assessment" };
 
-            ui.horizontal_centered(|ui| {
+            ui.with_layout(egui::Layout::left_to_right(egui::Align::Center), |ui| {
                 if is_mobile {
-                    ui.label(egui::RichText::new(title_text).size(20.0).strong());
+                    ui.label(egui::RichText::new(title_text).size(18.0).strong());
                 } else {
                     ui.heading(title_text);
                 }
