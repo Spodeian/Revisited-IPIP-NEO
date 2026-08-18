@@ -196,36 +196,133 @@ pub fn export_to_csv(state: &QuestionnaireState) -> String {
 pub fn export_to_printable_html(state: &QuestionnaireState) -> String {
     let report = FullAssessmentReport::from_state(state);
 
-    let mut rows_meta = String::new();
-    for c in &report.meta_traits {
-        let tier = c.tier.as_deref().unwrap_or("N/A");
-        let score = c.normalized_score.map_or("N/A".to_string(), |s| format!("{:.3}", s));
-        let se = c.standard_error.map_or("N/A".to_string(), |s| format!("{:.3}", s));
-        rows_meta.push_str(&format!(
-            "<tr><td><strong>{}</strong></td><td><span class='badge'>{}</span></td><td>{}</td><td>{}</td><td>{:.2}</td><td>{}/{}</td></tr>",
-            c.name, tier, score, se, c.raw_score, c.answered_items, c.total_items
+    let mut hierarchy_html = String::new();
+
+    for &meta in &MetaTrait::ALL {
+        let meta_acc = state.meta_trait_acc.get(&meta).copied().unwrap_or_default();
+        let meta_tier = meta_acc.tier().map(|t| t.label()).unwrap_or("N/A");
+        let meta_score = meta_acc.normalized_score().map_or("N/A".to_string(), |s| format!("{:.3}", s));
+        let meta_se = meta_acc.standard_error().map_or("N/A".to_string(), |s| format!("{:.3}", s));
+
+        hierarchy_html.push_str(&format!(
+            r#"<div class="meta-card">
+    <div class="meta-header">
+        <div class="meta-title">
+            <span class="level-tag">Meta-Trait</span>
+            <h3>{}</h3>
+        </div>
+        <div class="meta-metrics">
+            <span class="badge tier-badge">{}</span>
+            <span class="metric"><strong>Score:</strong> {}</span>
+            <span class="metric"><strong>SE:</strong> {}</span>
+            <span class="metric"><strong>Raw:</strong> {:.2}</span>
+            <span class="metric"><strong>Items:</strong> {}/{}</span>
+        </div>
+    </div>
+    <div class="traits-container">"#,
+            meta.display_name(),
+            meta_tier,
+            meta_score,
+            meta_se,
+            meta_acc.raw_score,
+            meta_acc.answered_count,
+            meta_acc.total_items
         ));
+
+        for trait_item in meta.child_traits() {
+            let trait_acc = state.trait_acc.get(&trait_item).copied().unwrap_or_default();
+            let trait_tier = trait_acc.tier().map(|t| t.label()).unwrap_or("N/A");
+            let trait_score = trait_acc.normalized_score().map_or("N/A".to_string(), |s| format!("{:.3}", s));
+            let trait_se = trait_acc.standard_error().map_or("N/A".to_string(), |s| format!("{:.3}", s));
+
+            hierarchy_html.push_str(&format!(
+                r#"<div class="trait-card">
+        <div class="trait-header">
+            <div class="trait-title">
+                <span class="level-tag trait-tag">Trait</span>
+                <h4>{}</h4>
+            </div>
+            <div class="trait-metrics">
+                <span class="badge tier-badge">{}</span>
+                <span class="metric"><strong>Score:</strong> {}</span>
+                <span class="metric"><strong>SE:</strong> {}</span>
+                <span class="metric"><strong>Raw:</strong> {:.2}</span>
+                <span class="metric"><strong>Items:</strong> {}/{}</span>
+            </div>
+        </div>
+        <table class="facet-table">
+            <thead>
+                <tr>
+                    <th>Facet (Subdimension)</th>
+                    <th>Tier</th>
+                    <th>Score [-1, 1]</th>
+                    <th>Standard Error (SE)</th>
+                    <th>Raw Score</th>
+                    <th>Answered</th>
+                </tr>
+            </thead>
+            <tbody>"#,
+                trait_item.display_name(),
+                trait_tier,
+                trait_score,
+                trait_se,
+                trait_acc.raw_score,
+                trait_acc.answered_count,
+                trait_acc.total_items
+            ));
+
+            for facet in trait_item.child_facets() {
+                let facet_acc = state.facet_acc.get(&facet).copied().unwrap_or_default();
+                let facet_tier = facet_acc.tier().map(|t| t.label()).unwrap_or("N/A");
+                let facet_score = facet_acc.normalized_score().map_or("N/A".to_string(), |s| format!("{:.3}", s));
+                let facet_se = facet_acc.standard_error().map_or("N/A".to_string(), |s| format!("{:.3}", s));
+
+                hierarchy_html.push_str(&format!(
+                    r#"<tr>
+                        <td><strong>{}</strong></td>
+                        <td><span class="badge">{}</span></td>
+                        <td>{}</td>
+                        <td>{}</td>
+                        <td>{:.2}</td>
+                        <td>{}/{}</td>
+                    </tr>"#,
+                    facet.display_name(),
+                    facet_tier,
+                    facet_score,
+                    facet_se,
+                    facet_acc.raw_score,
+                    facet_acc.answered_count,
+                    facet_acc.total_items
+                ));
+            }
+
+            hierarchy_html.push_str(
+                r#"            </tbody>
+        </table>
+    </div>"#
+            );
+        }
+
+        hierarchy_html.push_str(
+            r#"    </div>
+</div>"#
+        );
     }
 
-    let mut rows_traits = String::new();
-    for c in &report.traits {
-        let tier = c.tier.as_deref().unwrap_or("N/A");
-        let score = c.normalized_score.map_or("N/A".to_string(), |s| format!("{:.3}", s));
-        let se = c.standard_error.map_or("N/A".to_string(), |s| format!("{:.3}", s));
-        rows_traits.push_str(&format!(
-            "<tr><td><strong>{}</strong></td><td><span class='badge'>{}</span></td><td>{}</td><td>{}</td><td>{:.2}</td><td>{}/{}</td></tr>",
-            c.name, tier, score, se, c.raw_score, c.answered_items, c.total_items
-        ));
-    }
-
-    let mut rows_facets = String::new();
-    for c in &report.facets {
-        let tier = c.tier.as_deref().unwrap_or("N/A");
-        let score = c.normalized_score.map_or("N/A".to_string(), |s| format!("{:.3}", s));
-        let se = c.standard_error.map_or("N/A".to_string(), |s| format!("{:.3}", s));
-        rows_facets.push_str(&format!(
-            "<tr><td>{}</td><td><span class='badge'>{}</span></td><td>{}</td><td>{}</td><td>{:.2}</td><td>{}/{}</td></tr>",
-            c.name, tier, score, se, c.raw_score, c.answered_items, c.total_items
+    let mut item_rows = String::new();
+    for item in &report.item_responses {
+        let resp_label = item.response_label.as_deref().unwrap_or("Unanswered");
+        let resp_score = item.response_score.map_or("N/A".to_string(), |s| format!("{:.1}", s));
+        item_rows.push_str(&format!(
+            "<tr><td>{}</td><td><strong>{}</strong></td><td>{}</td><td>{}</td><td>{}</td><td>{}</td><td><span class='badge'>{}</span></td><td>{}</td></tr>",
+            item.question_number,
+            item.label,
+            item.text,
+            item.meta_trait,
+            item.r#trait,
+            item.facet,
+            resp_label,
+            resp_score
         ));
     }
 
@@ -234,27 +331,89 @@ pub fn export_to_printable_html(state: &QuestionnaireState) -> String {
 <html lang="en">
 <head>
 <meta charset="UTF-8">
-<title>Revisited IPIP-NEO Personality Assessment Report</title>
+<title>Revisited IPIP-NEO (TGA) Personality Assessment Report</title>
 <style>
     body {{
         font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
-        color: #1a1a1a;
+        color: #1f2937;
         background: #ffffff;
         margin: 0;
-        padding: 32px;
-        line-height: 1.5;
+        padding: 28px;
+        line-height: 1.45;
+        font-size: 13px;
     }}
     .header {{
-        border-bottom: 2px solid #333;
-        padding-bottom: 16px;
+        border-bottom: 2px solid #374151;
+        padding-bottom: 14px;
         margin-bottom: 24px;
     }}
-    h1 {{ margin: 0 0 8px 0; font-size: 24px; }}
-    h2 {{ margin: 24px 0 12px 0; font-size: 18px; border-bottom: 1px solid #ddd; padding-bottom: 4px; }}
-    .meta-bar {{ color: #555; font-size: 14px; }}
-    table {{ width: 100%; border-collapse: collapse; margin-bottom: 24px; font-size: 13px; }}
-    th, td {{ border: 1px solid #e0e0e0; padding: 6px 10px; text-align: left; }}
-    th {{ background-color: #f5f5f7; font-weight: 600; }}
+    h1 {{ margin: 0 0 6px 0; font-size: 22px; color: #111827; }}
+    h2 {{ margin: 28px 0 14px 0; font-size: 17px; color: #1f2937; border-bottom: 1px solid #e5e7eb; padding-bottom: 6px; }}
+    h3 {{ margin: 0; font-size: 16px; color: #1e3a8a; }}
+    h4 {{ margin: 0; font-size: 14px; color: #374151; }}
+    .meta-bar {{ color: #4b5563; font-size: 13px; font-weight: 500; }}
+
+    .meta-card {{
+        border: 2px solid #93c5fd;
+        border-radius: 8px;
+        background: #f8fafc;
+        padding: 16px;
+        margin-bottom: 24px;
+        page-break-inside: avoid;
+    }}
+    .meta-header {{
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        border-bottom: 1px solid #bfdbfe;
+        padding-bottom: 10px;
+        margin-bottom: 14px;
+        flex-wrap: wrap;
+        gap: 8px;
+    }}
+    .meta-title {{ display: flex; align-items: center; gap: 8px; }}
+    .meta-metrics, .trait-metrics {{ display: flex; gap: 12px; align-items: center; font-size: 12px; }}
+
+    .traits-container {{
+        display: flex;
+        flex-direction: column;
+        gap: 16px;
+    }}
+    .trait-card {{
+        border: 1px solid #cbd5e1;
+        border-left: 4px solid #3b82f6;
+        border-radius: 6px;
+        background: #ffffff;
+        padding: 12px 14px;
+    }}
+    .trait-header {{
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 10px;
+        flex-wrap: wrap;
+        gap: 6px;
+    }}
+    .trait-title {{ display: flex; align-items: center; gap: 6px; }}
+
+    .level-tag {{
+        font-size: 10px;
+        text-transform: uppercase;
+        font-weight: 700;
+        background: #dbeafe;
+        color: #1e40af;
+        padding: 2px 6px;
+        border-radius: 4px;
+    }}
+    .trait-tag {{
+        background: #e2e8f0;
+        color: #334155;
+    }}
+
+    table {{ width: 100%; border-collapse: collapse; margin-top: 6px; font-size: 12px; }}
+    th, td {{ border: 1px solid #e2e8f0; padding: 5px 8px; text-align: left; }}
+    th {{ background-color: #f1f5f9; font-weight: 600; color: #334155; }}
+
     .badge {{
         display: inline-block;
         padding: 2px 6px;
@@ -262,64 +421,58 @@ pub fn export_to_printable_html(state: &QuestionnaireState) -> String {
         background: #eef2ff;
         color: #3730a3;
         font-weight: 600;
-        font-size: 12px;
+        font-size: 11px;
     }}
+    .tier-badge {{
+        background: #dbeafe;
+        color: #1e40af;
+        font-size: 11px;
+    }}
+
     @media print {{
         body {{ padding: 0; }}
-        button {{ display: none; }}
+        .meta-card {{ border: 1px solid #94a3b8; page-break-inside: avoid; }}
+        .trait-card {{ border: 1px solid #cbd5e1; page-break-inside: avoid; }}
     }}
 </style>
 </head>
 <body>
 <div class="header">
-    <h1>Revisited IPIP-NEO Personality Assessment Report</h1>
+    <h1>Revisited IPIP-NEO (TGA) Personality Assessment Report</h1>
     <div class="meta-bar">
-        Questions Answered: {} / {} ({:.1}%)
+        Progress: {} / {} questions answered ({:.1}%) • Model: 3 Meta-Traits ➔ 6 Traits ➔ 28 Facets
     </div>
 </div>
 
-<h2>Meta-Traits (Higher-Order Stability & Plasticity)</h2>
+<h2>Hierarchical Psychometric Breakdown</h2>
+{}
+
+<h2>Item Responses (All {} Questionnaire Items)</h2>
 <table>
     <thead>
-        <tr><th>Meta-Trait</th><th>Tier</th><th>Score [-1, 1]</th><th>SE</th><th>Raw</th><th>Items</th></tr>
+        <tr>
+            <th>#</th>
+            <th>Item Key</th>
+            <th>Statement</th>
+            <th>Meta-Trait</th>
+            <th>Trait</th>
+            <th>Facet</th>
+            <th>Your Response</th>
+            <th>Score</th>
+        </tr>
     </thead>
     <tbody>
         {}
     </tbody>
 </table>
 
-<h2>Traits (Six Core Personality Dimensions)</h2>
-<table>
-    <thead>
-        <tr><th>Trait</th><th>Tier</th><th>Score [-1, 1]</th><th>SE</th><th>Raw</th><th>Items</th></tr>
-    </thead>
-    <tbody>
-        {}
-    </tbody>
-</table>
-
-<h2>Facets (28 Detailed Construct Subdimensions)</h2>
-<table>
-    <thead>
-        <tr><th>Facet</th><th>Tier</th><th>Score [-1, 1]</th><th>SE</th><th>Raw</th><th>Items</th></tr>
-    </thead>
-    <tbody>
-        {}
-    </tbody>
-</table>
-
-<script>
-window.onload = function() {{
-    // Automatically trigger print dialog if requested
-}};
-</script>
 </body>
 </html>"#,
         report.answered_questions,
         report.total_questions,
         report.completion_percentage,
-        rows_meta,
-        rows_traits,
-        rows_facets
+        hierarchy_html,
+        report.total_questions,
+        item_rows
     )
 }

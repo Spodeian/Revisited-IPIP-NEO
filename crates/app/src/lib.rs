@@ -13,6 +13,7 @@ use wasm_bindgen::JsCast;
 pub struct PersonalityApp {
     pub state: AppState,
     pub show_reset_dialog: bool,
+    pub show_help_dialog: bool,
     pub show_export_dialog: Option<ExportType>,
     pub export_copied_notification: Option<f64>,
     pub last_scroll_time: f64,
@@ -24,6 +25,36 @@ pub enum ExportType {
     Csv,
     Json,
     PrintableHtml,
+}
+
+fn trigger_file_download(filename: &str, content: &str, _mime_type: &str) {
+    #[cfg(target_arch = "wasm32")]
+    {
+        if let Some(window) = web_sys::window() {
+            if let Some(document) = window.document() {
+                let blob_parts = js_sys::Array::new();
+                blob_parts.push(&wasm_bindgen::JsValue::from_str(content));
+                let mut blob_props = web_sys::BlobPropertyBag::new();
+                blob_props.type_(_mime_type);
+                if let Ok(blob) = web_sys::Blob::new_with_str_sequence_and_options(&blob_parts, &blob_props) {
+                    if let Ok(url) = web_sys::Url::create_object_url_with_blob(&blob) {
+                        if let Ok(element) = document.create_element("a") {
+                            if let Ok(anchor) = element.dyn_into::<web_sys::HtmlAnchorElement>() {
+                                anchor.set_href(&url);
+                                anchor.set_download(filename);
+                                anchor.click();
+                                let _ = web_sys::Url::revoke_object_url(&url);
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+    #[cfg(not(target_arch = "wasm32"))]
+    {
+        let _ = std::fs::write(filename, content);
+    }
 }
 
 impl PersonalityApp {
@@ -51,6 +82,7 @@ impl PersonalityApp {
         Self {
             state,
             show_reset_dialog: false,
+            show_help_dialog: false,
             show_export_dialog: None,
             export_copied_notification: None,
             last_scroll_time: 0.0,
@@ -154,6 +186,10 @@ impl eframe::App for PersonalityApp {
 
             let width = ui.available_width();
             let is_mobile = width < 800.0;
+            let curr_focus = self.state.questionnaire.current_focus_idx + 1;
+            let total = self.state.questionnaire.total_questions();
+            let progress = self.state.questionnaire.completion_rate();
+            let progress_text = format!("Item #{} of {} ({:.0}%)", curr_focus, total, progress * 100.0);
 
             if is_mobile {
                 // Mobile layout: Two stacked rows
@@ -173,18 +209,20 @@ impl eframe::App for PersonalityApp {
                                 };
                             }
 
+                            // Help Icon
+                            if ui.button("❓").on_hover_text("Help, shortcuts & privacy").clicked() {
+                                self.show_help_dialog = true;
+                            }
+
                             // Research DOI Icon
                             if ui.button("📖").on_hover_text("Read the research").clicked() {
                                 ui.ctx().open_url(egui::OpenUrl::new_tab("https://doi.org/10.1177/08902070251352590"));
                             }
 
-                            // GitHub Icon
-                            if ui.button("💻").on_hover_text("View source on GitHub").clicked() {
+                            // GitHub Icon (Icon only, visually obvious)
+                            if ui.button("🐙").on_hover_text("View source on GitHub").clicked() {
                                 ui.ctx().open_url(egui::OpenUrl::new_tab("https://github.com/Spodeian/Revisited-IPIP-NEO"));
                             }
-
-                            // Privacy Icon
-                            ui.label("🔒").on_hover_text("Privacy: 100% Local. No data ever leaves your device.");
 
                             // Reset button
                             if ui.button("🔄").on_hover_text("Reset test and clear all answers").clicked() {
@@ -205,11 +243,7 @@ impl eframe::App for PersonalityApp {
 
                     ui.add_space(4.0);
 
-                    // Row 2: Muted Progress Bar spanning wider width
-                    let answered = self.state.questionnaire.answered_count();
-                    let total = self.state.questionnaire.total_questions();
-                    let progress = self.state.questionnaire.completion_rate();
-                    let progress_text = format!("Progress: {}/{} ({:.0}%)", answered, total, progress * 100.0);
+                    // Row 2: Progress Bar displaying Item #x of 221
                     ui.add(egui::ProgressBar::new(progress).text(progress_text).desired_width(ui.available_width() - 8.0));
                 });
             } else {
@@ -230,18 +264,20 @@ impl eframe::App for PersonalityApp {
                             };
                         }
 
+                        // Help Icon
+                        if ui.button("❓").on_hover_text("Help, shortcuts & privacy").clicked() {
+                            self.show_help_dialog = true;
+                        }
+
                         // Research DOI Icon
-                        if ui.button("📖 Research").on_hover_text("Read the research publication").clicked() {
+                        if ui.button("📖").on_hover_text("Read the research").clicked() {
                             ui.ctx().open_url(egui::OpenUrl::new_tab("https://doi.org/10.1177/08902070251352590"));
                         }
 
-                        // GitHub Icon
-                        if ui.button("💻 GitHub").on_hover_text("View source on GitHub").clicked() {
+                        // GitHub Icon (Icon only)
+                        if ui.button("🐙").on_hover_text("View source on GitHub").clicked() {
                             ui.ctx().open_url(egui::OpenUrl::new_tab("https://github.com/Spodeian/Revisited-IPIP-NEO"));
                         }
-
-                        // Privacy Icon
-                        ui.label("🔒").on_hover_text("Privacy: 100% Local. No data ever leaves your device.");
 
                         // Reset button
                         if ui.button("🔄 Reset").on_hover_text("Reset test and clear all answers").clicked() {
@@ -260,11 +296,7 @@ impl eframe::App for PersonalityApp {
 
                         ui.separator();
 
-                        // Progress bar
-                        let answered = self.state.questionnaire.answered_count();
-                        let total = self.state.questionnaire.total_questions();
-                        let progress = self.state.questionnaire.completion_rate();
-                        let progress_text = format!("Progress: {}/{} ({:.0}%)", answered, total, progress * 100.0);
+                        // Progress bar displaying Item #x of 221
                         ui.add(egui::ProgressBar::new(progress).text(progress_text).desired_width(220.0));
                     });
                 });
@@ -326,7 +358,7 @@ impl PersonalityApp {
         }
 
         let curr_idx = self.state.questionnaire.current_focus_idx;
-        let (q_id, q_text, q_response) = {
+        let (_q_id, q_text, q_response) = {
             let q = match self.state.questionnaire.questions.get(curr_idx) {
                 Some(q) => q,
                 None => return,
@@ -356,47 +388,15 @@ impl PersonalityApp {
                     let max_width = (avail_width - 8.0).min(700.0);
                     ui.set_max_width(max_width);
 
-                    // Queue & Status indicator (centered across available width)
-                    let pending_remaining = self.state.questionnaire.pending_queue.len();
-                    let status_text = if q_response.is_some() {
-                        "✓ Answered"
-                    } else {
-                        "Pending"
-                    };
-
-                    ui.allocate_ui_with_layout(
-                        egui::vec2(ui.available_width(), 0.0),
-                        egui::Layout::left_to_right(egui::Align::Center).with_main_align(egui::Align::Center),
-                        |ui| {
-                            ui.label(
-                                egui::RichText::new(format!("Item #{} of {}", q_id, total))
-                                    .strong()
-                                    .color(ui.visuals().hyperlink_color),
-                            );
-                            ui.label(format!("•  {}", status_text));
-                            if !is_tight_height && !is_mobile_portrait {
-                                ui.label(
-                                    egui::RichText::new(format!("({} remaining in queue)", pending_remaining))
-                                        .italics()
-                                        .small(),
-                                );
-                            }
-                        },
+                    // Prominent Framing Instruction
+                    let framing_font_size = if is_ultra_tight { 14.0 } else if is_tight_height { 16.0 } else { 19.0 };
+                    ui.label(
+                        egui::RichText::new("Rate how accurately this statement describes you:")
+                            .size(framing_font_size)
+                            .strong()
+                            .color(ui.visuals().hyperlink_color),
                     );
-
-                    let space_before_card = if is_ultra_tight { 2.0 } else if is_tight_height { 4.0 } else if is_mobile_portrait { 10.0 } else { 25.0 };
-                    ui.add_space(space_before_card);
-
-                    // Clear Framing Instruction (omit on ultra-tight screens to fit buttons)
-                    if !is_tight_height && !is_mobile_portrait {
-                        ui.label(
-                            egui::RichText::new("Rate how accurately this statement describes you:")
-                                .size(16.0)
-                                .strong()
-                                .color(ui.visuals().text_color()),
-                        );
-                        ui.add_space(10.0);
-                    }
+                    ui.add_space(if is_ultra_tight { 4.0 } else { 10.0 });
 
                     // Question Statement Box (scaled down for small screens)
                     let card_padding = if is_ultra_tight { 6.0 } else if is_tight_height { 12.0 } else if is_mobile_portrait { 16.0 } else { 24.0 };
@@ -417,17 +417,6 @@ impl PersonalityApp {
 
                     let space_after_card = if is_ultra_tight { 4.0 } else if is_tight_height { 6.0 } else if is_mobile_portrait { 15.0 } else { 30.0 };
                     ui.add_space(space_after_card);
-
-                    // Likert Response Options Header
-                    if !is_tight_height {
-                        let header_size = if is_mobile_portrait { 12.0 } else { 14.0 };
-                        ui.label(
-                            egui::RichText::new("How well does this describe you? (Select or press 1-5):")
-                                .size(header_size)
-                                .italics()
-                        );
-                        ui.add_space(if is_mobile_portrait { 6.0 } else { 10.0 });
-                    }
 
                     let responses = [
                         (Response::StronglyDisagree, "Strongly Disagree", "1"),
@@ -538,17 +527,6 @@ impl PersonalityApp {
                             }
                         },
                     );
-
-                    if !is_tight_height && !is_mobile_portrait {
-                        ui.add_space(12.0);
-                        ui.label(
-                            egui::RichText::new(
-                                "Tip: Press 1-5 to answer, Left/Right arrow keys to navigate, and Shift+Arrows to jump between unanswered questions.",
-                            )
-                            .small()
-                            .weak(),
-                        );
-                    }
                 });
             });
 
@@ -608,13 +586,15 @@ impl PersonalityApp {
 
             ui.add_space(6.0);
             ui.horizontal(|ui| {
-                if ui.button("📄 Export CSV").clicked() {
-                    self.show_export_dialog = Some(ExportType::Csv);
+                if ui.button("📄 Export CSV").on_hover_text("Immediately download full results and responses as a CSV file").clicked() {
+                    let csv_content = export_to_csv(&self.state.questionnaire);
+                    trigger_file_download("ipip_neo_tga_results.csv", &csv_content, "text/csv;charset=utf-8");
                 }
-                if ui.button("{ } Export JSON").clicked() {
-                    self.show_export_dialog = Some(ExportType::Json);
+                if ui.button("{ } Export JSON").on_hover_text("Immediately download full results and responses as a JSON file").clicked() {
+                    let json_content = export_to_json(&self.state.questionnaire);
+                    trigger_file_download("ipip_neo_tga_results.json", &json_content, "application/json;charset=utf-8");
                 }
-                if ui.button("🖨 Save PDF / Print").clicked() {
+                if ui.button("🖨 Save PDF / Print").on_hover_text("Open formatted hierarchical report for printing or saving to PDF").clicked() {
                     #[cfg(target_arch = "wasm32")]
                     {
                         let html_content = export_to_printable_html(&self.state.questionnaire);
@@ -624,10 +604,6 @@ impl PersonalityApp {
                                     if let Some(doc_element) = doc.document_element() {
                                         // Overwrite the entire <html> element cleanly to preserve <head> styles and <body>
                                         doc_element.set_inner_html(&html_content);
-
-                                        // Some browsers need a micro-tick to render the DOM before freezing for the print dialog.
-                                        // Because we can't easily wait asynchronously inside the click handler,
-                                        // we trigger print natively which generally succeeds on modern browsers after inner_html assignment.
                                         let _ = new_win.print();
                                     }
                                 }
@@ -637,7 +613,7 @@ impl PersonalityApp {
 
                     #[cfg(not(target_arch = "wasm32"))]
                     {
-                        // On desktop, fallback to showing the HTML in the dialog since we can't pop a browser print dialog natively easily
+                        // On desktop, fallback to showing the HTML in the dialog
                         self.show_export_dialog = Some(ExportType::PrintableHtml);
                     }
                 }
@@ -731,6 +707,69 @@ impl PersonalityApp {
     }
 
     fn render_dialogs(&mut self, ui: &mut egui::Ui) {
+        // Help & Shortcuts Dialog
+        if self.show_help_dialog {
+            let mut open = true;
+            egui::Window::new("Help & Information")
+                .open(&mut open)
+                .default_size(egui::vec2(480.0, 360.0))
+                .anchor(egui::Align2::CENTER_CENTER, egui::vec2(0.0, 0.0))
+                .show(ui.ctx(), |ui| {
+                    egui::ScrollArea::vertical().show(ui, |ui| {
+                        ui.heading("Keyboard Shortcuts & Navigation");
+                        ui.add_space(4.0);
+                        ui.label("• 1, 2, 3, 4, 5: Select response (Strongly Disagree to Strongly Agree)");
+                        ui.label("• Left / Up Arrow: Navigate to previous question");
+                        ui.label("• Right / Down Arrow: Skip question (defers to back of queue)");
+                        ui.label("• Shift + Left Arrow: Jump to previous unanswered question");
+                        ui.label("• Shift + Right Arrow: Jump to next unanswered question");
+                        ui.label("• Mouse Scroll: Scroll to skip / navigate questions (Desktop)");
+
+                        ui.add_space(12.0);
+                        ui.separator();
+                        ui.add_space(8.0);
+
+                        ui.heading("Privacy & Data Safety");
+                        ui.add_space(4.0);
+                        ui.label(
+                            egui::RichText::new("🔒 Privacy: 100% Local. No data ever leaves your device.")
+                                .color(egui::Color32::from_rgb(80, 160, 90))
+                                .strong(),
+                        );
+                        ui.label(
+                            "This application runs entirely in your local browser using client-side WebAssembly. Your responses, scores, and exports are never transmitted to any server or external database.",
+                        );
+
+                        ui.add_space(12.0);
+                        ui.separator();
+                        ui.add_space(8.0);
+
+                        ui.heading("Psychometric Methodology");
+                        ui.add_space(4.0);
+                        ui.label(
+                            "This assessment implements the Trait-Group-Aspect (TGA) model based on the IPIP-NEO, optimizing question sequences for minimal standard error.",
+                        );
+                        ui.horizontal(|ui| {
+                            ui.label("Reference:");
+                            ui.hyperlink_to(
+                                "doi:10.1177/08902070251352590",
+                                "https://doi.org/10.1177/08902070251352590",
+                            );
+                        });
+                        ui.horizontal(|ui| {
+                            ui.label("Source code:");
+                            ui.hyperlink_to(
+                                "GitHub Repository",
+                                "https://github.com/Spodeian/Revisited-IPIP-NEO",
+                            );
+                        });
+                    });
+                });
+            if !open {
+                self.show_help_dialog = false;
+            }
+        }
+
         // Reset Confirmation Dialog
         if self.show_reset_dialog {
             egui::Window::new("Reset Assessment?")

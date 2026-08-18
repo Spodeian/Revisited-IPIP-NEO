@@ -91,17 +91,23 @@ Revisited IPIP-NEO/
 
 ---
 
-## 5. UI Polish & Refinements Plan
+## 5. UI & Export Refinements Plan
 
 - [x] **Header Icon Controls with Tooltips**:
   - Add DOI Research icon (📖) with tooltip `"Read the research"` opening `https://doi.org/10.1177/08902070251352590`.
-  - Add GitHub icon (💻) with tooltip `"View source on GitHub"` opening `https://github.com/Spodeian/Revisited-IPIP-NEO`.
-  - Add Privacy Shield icon (🔒) with tooltip `"Privacy: 100% Local. No data ever leaves your device."`.
-  - Add tooltips to Theme toggle and Reset buttons.
-- [x] **Remove Question Card Footer Clutter**:
-  - Move methodology, external links, and privacy notices out of the card footer and into the header.
-- [x] **Navigation Buttons Row Centering**:
-  - Replace left-biased wrapping with true horizontally centered layout calculation (`with_main_align(egui::Align::Center)`).
+  - Add GitHub icon (🐙) with tooltip `"View source on GitHub"` opening `https://github.com/Spodeian/Revisited-IPIP-NEO`.
+  - Add Help icon (❓) with tooltip `"Help, shortcuts & privacy"` opening modal.
+  - Remove lock icon and card footer clutter; embed privacy reassurance in Help modal.
+- [x] **Progress Bar Header Integration**:
+  - Display `Item #x of 221 (y%)` inside the progress bar.
+  - Remove redundant card header indicators and queue counter.
+  - Remove redundant `"How well does this describe you?"` prompt.
+  - Increase visual prominence of `"Rate how accurately this statement describes you:"`.
+- [x] **Navigation Buttons Centering**:
+  - Full available width allocation with `with_main_align(egui::Align::Center)` for true horizontal centering.
 - [x] **Scroll Debounce & Cooldown Engine**:
-  - Add `last_scroll_time: f64` and `scroll_accumulator: f32` to `PersonalityApp`.
-  - Enforce a 350ms cooldown and accumulated delta threshold to prevent rapid skipping.
+  - Add `last_scroll_time` and `scroll_accumulator` on `PersonalityApp` to prevent rapid-fire skipping.
+- [x] **Instant CSV & JSON File Downloads**:
+  - Trigger instant browser file downloads (`.csv` and `.json`) containing full item responses and calculated scores upon clicking export buttons.
+- [x] **Hierarchical Nested PDF/Print Layout**:
+  - Refactor printable HTML/PDF report to show facets nested directly under their parent traits, which nest under their parent meta-traits with visual hierarchy indicators and tree styling.
