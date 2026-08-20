@@ -33,7 +33,7 @@ pub enum ExportFormat {
     Csv,
     Json,
     Svg,
-    Pdf,
+    Html,
 }
 
 impl ExportFormat {
@@ -42,7 +42,7 @@ impl ExportFormat {
             Self::Csv => "📄 CSV File",
             Self::Json => "{ } JSON File",
             Self::Svg => "🖼 SVG Vector Graphic",
-            Self::Pdf => "📋 Save PDF / Print",
+            Self::Html => "📋 HTML Report",
         }
     }
 }
@@ -706,15 +706,10 @@ impl PersonalityApp {
                         ui.selectable_value(&mut self.selected_export_format, ExportFormat::Csv, "📄 CSV File");
                         ui.selectable_value(&mut self.selected_export_format, ExportFormat::Json, "{ } JSON File");
                         ui.selectable_value(&mut self.selected_export_format, ExportFormat::Svg, "🖼 SVG Vector Graphic");
-                        ui.selectable_value(&mut self.selected_export_format, ExportFormat::Pdf, "📋 Save PDF / Print");
+                        ui.selectable_value(&mut self.selected_export_format, ExportFormat::Html, "📋 HTML Report");
                     });
 
-                let action_btn_text = match self.selected_export_format {
-                    ExportFormat::Pdf => "🖨 Print / Save PDF",
-                    _ => "📥 Download File",
-                };
-
-                if ui.button(action_btn_text).on_hover_text("Export results and download selected file format").clicked() {
+                if ui.button("📥 Download File").on_hover_text("Export results and download selected file format").clicked() {
                     match self.selected_export_format {
                         ExportFormat::Csv => {
                             let csv_content = export_to_csv(&self.state.questionnaire);
@@ -728,28 +723,9 @@ impl PersonalityApp {
                             let svg_content = export_to_svg(&self.state.questionnaire);
                             trigger_file_download("ipip_neo_tga_results.svg", &svg_content, "image/svg+xml;charset=utf-8");
                         }
-                        ExportFormat::Pdf => {
+                        ExportFormat::Html => {
                             let html_content = export_to_printable_html(&self.state.questionnaire);
-
-                            #[cfg(target_arch = "wasm32")]
-                            {
-                                if let Some(window) = web_sys::window() {
-                                    if let Ok(Some(new_win)) = window.open_with_url_and_target("", "_blank") {
-                                        if let Some(doc) = new_win.document() {
-                                            if let Some(doc_element) = doc.document_element() {
-                                                doc_element.set_inner_html(&html_content);
-                                                let _ = new_win.print();
-                                            }
-                                        }
-                                    }
-                                }
-                            }
-
-                            #[cfg(not(target_arch = "wasm32"))]
-                            {
-                                // On Desktop, immediately download/save the printable HTML file natively to disk
-                                trigger_file_download("ipip_neo_tga_report.html", &html_content, "text/html;charset=utf-8");
-                            }
+                            trigger_file_download("ipip_neo_tga_report.html", &html_content, "text/html;charset=utf-8");
                         }
                     }
                 }
