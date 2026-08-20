@@ -23,6 +23,7 @@ pub struct PersonalityApp {
     pub share_link_copied_time: Option<f64>,
     pub is_viewing_shared_link: bool,
     pub selected_export_format: ExportFormat,
+    pub hide_header: bool,
     pub last_scroll_time: f64,
     pub scroll_accumulator: f32,
 }
@@ -148,6 +149,7 @@ impl PersonalityApp {
             share_link_copied_time: None,
             is_viewing_shared_link,
             selected_export_format: ExportFormat::default(),
+            hide_header: false,
             last_scroll_time: 0.0,
             scroll_accumulator: 0.0,
         }
@@ -268,135 +270,149 @@ impl eframe::App for PersonalityApp {
 
         self.handle_keyboard_and_scroll(ui);
 
-        // Top Navigation Bar
-        egui::Panel::top("top_panel").show(ui, |ui| {
-            let width = ui.available_width();
-            let is_mobile = width < 800.0;
-            ui.add_space(4.0);
+        // Top Navigation Bar (Only rendered if hide_header is false)
+        if !self.hide_header {
+            egui::Panel::top("top_panel").show(ui, |ui| {
+                let width = ui.available_width();
+                let is_mobile = width < 800.0;
+                ui.add_space(4.0);
 
-            let title_text = if is_mobile { "IPIP-NEO (TGA)" } else { "Revisited IPIP-NEO Personality Assessment" };
-            let header_row_height = if is_mobile { 44.0 } else { 32.0 };
+                let title_text = if is_mobile { "IPIP-NEO (TGA)" } else { "Revisited IPIP-NEO Personality Assessment" };
+                let header_row_height = if is_mobile { 44.0 } else { 32.0 };
 
-            ui.horizontal(|ui| {
-                ui.set_height(header_row_height);
+                ui.horizontal(|ui| {
+                    ui.set_height(header_row_height);
 
-                if is_mobile {
-                    ui.label(egui::RichText::new(title_text).size(18.0).strong());
-                } else {
-                    ui.heading(title_text);
-                }
-
-                ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
                     if is_mobile {
-                        ui.spacing_mut().item_spacing.x = 8.0;
-
-                        // Mobile larger touch-target buttons (min 44x44px standard for easy thumb tapping)
-                        let results_btn_text = if self.state.questionnaire.show_results { "📝 Questions" } else { "📊 Results" };
-                        let res_btn = egui::Button::new(egui::RichText::new(results_btn_text).size(14.0).strong())
-                            .min_size(egui::vec2(96.0, 44.0));
-                        if ui.add(res_btn).on_hover_text("Toggle assessment results").clicked() {
-                            self.state.questionnaire.show_results = !self.state.questionnaire.show_results;
-                        }
-
-                        // Mobile Single Import Button (rendered to the right of Reset on screen)
-                        let import_btn = egui::Button::new(egui::RichText::new("📥").size(20.0))
-                            .min_size(egui::vec2(44.0, 44.0));
-                        if ui.add(import_btn).on_hover_text("Import CSV or JSON answers to resume assessment").clicked() {
-                            self.show_import_dialog = true;
-                            self.import_text_buffer.clear();
-                            self.import_result_message = None;
-                        }
-
-                        let reset_btn = egui::Button::new(egui::RichText::new("🔄").size(20.0))
-                            .min_size(egui::vec2(44.0, 44.0));
-                        if ui.add(reset_btn).on_hover_text("Reset test and clear all answers").clicked() {
-                            self.show_reset_dialog = true;
-                        }
-
-                        let gh_btn = egui::Button::new(egui::RichText::new("🐙").size(20.0))
-                            .min_size(egui::vec2(44.0, 44.0));
-                        if ui.add(gh_btn).on_hover_text("View source on GitHub").clicked() {
-                            ui.ctx().open_url(egui::OpenUrl::new_tab("https://github.com/Spodeian/Revisited-IPIP-NEO"));
-                        }
-
-                        let doi_btn = egui::Button::new(egui::RichText::new("📖").size(20.0))
-                            .min_size(egui::vec2(44.0, 44.0));
-                        if ui.add(doi_btn).on_hover_text("Read the research").clicked() {
-                            ui.ctx().open_url(egui::OpenUrl::new_tab("https://doi.org/10.1177/08902070251352590"));
-                        }
-
-                        let help_btn = egui::Button::new(egui::RichText::new("❓").size(20.0))
-                            .min_size(egui::vec2(44.0, 44.0));
-                        if ui.add(help_btn).on_hover_text("Help, shortcuts & privacy").clicked() {
-                            self.show_help_dialog = true;
-                        }
-
-                        let theme_icon = match self.state.config.theme {
-                            ThemeMode::Light => "🌙",
-                            ThemeMode::Dark => "☀️",
-                        };
-                        let theme_btn = egui::Button::new(egui::RichText::new(theme_icon).size(20.0))
-                            .min_size(egui::vec2(44.0, 44.0));
-                        if ui.add(theme_btn).on_hover_text("Toggle dark / light theme").clicked() {
-                            self.state.config.theme = match self.state.config.theme {
-                                ThemeMode::Light => ThemeMode::Dark,
-                                ThemeMode::Dark => ThemeMode::Light,
-                            };
-                        }
+                        ui.label(egui::RichText::new(title_text).size(18.0).strong());
                     } else {
-                        // Desktop layout: Right-to-Left (processed reverse-order for on-screen alignment)
-                        let theme_icon = match self.state.config.theme {
-                            ThemeMode::Light => "🌙 Dark",
-                            ThemeMode::Dark => "☀️ Light",
-                        };
-                        if ui.button(theme_icon).on_hover_text("Toggle dark / light theme").clicked() {
-                            self.state.config.theme = match self.state.config.theme {
-                                ThemeMode::Light => ThemeMode::Dark,
-                                ThemeMode::Dark => ThemeMode::Light,
-                            };
-                        }
-
-                        // Help Icon
-                        if ui.button("❓").on_hover_text("Help, shortcuts & privacy").clicked() {
-                            self.show_help_dialog = true;
-                        }
-
-                        // Research DOI Icon
-                        if ui.button("📖").on_hover_text("Read the research").clicked() {
-                            ui.ctx().open_url(egui::OpenUrl::new_tab("https://doi.org/10.1177/08902070251352590"));
-                        }
-
-                        // GitHub Icon (Icon only)
-                        if ui.button("🐙").on_hover_text("View source on GitHub").clicked() {
-                            ui.ctx().open_url(egui::OpenUrl::new_tab("https://github.com/Spodeian/Revisited-IPIP-NEO"));
-                        }
-
-                        // Import Button (Sits directly to the right of Reset on screen)
-                        if ui.button("📥 Import").on_hover_text("Import CSV or JSON answers to resume your assessment").clicked() {
-                            self.show_import_dialog = true;
-                            self.import_text_buffer.clear();
-                            self.import_result_message = None;
-                        }
-
-                        // Reset button
-                        if ui.button("🔄 Reset").on_hover_text("Reset test and clear all answers").clicked() {
-                            self.show_reset_dialog = true;
-                        }
-
-                        // Results / Questions Toggle
-                        let results_btn_text = if self.state.questionnaire.show_results {
-                            "📊 Hide Results"
-                        } else {
-                            "📊 Show Results"
-                        };
-                        if ui.button(results_btn_text).on_hover_text("Toggle assessment results").clicked() {
-                            self.state.questionnaire.show_results = !self.state.questionnaire.show_results;
-                        }
+                        ui.heading(title_text);
                     }
+
+                    ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
+                        if is_mobile {
+                            ui.spacing_mut().item_spacing.x = 8.0;
+
+                            // Mobile larger touch-target buttons (min 44x44px standard for easy thumb tapping)
+                            let results_btn_text = if self.state.questionnaire.show_results { "📝 Questions" } else { "📊 Results" };
+                            let res_btn = egui::Button::new(egui::RichText::new(results_btn_text).size(14.0).strong())
+                                .min_size(egui::vec2(96.0, 44.0));
+                            if ui.add(res_btn).on_hover_text("Toggle assessment results").clicked() {
+                                self.state.questionnaire.show_results = !self.state.questionnaire.show_results;
+                            }
+
+                            // Mobile Single Import Button (rendered to the right of Reset on screen)
+                            let import_btn = egui::Button::new(egui::RichText::new("📥").size(20.0))
+                                .min_size(egui::vec2(44.0, 44.0));
+                            if ui.add(import_btn).on_hover_text("Import CSV or JSON answers to resume assessment").clicked() {
+                                self.show_import_dialog = true;
+                                self.import_text_buffer.clear();
+                                self.import_result_message = None;
+                            }
+
+                            let reset_btn = egui::Button::new(egui::RichText::new("🔄").size(20.0))
+                                .min_size(egui::vec2(44.0, 44.0));
+                            if ui.add(reset_btn).on_hover_text("Reset test and clear all answers").clicked() {
+                                self.show_reset_dialog = true;
+                            }
+
+                            let gh_btn = egui::Button::new(egui::RichText::new("🐙").size(20.0))
+                                .min_size(egui::vec2(44.0, 44.0));
+                            if ui.add(gh_btn).on_hover_text("View source on GitHub").clicked() {
+                                ui.ctx().open_url(egui::OpenUrl::new_tab("https://github.com/Spodeian/Revisited-IPIP-NEO"));
+                            }
+
+                            let doi_btn = egui::Button::new(egui::RichText::new("📖").size(20.0))
+                                .min_size(egui::vec2(44.0, 44.0));
+                            if ui.add(doi_btn).on_hover_text("Read the research").clicked() {
+                                ui.ctx().open_url(egui::OpenUrl::new_tab("https://doi.org/10.1177/08902070251352590"));
+                            }
+
+                            let help_btn = egui::Button::new(egui::RichText::new("❓").size(20.0))
+                                .min_size(egui::vec2(44.0, 44.0));
+                            if ui.add(help_btn).on_hover_text("Help, shortcuts & privacy").clicked() {
+                                self.show_help_dialog = true;
+                            }
+
+                            let theme_icon = match self.state.config.theme {
+                                ThemeMode::Light => "🌙",
+                                ThemeMode::Dark => "☀️",
+                            };
+                            let theme_btn = egui::Button::new(egui::RichText::new(theme_icon).size(20.0))
+                                .min_size(egui::vec2(44.0, 44.0));
+                            if ui.add(theme_btn).on_hover_text("Toggle dark / light theme").clicked() {
+                                self.state.config.theme = match self.state.config.theme {
+                                    ThemeMode::Light => ThemeMode::Dark,
+                                    ThemeMode::Dark => ThemeMode::Light,
+                                };
+                            }
+
+                            // Collapse Header button
+                            let hide_btn = egui::Button::new(egui::RichText::new("▲").size(16.0))
+                                .min_size(egui::vec2(44.0, 44.0));
+                            if ui.add(hide_btn).on_hover_text("Hide top navigation header").clicked() {
+                                self.hide_header = true;
+                            }
+                        } else {
+                            // Desktop layout: Right-to-Left (processed reverse-order for on-screen alignment)
+                            let theme_icon = match self.state.config.theme {
+                                ThemeMode::Light => "🌙 Dark",
+                                ThemeMode::Dark => "☀️ Light",
+                            };
+                            if ui.button(theme_icon).on_hover_text("Toggle dark / light theme").clicked() {
+                                self.state.config.theme = match self.state.config.theme {
+                                    ThemeMode::Light => ThemeMode::Dark,
+                                    ThemeMode::Dark => ThemeMode::Light,
+                                };
+                            }
+
+                            // Help Icon
+                            if ui.button("❓").on_hover_text("Help, shortcuts & privacy").clicked() {
+                                self.show_help_dialog = true;
+                            }
+
+                            // Research DOI Icon
+                            if ui.button("📖").on_hover_text("Read the research").clicked() {
+                                ui.ctx().open_url(egui::OpenUrl::new_tab("https://doi.org/10.1177/08902070251352590"));
+                            }
+
+                            // GitHub Icon (Icon only)
+                            if ui.button("🐙").on_hover_text("View source on GitHub").clicked() {
+                                ui.ctx().open_url(egui::OpenUrl::new_tab("https://github.com/Spodeian/Revisited-IPIP-NEO"));
+                            }
+
+                            // Import Button (Sits directly to the right of Reset on screen)
+                            if ui.button("📥 Import").on_hover_text("Import CSV or JSON answers to resume your assessment").clicked() {
+                                self.show_import_dialog = true;
+                                self.import_text_buffer.clear();
+                                self.import_result_message = None;
+                            }
+
+                            // Reset button
+                            if ui.button("🔄 Reset").on_hover_text("Reset test and clear all answers").clicked() {
+                                self.show_reset_dialog = true;
+                            }
+
+                            // Results / Questions Toggle
+                            let results_btn_text = if self.state.questionnaire.show_results {
+                                "📊 Hide Results"
+                            } else {
+                                "📊 Show Results"
+                            };
+                            if ui.button(results_btn_text).on_hover_text("Toggle assessment results").clicked() {
+                                self.state.questionnaire.show_results = !self.state.questionnaire.show_results;
+                            }
+
+                            // Collapse Header button
+                            if ui.button("▲").on_hover_text("Hide top navigation header").clicked() {
+                                self.hide_header = true;
+                            }
+                        }
+                    });
                 });
+                ui.add_space(4.0);
             });
-            ui.add_space(4.0);
-        });
+        }
 
         // Side Results Panel (Only render on Desktop/Wide viewports)
         let is_mobile = ui.available_width() < 800.0;
@@ -418,6 +434,18 @@ impl eframe::App for PersonalityApp {
         }
 
         egui::CentralPanel::default().frame(central_frame).show(ui, |ui| {
+            if self.hide_header {
+                // Render subtle unhide button floating at top center when header is collapsed
+                ui.vertical_centered(|ui| {
+                    let expand_btn = egui::Button::new(egui::RichText::new("▼ Show Header").size(11.0).weak())
+                        .min_size(egui::vec2(120.0, 22.0));
+                    if ui.add(expand_btn).on_hover_text("Show top navigation header").clicked() {
+                        self.hide_header = false;
+                    }
+                });
+                ui.add_space(6.0);
+            }
+
             if is_mobile && self.state.questionnaire.show_results {
                 // Mobile View: Render results screen full-screen inside CentralPanel
                 egui::ScrollArea::vertical().show(ui, |ui| {
