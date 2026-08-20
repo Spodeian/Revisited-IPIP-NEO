@@ -829,7 +829,7 @@ impl PersonalityApp {
         if self.show_help_dialog {
             let mut open = true;
             let win_w = (ui.available_width() - 24.0).clamp(320.0, 480.0);
-            let win_h = (ui.available_height() - 32.0).clamp(380.0, 460.0);
+            let win_h = (ui.available_height() - 32.0).clamp(400.0, 560.0);
 
             egui::Window::new("❓ Help & Information")
                 .open(&mut open)
