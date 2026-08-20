@@ -22,8 +22,29 @@ pub struct PersonalityApp {
     pub export_copied_notification: Option<f64>,
     pub share_link_copied_time: Option<f64>,
     pub is_viewing_shared_link: bool,
+    pub selected_export_format: ExportFormat,
     pub last_scroll_time: f64,
     pub scroll_accumulator: f32,
+}
+
+#[derive(Clone, Copy, PartialEq, Eq, Debug, Default)]
+pub enum ExportFormat {
+    #[default]
+    Csv,
+    Json,
+    Svg,
+    Pdf,
+}
+
+impl ExportFormat {
+    pub fn label(self) -> &'static str {
+        match self {
+            Self::Csv => "📄 CSV File",
+            Self::Json => "{ } JSON File",
+            Self::Svg => "🖼 SVG Vector Graphic",
+            Self::Pdf => "📋 Save PDF / Print",
+        }
+    }
 }
 
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
@@ -126,6 +147,7 @@ impl PersonalityApp {
             export_copied_notification: None,
             share_link_copied_time: None,
             is_viewing_shared_link,
+            selected_export_format: ExportFormat::default(),
             last_scroll_time: 0.0,
             scroll_accumulator: 0.0,
         }
@@ -675,37 +697,60 @@ impl PersonalityApp {
                     self.share_link_copied_time = Some(ui.input(|i| i.time));
                 }
 
-                if ui.button("📄 Export CSV").on_hover_text("Immediately download full results and responses as a CSV file").clicked() {
-                    let csv_content = export_to_csv(&self.state.questionnaire);
-                    trigger_file_download("ipip_neo_tga_results.csv", &csv_content, "text/csv;charset=utf-8");
-                }
-                if ui.button("{ } Export JSON").on_hover_text("Immediately download full results and responses as a JSON file").clicked() {
-                    let json_content = export_to_json(&self.state.questionnaire);
-                    trigger_file_download("ipip_neo_tga_results.json", &json_content, "application/json;charset=utf-8");
-                }
-                if ui.button("🖼 Export SVG").on_hover_text("Download high-resolution vector SVG graphic of your results hierarchy").clicked() {
-                    let svg_content = export_to_svg(&self.state.questionnaire);
-                    trigger_file_download("ipip_neo_tga_results.svg", &svg_content, "image/svg+xml;charset=utf-8");
-                }
-                if ui.button("📋 Save PDF / Print").on_hover_text("Open formatted hierarchical report for printing or saving to PDF").clicked() {
-                    #[cfg(target_arch = "wasm32")]
-                    {
-                        let html_content = export_to_printable_html(&self.state.questionnaire);
-                        if let Some(window) = web_sys::window() {
-                            if let Ok(Some(new_win)) = window.open_with_url_and_target("", "_blank") {
-                                if let Some(doc) = new_win.document() {
-                                    if let Some(doc_element) = doc.document_element() {
-                                        doc_element.set_inner_html(&html_content);
-                                        let _ = new_win.print();
+                ui.separator();
+
+                // Consolidated Dropdown & Single Action Button
+                egui::ComboBox::from_id_salt("export_format_dropdown")
+                    .selected_text(self.selected_export_format.label())
+                    .show_ui(ui, |ui| {
+                        ui.selectable_value(&mut self.selected_export_format, ExportFormat::Csv, "📄 CSV File");
+                        ui.selectable_value(&mut self.selected_export_format, ExportFormat::Json, "{ } JSON File");
+                        ui.selectable_value(&mut self.selected_export_format, ExportFormat::Svg, "🖼 SVG Vector Graphic");
+                        ui.selectable_value(&mut self.selected_export_format, ExportFormat::Pdf, "📋 Save PDF / Print");
+                    });
+
+                let action_btn_text = match self.selected_export_format {
+                    ExportFormat::Pdf => "🖨 Print / Save PDF",
+                    _ => "📥 Download File",
+                };
+
+                if ui.button(action_btn_text).on_hover_text("Export results and download selected file format").clicked() {
+                    match self.selected_export_format {
+                        ExportFormat::Csv => {
+                            let csv_content = export_to_csv(&self.state.questionnaire);
+                            trigger_file_download("ipip_neo_tga_results.csv", &csv_content, "text/csv;charset=utf-8");
+                        }
+                        ExportFormat::Json => {
+                            let json_content = export_to_json(&self.state.questionnaire);
+                            trigger_file_download("ipip_neo_tga_results.json", &json_content, "application/json;charset=utf-8");
+                        }
+                        ExportFormat::Svg => {
+                            let svg_content = export_to_svg(&self.state.questionnaire);
+                            trigger_file_download("ipip_neo_tga_results.svg", &svg_content, "image/svg+xml;charset=utf-8");
+                        }
+                        ExportFormat::Pdf => {
+                            let html_content = export_to_printable_html(&self.state.questionnaire);
+
+                            #[cfg(target_arch = "wasm32")]
+                            {
+                                if let Some(window) = web_sys::window() {
+                                    if let Ok(Some(new_win)) = window.open_with_url_and_target("", "_blank") {
+                                        if let Some(doc) = new_win.document() {
+                                            if let Some(doc_element) = doc.document_element() {
+                                                doc_element.set_inner_html(&html_content);
+                                                let _ = new_win.print();
+                                            }
+                                        }
                                     }
                                 }
                             }
-                        }
-                    }
 
-                    #[cfg(not(target_arch = "wasm32"))]
-                    {
-                        self.show_export_dialog = Some(ExportType::PrintableHtml);
+                            #[cfg(not(target_arch = "wasm32"))]
+                            {
+                                // On Desktop, immediately download/save the printable HTML file natively to disk
+                                trigger_file_download("ipip_neo_tga_report.html", &html_content, "text/html;charset=utf-8");
+                            }
+                        }
                     }
                 }
             });
