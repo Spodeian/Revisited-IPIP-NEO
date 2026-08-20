@@ -2,9 +2,9 @@
 
 use eframe::egui;
 use shared::{
-    export_to_csv, export_to_json, export_to_printable_html, export_to_svg,
-    import_responses_from_csv, import_responses_from_json, AppState, Aspect, Facet, MetaTrait,
-    Response, ScoreTier, ThemeMode, Trait,
+    encode_responses_to_url_code, export_to_csv, export_to_json, export_to_printable_html,
+    export_to_svg, import_responses_from_csv, import_responses_from_json, AppState, Aspect,
+    Facet, MetaTrait, Response, ScoreTier, ThemeMode, Trait,
 };
 use tracing::{info, warn};
 #[cfg(target_arch = "wasm32")]
@@ -20,6 +20,8 @@ pub struct PersonalityApp {
     pub import_result_message: Option<Result<String, String>>,
     pub show_export_dialog: Option<ExportType>,
     pub export_copied_notification: Option<f64>,
+    pub share_link_copied_time: Option<f64>,
+    pub is_viewing_shared_link: bool,
     pub last_scroll_time: f64,
     pub scroll_accumulator: f32,
 }
@@ -83,6 +85,36 @@ impl PersonalityApp {
 
         state.questionnaire.rebuild_cache();
 
+        #[allow(unused_mut)]
+        let mut is_viewing_shared_link = false;
+        #[cfg(target_arch = "wasm32")]
+        {
+            if let Some(window) = web_sys::window() {
+                if let Ok(hash) = window.location().hash() {
+                    let hash_trimmed = hash.trim_start_matches('#');
+                    let code = if let Some(stripped) = hash_trimmed.strip_prefix("r=") {
+                        Some(stripped)
+                    } else if let Some(stripped) = hash_trimmed.strip_prefix("code=") {
+                        Some(stripped)
+                    } else if !hash_trimmed.is_empty() && !hash_trimmed.contains('=') {
+                        Some(hash_trimmed)
+                    } else {
+                        None
+                    };
+
+                    if let Some(c) = code {
+                        let mut shared_state = shared::QuestionnaireState::from_embedded_data();
+                        if let Ok(_count) = shared::decode_responses_from_url_code(&mut shared_state, c) {
+                            info!("Loaded shared results from URL hash with {} answers", _count);
+                            state.questionnaire = shared_state;
+                            state.questionnaire.show_results = true;
+                            is_viewing_shared_link = true;
+                        }
+                    }
+                }
+            }
+        }
+
         Self {
             state,
             show_reset_dialog: false,
@@ -92,6 +124,8 @@ impl PersonalityApp {
             import_result_message: None,
             show_export_dialog: None,
             export_copied_notification: None,
+            share_link_copied_time: None,
+            is_viewing_shared_link,
             last_scroll_time: 0.0,
             scroll_accumulator: 0.0,
         }
@@ -102,22 +136,27 @@ impl PersonalityApp {
 
         // Keyboard shortcuts for responses: 1-5
         if input.key_pressed(egui::Key::Num1) {
+            self.is_viewing_shared_link = false;
             self.state
                 .questionnaire
                 .answer_question(self.state.questionnaire.current_focus_idx, Response::StronglyDisagree);
         } else if input.key_pressed(egui::Key::Num2) {
+            self.is_viewing_shared_link = false;
             self.state
                 .questionnaire
                 .answer_question(self.state.questionnaire.current_focus_idx, Response::Disagree);
         } else if input.key_pressed(egui::Key::Num3) {
+            self.is_viewing_shared_link = false;
             self.state
                 .questionnaire
                 .answer_question(self.state.questionnaire.current_focus_idx, Response::Neutral);
         } else if input.key_pressed(egui::Key::Num4) {
+            self.is_viewing_shared_link = false;
             self.state
                 .questionnaire
                 .answer_question(self.state.questionnaire.current_focus_idx, Response::Agree);
         } else if input.key_pressed(egui::Key::Num5) {
+            self.is_viewing_shared_link = false;
             self.state
                 .questionnaire
                 .answer_question(self.state.questionnaire.current_focus_idx, Response::StronglyAgree);
@@ -167,7 +206,10 @@ impl PersonalityApp {
 
 impl eframe::App for PersonalityApp {
     fn save(&mut self, storage: &mut dyn eframe::Storage) {
-        eframe::set_value(storage, eframe::APP_KEY, &self.state);
+        // Do not overwrite user's saved local answers if they are only viewing a shared link
+        if !self.is_viewing_shared_link {
+            eframe::set_value(storage, eframe::APP_KEY, &self.state);
+        }
     }
 
     fn ui(&mut self, ui: &mut egui::Ui, _frame: &mut eframe::Frame) {
@@ -252,6 +294,15 @@ impl eframe::App for PersonalityApp {
                             ui.ctx().open_url(egui::OpenUrl::new_tab("https://doi.org/10.1177/08902070251352590"));
                         }
 
+                        // Mobile Single Import Button
+                        let import_btn = egui::Button::new(egui::RichText::new("📥").size(20.0))
+                            .min_size(egui::vec2(44.0, 44.0));
+                        if ui.add(import_btn).on_hover_text("Import CSV or JSON answers to resume assessment").clicked() {
+                            self.show_import_dialog = true;
+                            self.import_text_buffer.clear();
+                            self.import_result_message = None;
+                        }
+
                         let help_btn = egui::Button::new(egui::RichText::new("❓").size(20.0))
                             .min_size(egui::vec2(44.0, 44.0));
                         if ui.add(help_btn).on_hover_text("Help, shortcuts & privacy").clicked() {
@@ -303,15 +354,6 @@ impl eframe::App for PersonalityApp {
                         // GitHub Icon (Icon only)
                         if ui.button("🐙").on_hover_text("View source on GitHub").clicked() {
                             ui.ctx().open_url(egui::OpenUrl::new_tab("https://github.com/Spodeian/Revisited-IPIP-NEO"));
-                        }
-
-                        // Import Button (Mobile)
-                        let import_btn = egui::Button::new(egui::RichText::new("📥").size(18.0))
-                            .min_size(egui::vec2(38.0, 38.0));
-                        if ui.add(import_btn).on_hover_text("Import CSV or JSON answers to resume assessment").clicked() {
-                            self.show_import_dialog = true;
-                            self.import_text_buffer.clear();
-                            self.import_result_message = None;
                         }
 
                         // Reset button
@@ -480,6 +522,7 @@ impl PersonalityApp {
                             .selected(is_selected);
 
                         if ui.add(btn).clicked() {
+                            self.is_viewing_shared_link = false;
                             self.state.questionnaire.answer_question(curr_idx, resp);
                         }
                         ui.add_space(if is_ultra_tight { 2.0 } else if is_tight_height { 4.0 } else { 6.0 });
@@ -593,11 +636,45 @@ impl PersonalityApp {
             let pct = self.state.questionnaire.completion_rate() * 100.0;
             ui.label(format!("Completed: {}/{} ({:.1}%)", answered, total, pct));
 
+            if self.is_viewing_shared_link {
+                ui.add_space(4.0);
+                ui.label(
+                    egui::RichText::new("👁 Viewing shared results link. Your own saved answers are preserved unless you answer or modify questions.")
+                        .color(egui::Color32::from_rgb(147, 197, 253))
+                        .small(),
+                );
+            }
+
             ui.add_space(4.0);
             ui.checkbox(&mut self.state.questionnaire.show_detailed_stats, "Show Detailed Metrics & SE");
 
             ui.add_space(6.0);
-            ui.horizontal(|ui| {
+            ui.horizontal_wrapped(|ui| {
+                if ui.button("🔗 Share Link").on_hover_text("Copy shareable results URL to clipboard without affecting recipients' saved progress").clicked() {
+                    let code = encode_responses_to_url_code(&self.state.questionnaire);
+
+                    let full_url = {
+                        #[cfg(target_arch = "wasm32")]
+                        {
+                            if let Some(window) = web_sys::window() {
+                                let loc = window.location();
+                                let origin = loc.origin().unwrap_or_else(|_| "".to_string());
+                                let pathname = loc.pathname().unwrap_or_else(|_| "".to_string());
+                                format!("{}{}/#r={}", origin, pathname.trim_end_matches('/'), code)
+                            } else {
+                                format!("https://tga-ipip-neo.spodeian.trade/#r={}", code)
+                            }
+                        }
+                        #[cfg(not(target_arch = "wasm32"))]
+                        {
+                            format!("https://tga-ipip-neo.spodeian.trade/#r={}", code)
+                        }
+                    };
+
+                    ui.ctx().copy_text(full_url);
+                    self.share_link_copied_time = Some(ui.input(|i| i.time));
+                }
+
                 if ui.button("📄 Export CSV").on_hover_text("Immediately download full results and responses as a CSV file").clicked() {
                     let csv_content = export_to_csv(&self.state.questionnaire);
                     trigger_file_download("ipip_neo_tga_results.csv", &csv_content, "text/csv;charset=utf-8");
@@ -618,7 +695,6 @@ impl PersonalityApp {
                             if let Ok(Some(new_win)) = window.open_with_url_and_target("", "_blank") {
                                 if let Some(doc) = new_win.document() {
                                     if let Some(doc_element) = doc.document_element() {
-                                        // Overwrite the entire <html> element cleanly to preserve <head> styles and <body>
                                         doc_element.set_inner_html(&html_content);
                                         let _ = new_win.print();
                                     }
@@ -629,11 +705,16 @@ impl PersonalityApp {
 
                     #[cfg(not(target_arch = "wasm32"))]
                     {
-                        // On desktop, fallback to showing the HTML in the dialog
                         self.show_export_dialog = Some(ExportType::PrintableHtml);
                     }
                 }
             });
+
+            if let Some(t) = self.share_link_copied_time {
+                if ui.input(|i| i.time) - t < 3.0 {
+                    ui.label(egui::RichText::new("✓ Share link copied to clipboard!").color(egui::Color32::from_rgb(80, 180, 90)).strong());
+                }
+            }
 
             ui.add_space(8.0);
             ui.separator();
