@@ -831,7 +831,7 @@ impl PersonalityApp {
             let win_w = (ui.available_width() - 24.0).clamp(320.0, 480.0);
             let win_h = (ui.available_height() - 32.0).clamp(400.0, 560.0);
 
-            egui::Window::new("❓ Help & Information")
+            egui::Window::new("❓ Help & Information ")
                 .open(&mut open)
                 .resizable(true)
                 .collapsible(true)
