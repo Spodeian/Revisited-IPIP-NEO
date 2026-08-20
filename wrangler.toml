@@ -1,5 +1,3 @@
-# Cloudflare Pages Wrangler Configuration
 name = "revisited-ipip-neo"
-
-# Tells Wrangler where the compiled build output directory is
 pages_build_output_dir = "crates/web/dist"
+compatibility_date = "2026-08-18"
