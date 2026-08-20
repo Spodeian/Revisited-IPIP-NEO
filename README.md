@@ -6,13 +6,13 @@ A modular, production-ready psychometric application built with Rust and `egui` 
 This implementation is based on the sequence optimization methodology detailed in the following publication:
 - **Reference URL**: [https://doi.org/10.1177/08902070251352590](https://doi.org/10.1177/08902070251352590)
 
-## Licensing & Attribution Paradigm
+## Licensing & Attribution
 This project is dual-licensed to fully respect academic research rights and software author contributions:
 
 1. **Standard Non-Commercial License**: [Creative Commons Attribution-NonCommercial-ShareAlike 4.0 International (CC-BY-NC-SA 4.0)](LICENSE).
    - Allows copying, modifying, and redistributing the codebase for non-commercial purposes, provided downstream edits are shared under the same license.
-2. **Attribution Requirement**: Any redistribution or modified derivative **must** reference both the original research and the software author. See [ATTRIBUTION.md](ATTRIBUTION.md) for required formats.
-3. **Commercial Fallback**: Any commercial use requires obtaining explicit commercial licenses from the original research authors and the software author.
+2. **Attribution Requirement**: Any redistribution or modified derivative **must** reference both the original research and the software author. See [ATTRIBUTION.md](ATTRIBUTION.md).
+3. **Commercial use**: Any commercial use requires obtaining explicit commercial licenses from the original research authors and the software author.
 
 ## Structure
 - `crates/shared`: Core psychometric data models, CSV loaders, dynamic queue machine, scoring engine, and data exporters (CSV, JSON, HTML).
