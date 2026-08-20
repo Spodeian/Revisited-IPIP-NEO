@@ -298,6 +298,15 @@ impl eframe::App for PersonalityApp {
                             self.state.questionnaire.show_results = !self.state.questionnaire.show_results;
                         }
 
+                        // Mobile Single Import Button (rendered to the right of Reset on screen)
+                        let import_btn = egui::Button::new(egui::RichText::new("📥").size(20.0))
+                            .min_size(egui::vec2(44.0, 44.0));
+                        if ui.add(import_btn).on_hover_text("Import CSV or JSON answers to resume assessment").clicked() {
+                            self.show_import_dialog = true;
+                            self.import_text_buffer.clear();
+                            self.import_result_message = None;
+                        }
+
                         let reset_btn = egui::Button::new(egui::RichText::new("🔄").size(20.0))
                             .min_size(egui::vec2(44.0, 44.0));
                         if ui.add(reset_btn).on_hover_text("Reset test and clear all answers").clicked() {
@@ -314,15 +323,6 @@ impl eframe::App for PersonalityApp {
                             .min_size(egui::vec2(44.0, 44.0));
                         if ui.add(doi_btn).on_hover_text("Read the research").clicked() {
                             ui.ctx().open_url(egui::OpenUrl::new_tab("https://doi.org/10.1177/08902070251352590"));
-                        }
-
-                        // Mobile Single Import Button
-                        let import_btn = egui::Button::new(egui::RichText::new("📥").size(20.0))
-                            .min_size(egui::vec2(44.0, 44.0));
-                        if ui.add(import_btn).on_hover_text("Import CSV or JSON answers to resume assessment").clicked() {
-                            self.show_import_dialog = true;
-                            self.import_text_buffer.clear();
-                            self.import_result_message = None;
                         }
 
                         let help_btn = egui::Button::new(egui::RichText::new("❓").size(20.0))
@@ -344,7 +344,7 @@ impl eframe::App for PersonalityApp {
                             };
                         }
                     } else {
-                        // Desktop layout
+                        // Desktop layout: Right-to-Left (processed reverse-order for on-screen alignment)
                         let theme_icon = match self.state.config.theme {
                             ThemeMode::Light => "🌙 Dark",
                             ThemeMode::Dark => "☀️ Light",
@@ -361,13 +361,6 @@ impl eframe::App for PersonalityApp {
                             self.show_help_dialog = true;
                         }
 
-                        // Import Button
-                        if ui.button("📥 Import").on_hover_text("Import CSV or JSON answers to resume your assessment").clicked() {
-                            self.show_import_dialog = true;
-                            self.import_text_buffer.clear();
-                            self.import_result_message = None;
-                        }
-
                         // Research DOI Icon
                         if ui.button("📖").on_hover_text("Read the research").clicked() {
                             ui.ctx().open_url(egui::OpenUrl::new_tab("https://doi.org/10.1177/08902070251352590"));
@@ -376,6 +369,13 @@ impl eframe::App for PersonalityApp {
                         // GitHub Icon (Icon only)
                         if ui.button("🐙").on_hover_text("View source on GitHub").clicked() {
                             ui.ctx().open_url(egui::OpenUrl::new_tab("https://github.com/Spodeian/Revisited-IPIP-NEO"));
+                        }
+
+                        // Import Button (Sits directly to the right of Reset on screen)
+                        if ui.button("📥 Import").on_hover_text("Import CSV or JSON answers to resume your assessment").clicked() {
+                            self.show_import_dialog = true;
+                            self.import_text_buffer.clear();
+                            self.import_result_message = None;
                         }
 
                         // Reset button
@@ -587,7 +587,7 @@ impl PersonalityApp {
                             }
 
                             if q_response.is_some() {
-                                let btn_clear = if is_ultra_tight { "🗑" } else { "🗑 Clear" };
+                                let btn_clear = if is_ultra_tight { "❌" } else { "❌ Clear" };
                                 if ui.button(btn_clear).on_hover_text("Clear recorded answer").clicked() {
                                     self.state.questionnaire.clear_response(curr_idx);
                                 }
@@ -733,7 +733,7 @@ impl PersonalityApp {
 
             if let Some(t) = self.share_link_copied_time {
                 if ui.input(|i| i.time) - t < 3.0 {
-                    ui.label(egui::RichText::new("✓ Share link copied to clipboard!").color(egui::Color32::from_rgb(80, 180, 90)).strong());
+                    ui.label(egui::RichText::new("Share link copied to clipboard!").color(egui::Color32::from_rgb(80, 180, 90)).strong());
                 }
             }
 
