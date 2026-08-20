@@ -348,7 +348,7 @@ impl eframe::App for PersonalityApp {
                             }
 
                             // Collapse Header button
-                            let hide_btn = egui::Button::new(egui::RichText::new("▲").size(16.0))
+                            let hide_btn = egui::Button::new(egui::RichText::new("↑").size(16.0))
                                 .min_size(egui::vec2(44.0, 44.0));
                             if ui.add(hide_btn).on_hover_text("Hide top navigation header").clicked() {
                                 self.hide_header = true;
@@ -404,7 +404,7 @@ impl eframe::App for PersonalityApp {
                             }
 
                             // Collapse Header button
-                            if ui.button("▲").on_hover_text("Hide top navigation header").clicked() {
+                            if ui.button("Hide Header").on_hover_text("Hide top navigation header").clicked() {
                                 self.hide_header = true;
                             }
                         }
@@ -437,7 +437,7 @@ impl eframe::App for PersonalityApp {
             if self.hide_header {
                 // Render subtle unhide button floating at top center when header is collapsed
                 ui.vertical_centered(|ui| {
-                    let expand_btn = egui::Button::new(egui::RichText::new("▼ Show Header").size(11.0).weak())
+                    let expand_btn = egui::Button::new(egui::RichText::new("Show Header").size(11.0).weak())
                         .min_size(egui::vec2(120.0, 22.0));
                     if ui.add(expand_btn).on_hover_text("Show top navigation header").clicked() {
                         self.hide_header = false;

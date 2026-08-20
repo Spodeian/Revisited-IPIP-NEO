@@ -619,6 +619,138 @@ pub fn export_to_printable_html(state: &QuestionnaireState) -> String {
     )
 }
 
+const BASE64_URL_ALPHABET: &[u8; 64] = b"ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-_";
+
+/// Encodes all current question responses into a compact, URL-safe Base64 string (~148 chars).
+pub fn encode_responses_to_url_code(state: &QuestionnaireState) -> String {
+    let mut packed_bytes = Vec::with_capacity(state.questions.len().div_ceil(2));
+    let mut iter = state.questions.iter();
+
+    while let Some(q1) = iter.next() {
+        let v1 = match q1.response {
+            None => 0u8,
+            Some(Response::StronglyDisagree) => 1,
+            Some(Response::Disagree) => 2,
+            Some(Response::Neutral) => 3,
+            Some(Response::Agree) => 4,
+            Some(Response::StronglyAgree) => 5,
+        };
+        let v2 = match iter.next() {
+            None => 0u8,
+            Some(q2) => match q2.response {
+                None => 0u8,
+                Some(Response::StronglyDisagree) => 1,
+                Some(Response::Disagree) => 2,
+                Some(Response::Neutral) => 3,
+                Some(Response::Agree) => 4,
+                Some(Response::StronglyAgree) => 5,
+            },
+        };
+        packed_bytes.push((v1 << 3) | v2);
+    }
+
+    base64_url_encode(&packed_bytes)
+}
+
+/// Decodes responses from a compact URL-safe Base64 string into state.
+/// Returns the number of successfully applied answers.
+pub fn decode_responses_from_url_code(state: &mut QuestionnaireState, code: &str) -> Result<usize, &'static str> {
+    let bytes = base64_url_decode(code.trim())?;
+    let mut applied_count = 0;
+    let mut q_idx = 0;
+
+    for byte in bytes {
+        let v1 = (byte >> 3) & 0x07;
+        let v2 = byte & 0x07;
+
+        for val in [v1, v2] {
+            if q_idx >= state.questions.len() {
+                break;
+            }
+            let resp = match val {
+                0 => None,
+                1 => Some(Response::StronglyDisagree),
+                2 => Some(Response::Disagree),
+                3 => Some(Response::Neutral),
+                4 => Some(Response::Agree),
+                5 => Some(Response::StronglyAgree),
+                _ => None,
+            };
+            if resp.is_some() {
+                applied_count += 1;
+            }
+            state.questions[q_idx].response = resp;
+            q_idx += 1;
+        }
+    }
+
+    if applied_count > 0 {
+        state.rebuild_cache();
+        Ok(applied_count)
+    } else {
+        Err("No answered responses found in shared link code.")
+    }
+}
+
+fn base64_url_encode(data: &[u8]) -> String {
+    let mut out = String::new();
+    let mut i = 0;
+    while i < data.len() {
+        let b0 = data[i] as u32;
+        let b1 = if i + 1 < data.len() { data[i + 1] as u32 } else { 0 };
+        let b2 = if i + 2 < data.len() { data[i + 2] as u32 } else { 0 };
+
+        let triple = (b0 << 16) | (b1 << 8) | b2;
+
+        out.push(BASE64_URL_ALPHABET[((triple >> 18) & 0x3F) as usize] as char);
+        out.push(BASE64_URL_ALPHABET[((triple >> 12) & 0x3F) as usize] as char);
+        if i + 1 < data.len() {
+            out.push(BASE64_URL_ALPHABET[((triple >> 6) & 0x3F) as usize] as char);
+        }
+        if i + 2 < data.len() {
+            out.push(BASE64_URL_ALPHABET[(triple & 0x3F) as usize] as char);
+        }
+        i += 3;
+    }
+    out
+}
+
+fn base64_url_decode(input: &str) -> Result<Vec<u8>, &'static str> {
+    let mut out = Vec::new();
+    let chars: Vec<u8> = input.bytes().filter(|b| !b.is_ascii_whitespace()).collect();
+    let mut i = 0;
+
+    let decode_char = |c: u8| -> Result<u32, &'static str> {
+        match c {
+            b'A'..=b'Z' => Ok((c - b'A') as u32),
+            b'a'..=b'z' => Ok((c - b'a' + 26) as u32),
+            b'0'..=b'9' => Ok((c - b'0' + 52) as u32),
+            b'-' | b'+' => Ok(62),
+            b'_' | b'/' => Ok(63),
+            _ => Err("Invalid character in shared code"),
+        }
+    };
+
+    while i < chars.len() {
+        let c0 = decode_char(chars[i])?;
+        let c1 = if i + 1 < chars.len() { decode_char(chars[i + 1])? } else { 0 };
+        let c2 = if i + 2 < chars.len() { decode_char(chars[i + 2])? } else { 0 };
+        let c3 = if i + 3 < chars.len() { decode_char(chars[i + 3])? } else { 0 };
+
+        let chunk = (c0 << 18) | (c1 << 12) | (c2 << 6) | c3;
+
+        out.push(((chunk >> 16) & 0xFF) as u8);
+        if i + 2 < chars.len() {
+            out.push(((chunk >> 8) & 0xFF) as u8);
+        }
+        if i + 3 < chars.len() {
+            out.push((chunk & 0xFF) as u8);
+        }
+        i += 4;
+    }
+    Ok(out)
+}
+
 /// Imports and applies answers from a previously exported JSON results string.
 /// Returns the number of successfully applied answers.
 pub fn import_responses_from_json(state: &mut QuestionnaireState, json_str: &str) -> Result<usize, &'static str> {

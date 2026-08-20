@@ -1,6 +1,7 @@
 use shared::{
-    export_to_csv, export_to_json, export_to_printable_html, import_responses_from_csv,
-    import_responses_from_json, AppState, QuestionnaireState, Response,
+    decode_responses_from_url_code, encode_responses_to_url_code, export_to_csv, export_to_json,
+    export_to_printable_html, import_responses_from_csv, import_responses_from_json, AppState,
+    QuestionnaireState, Response,
 };
 
 #[test]
@@ -94,4 +95,30 @@ fn test_import_responses_from_csv_roundtrip() {
     assert_eq!(new_state.answered_count(), 2);
     assert_eq!(new_state.questions[0].response, Some(Response::Agree));
     assert_eq!(new_state.questions[20].response, Some(Response::StronglyDisagree));
+}
+
+#[test]
+fn test_encode_decode_url_code_roundtrip() {
+    let mut state = QuestionnaireState::from_embedded_data();
+    state.answer_question(0, Response::StronglyAgree);
+    state.answer_question(1, Response::StronglyDisagree);
+    state.answer_question(15, Response::Agree);
+    state.answer_question(100, Response::Neutral);
+    state.answer_question(220, Response::Disagree);
+
+    let url_code = encode_responses_to_url_code(&state);
+    assert!(!url_code.is_empty());
+    assert!(url_code.len() < 200, "Compact URL code must be under 200 characters");
+
+    let mut new_state = QuestionnaireState::from_embedded_data();
+    assert_eq!(new_state.answered_count(), 0);
+
+    let decoded_count = decode_responses_from_url_code(&mut new_state, &url_code).expect("Decode URL code successfully");
+    assert_eq!(decoded_count, 5);
+    assert_eq!(new_state.answered_count(), 5);
+    assert_eq!(new_state.questions[0].response, Some(Response::StronglyAgree));
+    assert_eq!(new_state.questions[1].response, Some(Response::StronglyDisagree));
+    assert_eq!(new_state.questions[15].response, Some(Response::Agree));
+    assert_eq!(new_state.questions[100].response, Some(Response::Neutral));
+    assert_eq!(new_state.questions[220].response, Some(Response::Disagree));
 }
