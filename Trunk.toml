@@ -8,7 +8,7 @@ target = "crates/web/index.html"
 dist = "crates/web/dist"
 
 # Disable wasm-opt during release builds
-wasm_opt = "off"
+wasm_opt = "z"
 
 [serve]
 # Use port 8080 during local testing
