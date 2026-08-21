@@ -4,7 +4,7 @@ To comply with the licensing terms of this project, any copy, redistribution, or
 
 ---
 
-## 1. Original Psychometric Research Citation
+## 1. Original Research Citation
 This software administers a personality assessment based on the sequence optimization and factor weights detailed in:
 
 *   **Research Title**: Revisited IPIP-NEO Sequence Optimization
