@@ -41,6 +41,17 @@ else
     TRUNK_BIN="trunk"
 fi
 
+# 4b. Install updated wasm-opt (binaryen) with bulk memory operations support
+BINARYEN_VERSION="version_118"
+echo "Installing/updating wasm-opt (${BINARYEN_VERSION}) to support bulk memory operations..."
+mkdir -p "$HOME/.cargo/bin"
+wget -qO- "https://github.com/WebAssembly/binaryen/releases/download/${BINARYEN_VERSION}/binaryen-${BINARYEN_VERSION}-x86_64-linux.tar.gz" | tar -xzf -
+mv "binaryen-${BINARYEN_VERSION}/bin/wasm-opt" "$HOME/.cargo/bin/wasm-opt"
+chmod +x "$HOME/.cargo/bin/wasm-opt"
+rm -rf "binaryen-${BINARYEN_VERSION}"
+
+echo "wasm-opt active version: $(wasm-opt --version)"
+
 # 5. Build static production assets
 echo "Purging old Trunk build caches for a guaranteed up-to-date compile..."
 if [ -d "crates/web/dist" ]; then
