@@ -34,7 +34,15 @@
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 
     <!-- Trunk Rust WebAssembly link & Offline assets -->
-    <link rel="rust" href="Cargo.toml" data-trunk data-wasm-opt="z" />
+    <link
+    data-trunk
+    rel="rust"
+    href="Cargo.toml"
+    data-type="main"
+    data-weak-refs
+    data-wasm-opt="4"
+    data-wasm-opt-params="--enable-bulk-memory"
+    />
     <link rel="copy-file" href="_headers" data-trunk />
     <link rel="copy-file" href="sw.js" data-trunk />
     <link rel="copy-file" href="manifest.json" data-trunk />
