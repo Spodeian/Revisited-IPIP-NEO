@@ -11,11 +11,11 @@ members = [
 [workspace.package]
 version = "1.2.0"
 authors = ["Liam"]
-edition = "2021"
+edition = "2024"
 
 [workspace.dependencies]
-eframe = { version = "0.35.0", default-features = false, features = ["default_fonts", "wgpu", "persistence"] }
-egui = { version = "0.35.0", default-features = false, features = ["default_fonts"] }
+eframe = { version = "0.36", default-features = false, features = ["default_fonts", "wgpu", "persistence"] }
+egui = { version = "0.36", default-features = false, features = ["default_fonts"] }
 serde = { version = "1", features = ["derive"] }
 tracing = "0.1"
 tracing-subscriber = { version = "0.3", features = ["env-filter"] }
@@ -25,7 +25,7 @@ app = { path = "crates/app" }
 thiserror = "2.0"
 wasm-bindgen = "0.2"
 wasm-bindgen-futures = "0.4"
-web-sys = { version = "0.3.70", features = ["Document", "Window", "HtmlCanvasElement", "Element", "Blob", "BlobPropertyBag", "Url", "HtmlAnchorElement", "HtmlDocument", "Location"] }
+web-sys = { version = "0.3", features = ["Document", "Window", "HtmlCanvasElement", "Element", "Blob", "BlobPropertyBag", "Url", "HtmlAnchorElement", "HtmlDocument", "Location"] }
 console_error_panic_hook = "0.1.7"
 num = "0.4"
 
@@ -37,9 +37,13 @@ panic = "abort"
 strip = true
 
 [profile.release.build-override]
-opt-level = "s"
+opt-level = 2
 codegen-units = 256
 
 [profile.dev]
 opt-level = 0
 debug = true
+
+[profile.dev.build-override]
+opt-level = 1
+codegen-units = 256

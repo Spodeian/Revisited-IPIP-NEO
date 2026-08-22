@@ -58,12 +58,12 @@ jobs:
         uses: actions/cache@v4
         with:
           path: ~/.cargo/bin/wasm-opt
-          key: ${{ runner.os }}-wasm-opt-version_118
+          key: ${{ runner.os }}-wasm-opt-version_132
 
       - name: Install binaryen (wasm-opt)
         if: steps.cache-wasm-opt.outputs.cache-hit != 'true'
         run: |
-          BINARYEN_VERSION="version_118"
+          BINARYEN_VERSION="version_132"
           mkdir -p ~/.cargo/bin
           wget -qO- "https://github.com/WebAssembly/binaryen/releases/download/${BINARYEN_VERSION}/binaryen-${BINARYEN_VERSION}-x86_64-linux.tar.gz" | tar -xzf -
           mv "binaryen-${BINARYEN_VERSION}/bin/wasm-opt" ~/.cargo/bin/wasm-opt

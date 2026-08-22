@@ -10,7 +10,7 @@
   "orientation": "any",
   "icons": [
     {
-      "src": "https://tga-ipip-neo.spodeian.trade/og-image.png",
+      "src": "https://ipip-neo.spodeian.trade/og-image.png",
       "sizes": "512x512",
       "type": "image/png",
       "purpose": "any maskable"

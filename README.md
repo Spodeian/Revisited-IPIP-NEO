@@ -2,20 +2,19 @@
 
 A modular, production-ready psychometric application built with Rust and `egui` targeting Native Desktop and Web (WASM) platforms. It administers a comprehensive 221-item questionnaire using a mathematically optimized standard error reduction sequence.
 
-## Academic & Psychometric Reference
+## Academic Reference
 This implementation is based on the sequence optimization methodology detailed in the following publication:
-- **Reference URL**: [https://doi.org/10.1177/08902070251352590](https://doi.org/10.1177/08902070251352590)
+- **Reference DOI**: [10.1177/08902070251352590](https://doi.org/10.1177/08902070251352590)
 
 ## Licensing & Attribution
 This project is dual-licensed to fully respect academic research rights and software author contributions:
 
-1. **Standard Non-Commercial License**: [Creative Commons Attribution-NonCommercial-ShareAlike 4.0 International (CC-BY-NC-SA 4.0)](LICENSE).
+**Standard Non-Commercial License**: [Creative Commons Attribution-NonCommercial-ShareAlike 4.0 International (CC-BY-NC-SA 4.0)](LICENSE).
    - Allows copying, modifying, and redistributing the codebase for non-commercial purposes, provided downstream edits are shared under the same license.
-2. **Attribution Requirement**: Any redistribution or modified derivative **must** reference both the original research and the software author. See [ATTRIBUTION.md](ATTRIBUTION.md).
-3. **Commercial use**: Any commercial use requires obtaining explicit commercial licenses from the original research authors and the software author.
+**Commercial use**: Any commercial use requires seperate licensing for the [library](https://github.com/Spodeian/Revisited-IPIP-NEO) and the research ([Data](Distilled Key.csv)/[Research](https://doi.org/10.1177/08902070251352590)).
 
 ## Structure
-- `crates/shared`: Core psychometric data models, CSV loaders, dynamic queue machine, scoring engine, and data exporters (CSV, JSON, HTML).
+- `crates/shared`: Core data models, CSV loaders, dynamic queue machine, scoring engine, and data exporters (CSV, JSON, HTML).
 - `crates/app`: `eframe` GUI implementation (focused single-question dashboard, keyboard shortcuts, scroll skip deferral, real-time side-by-side results, and export panels).
 - `crates/desktop`: Native desktop application runner.
 - `crates/web`: `wasm-bindgen` runner for serverless and browser deployment.
@@ -46,7 +45,7 @@ Serve the application locally in your browser:
 ```bash
 trunk serve
 ```
-Then navigate to `http://127.0.0.1:8080`.
+Then navigate to [localhost:8080](http://localhost:8080).
 
 ### 3. Running Verification & Tests
 Ensure the code passes clippy static analysis and unit/integration tests:
@@ -69,7 +68,6 @@ cargo test --workspace
   - Alternatively, compile locally using `trunk build --release` and upload the static directory.
 
 ## Cloudflare Pages Deployment Configuration Reference
-
 When setting up your automated deployment in the **Cloudflare Pages Dashboard**, use these exact fields:
 
 ### 1. Build Settings
@@ -82,7 +80,6 @@ When setting up your automated deployment in the **Cloudflare Pages Dashboard**,
 Configure these three key-value pairs in the dashboard:
 - **`RUST_VERSION`**: `stable` (Installs the latest stable compiler toolchain)
 - **`CARGO_HOME`**: `/opt/buildhome/.cargo` (Caches cargo registry assets to speed up builds 5x!)
-- **`TRUNK_BUILD_NO_WASM_OPT`**: `true` (Disables wasm-opt globally to prevent download errors)
 
 ---
 
@@ -101,4 +98,4 @@ You can run a local emulation of Cloudflare's serverless edge environment using 
    ```bash
    wrangler pages dev
    ```
-   *(This reads `wrangler.toml` and hosts your compiled assessment perfectly on `http://localhost:8788`)*
+   *(This reads [wrangler.toml](wrangler.toml) and hosts your compiled assessment perfectly on [localhost:8788](http://localhost:8788))*
