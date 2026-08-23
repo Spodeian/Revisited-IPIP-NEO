@@ -15,6 +15,3 @@ console_error_panic_hook = { workspace = true }
 tracing-wasm = { workspace = true }
 tracing = { workspace = true }
 app = { workspace = true }
-
-[dev-dependencies]
-app = { workspace = true }

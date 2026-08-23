@@ -33,7 +33,7 @@ self.addEventListener('fetch', (event) => {
   };
   if (
     isAllowedHostOrSubdomain(url.hostname, 'cloudflareinsights.com') ||
-    // isAllowedHostOrSubdomain(url.hostname, 'google-analytics.com')
+    isAllowedHostOrSubdomain(url.hostname, 'google-analytics.com')
   ) {
     return;
   }

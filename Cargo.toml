@@ -16,16 +16,16 @@ edition = "2024"
 [workspace.dependencies]
 eframe = { version = "0.36", default-features = false, features = ["default_fonts", "wgpu", "persistence"] }
 egui = { version = "0.36", default-features = false, features = ["default_fonts"] }
-serde = { version = "1", features = ["derive"] }
+serde = { version = "1", features = ["derive", "std"] }
 tracing = "0.1"
-tracing-subscriber = { version = "0.3", features = ["env-filter"] }
+tracing-subscriber = { version = "0.3", features = ["env-filter", "ansi", "fmt", "smallvec", "std", "tracing-log"] }
 tracing-wasm = "0.2"
 shared = { path = "crates/shared" }
 app = { path = "crates/app" }
 thiserror = "2.0"
 wasm-bindgen = "0.2"
 wasm-bindgen-futures = "0.4"
-web-sys = { version = "0.3", features = ["Document", "Window", "HtmlCanvasElement", "Element", "Blob", "BlobPropertyBag", "Url", "HtmlAnchorElement", "HtmlDocument", "Location"] }
+web-sys = { version = "0.3", features = ["Document", "Window", "HtmlCanvasElement", "Element", "Blob", "BlobPropertyBag", "Url", "HtmlAnchorElement", "HtmlDocument", "Location", "std"] }
 console_error_panic_hook = "0.1.7"
 num = "0.4"
 
