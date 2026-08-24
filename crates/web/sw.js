@@ -31,12 +31,12 @@ self.addEventListener('fetch', (event) => {
   const isAllowedHostOrSubdomain = (hostname, domain) => {
     return hostname === domain || hostname.endsWith(`.${domain}`);
   };
-  if (
-    isAllowedHostOrSubdomain(url.hostname, 'cloudflareinsights.com') ||
-    isAllowedHostOrSubdomain(url.hostname, 'google-analytics.com')
-  ) {
-    return;
-  }
+  //if (
+  //  isAllowedHostOrSubdomain(url.hostname, 'cloudflareinsights.com') ||
+  //  isAllowedHostOrSubdomain(url.hostname, 'google-analytics.com')
+  //) {
+  //  return;
+  //}
 
   event.respondWith(
     caches.open(CACHE_NAME).then((cache) => {
