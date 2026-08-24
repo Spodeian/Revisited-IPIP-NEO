@@ -2,6 +2,10 @@
 name = "app"
 version.workspace = true
 edition.workspace = true
+authors.workspace = true
+license.workspace = true
+repository.workspace = true
+description = "Application view controller, UI layout components, and state management for Revisited IPIP-NEO"
 
 [dependencies]
 eframe = { workspace = true, features = ["default_fonts", "wgpu", "persistence"] }
@@ -15,4 +19,4 @@ thiserror = { workspace = true }
 [target.'cfg(target_arch = "wasm32")'.dependencies]
 wasm-bindgen = { workspace = true }
 web-sys = { workspace = true, features = ["HtmlDocument", "Window", "Document", "Blob", "BlobPropertyBag", "Url", "HtmlAnchorElement", "Location"] }
-js-sys = "0.3"
+js-sys = { workspace = true }

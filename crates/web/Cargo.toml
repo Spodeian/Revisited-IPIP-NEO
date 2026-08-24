@@ -2,12 +2,16 @@
 name = "web"
 version.workspace = true
 edition.workspace = true
+authors.workspace = true
+license.workspace = true
+repository.workspace = true
+description = "WebAssembly client and WebRunner entrypoint for Revisited IPIP-NEO"
 
 [lib]
 crate-type = ["cdylib", "rlib"]
 
 [dependencies]
-eframe = { workspace = true, features = ["default_fonts", "wgpu"] }
+eframe = { workspace = true, features = ["default_fonts", "wgpu", "persistence"] }
 wasm-bindgen = { workspace = true }
 wasm-bindgen-futures = { workspace = true }
 web-sys = { workspace = true }

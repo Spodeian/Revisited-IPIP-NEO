@@ -1,8 +1,10 @@
 # Rust Build Artifacts
 /target/
 **/*.rs.bk
+*.pdb
+*.dSYM/
 
-# Cargo Logs & Core Files
+# Cargo Logs & Output
 Cargo.lock.log
 *.log
 
@@ -10,9 +12,15 @@ Cargo.lock.log
 /dist/
 /crates/web/dist/
 .stage/
+.trunk/
 
-# Wrangler / Cloudflare Local State Caches
+# Wrangler & Cloudflare Local State
 .wrangler/
+
+# Temporary Archives & Binaryen Artifacts
+/binaryen-*/
+*.tar.gz
+*.zip
 
 # Exported Local Result Files
 *.csv.log
@@ -21,12 +29,33 @@ ipip_neo_tga_results.json
 personality_results.csv
 personality_results.json
 
+# Environment & Local Configuration
+.env
+.env.*
+*.local
+
+# Node / NPM Dependencies & Logs
+node_modules/
+npm-debug.log*
+yarn-error.log*
+.pnpm-debug.log*
+
+# Python Caches & Environments
+__pycache__/
+*.py[cod]
+*$py.class
+.pytest_cache/
+.venv/
+env/
+venv/
+
 # Operating System Specific
 .DS_Store
 Thumbs.db
+ehthumbs.db
 desktop.ini
 
-# Local IDE Configurations (Optional Local Overrides)
+# IDE & Editor Configurations
 .vscode/
 .idea/
 *.suo
@@ -34,3 +63,6 @@ desktop.ini
 *.njsproj
 *.sln
 *.swp
+*.swo
+*~
+.project

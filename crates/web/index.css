@@ -1,0 +1,23 @@
+/* Revisited IPIP-NEO (TGA) - Web Client Stylesheet */
+
+html, body {
+  margin: 0;
+  padding: 0;
+  width: 100%;
+  height: 100%;
+  overflow: hidden;
+  background-color: #121212;
+}
+
+canvas {
+  width: 100vw;
+  height: 100vh;
+  display: block;
+}
+
+@media print {
+  body {
+    overflow: auto;
+    background: #fff;
+  }
+}

@@ -53,3 +53,75 @@ fn test_personality_app_save_and_load() {
         Some(Response::StronglyAgree)
     );
 }
+
+#[test]
+fn test_shared_link_does_not_overwrite_persistent_state() {
+    let mut storage = MockStorage::default();
+
+    // 1. User has their own saved state with question 0 answered StronglyAgree
+    let mut initial_app = PersonalityApp::default();
+    initial_app.state.questionnaire.answer_question(0, Response::StronglyAgree);
+    initial_app.save(&mut storage);
+
+    // Verify initial user state in storage
+    let initial_loaded: AppState = eframe::get_value(&storage, eframe::APP_KEY).unwrap();
+    assert_eq!(initial_loaded.questionnaire.questions[0].response, Some(Response::StronglyAgree));
+
+    // 2. User loads a shared friend's result link (e.g. friend answered question 0 with Disagree and question 1 with Agree)
+    let mut shared_app = PersonalityApp::default();
+    shared_app.state.questionnaire.answer_question(0, Response::Disagree);
+    shared_app.state.questionnaire.answer_question(1, Response::Agree);
+    shared_app.is_viewing_shared_link = true;
+
+    // Trigger save (e.g., auto-save or navigation) while viewing shared link
+    shared_app.save(&mut storage);
+
+    // Verify storage was NOT overwritten with friend's answers
+    let persistent_after_shared: AppState = eframe::get_value(&storage, eframe::APP_KEY).unwrap();
+    assert_eq!(
+        persistent_after_shared.questionnaire.questions[0].response,
+        Some(Response::StronglyAgree)
+    );
+    assert_eq!(
+        persistent_after_shared.questionnaire.questions[1].response,
+        None
+    );
+
+    // 3. User modifies/answers a question -> is_viewing_shared_link is cleared
+    shared_app.is_viewing_shared_link = false;
+    shared_app.state.questionnaire.answer_question(0, Response::Neutral);
+
+    // Trigger save again
+    shared_app.save(&mut storage);
+
+    // Verify storage IS now updated with the user's new explicit answer
+    let updated_persistent: AppState = eframe::get_value(&storage, eframe::APP_KEY).unwrap();
+    assert_eq!(
+        updated_persistent.questionnaire.questions[0].response,
+        Some(Response::Neutral)
+    );
+}
+
+#[test]
+fn test_restore_saved_instance() {
+    let mut app = PersonalityApp::default();
+
+    // User answered question 0 with StronglyAgree
+    app.state.questionnaire.answer_question(0, Response::StronglyAgree);
+    app.saved_local_state = Some(app.state.clone());
+
+    // Friend's link loaded:
+    app.state.questionnaire.answer_question(0, Response::Disagree);
+    app.state.questionnaire.answer_question(1, Response::Agree);
+    app.is_viewing_shared_link = true;
+
+    assert_eq!(app.state.questionnaire.questions[0].response, Some(Response::Disagree));
+    assert!(app.is_viewing_shared_link);
+
+    // User clicks "Return to Saved Instance"
+    app.restore_saved_instance();
+
+    assert!(!app.is_viewing_shared_link);
+    assert_eq!(app.state.questionnaire.questions[0].response, Some(Response::StronglyAgree));
+    assert_eq!(app.state.questionnaire.questions[1].response, None);
+}

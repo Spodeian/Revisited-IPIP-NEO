@@ -1,6 +1,35 @@
+# Global Security and Base Policies for all routes
 /*
   X-Frame-Options: SAMEORIGIN
   X-Content-Type-Options: nosniff
   Referrer-Policy: strict-origin-when-cross-origin
-  Permissions-Policy: accelerometer=(), camera=(), geolocation=(), gyroscope=(), magnetometer=(), microphone=(), payment=(), usb=()
-  Content-Security-Policy: default-src 'self'; script-src 'self' 'unsafe-inline' 'unsafe-eval' 'wasm-unsafe-eval' blob: https://static.cloudflareinsights.com; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; connect-src 'self' data: blob: https://cloudflareinsights.com; font-src 'self' data:; worker-src 'self' blob:; child-src 'self' blob:; frame-ancestors 'self'; base-uri 'self';
+  Permissions-Policy: accelerometer=(), camera=(), geolocation=(), gyroscope=(), magnetometer=(), microphone=(), payment=(), usb=(), interest-cohort=()
+  Cross-Origin-Opener-Policy: same-origin
+  Content-Security-Policy: default-src 'self'; script-src 'self' 'unsafe-inline' 'unsafe-eval' 'wasm-unsafe-eval' blob: https://static.cloudflareinsights.com; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob: https://ipip-neo.spodeian.trade https://tga-ipip-neo.spodeian.trade; connect-src 'self' data: blob: https://cloudflareinsights.com; font-src 'self' data:; worker-src 'self' blob:; manifest-src 'self'; frame-ancestors 'self'; base-uri 'self'; object-src 'none';
+
+# HTML Documents: Always revalidate so users instantly get new releases
+/
+  Cache-Control: public, max-age=0, must-revalidate
+
+/index.html
+  Cache-Control: public, max-age=0, must-revalidate
+
+# Service Worker: Do not cache so browser updates and offline sync stay fresh
+/sw.js
+  Cache-Control: no-cache, no-store, must-revalidate
+
+# Progressive Web App Manifest
+/manifest.json
+  Cache-Control: public, max-age=86400, stale-while-revalidate=604800
+
+# WebAssembly Binaries: Immutable hashed binary assets
+/*.wasm
+  Cache-Control: public, max-age=31536000, immutable
+  Access-Control-Allow-Origin: *
+
+# Compiled & Bundled Assets: Long-term cache for version-hashed files
+/*.js
+  Cache-Control: public, max-age=31536000, immutable
+
+/*.css
+  Cache-Control: public, max-age=31536000, immutable

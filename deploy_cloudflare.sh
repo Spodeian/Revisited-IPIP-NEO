@@ -1,17 +1,19 @@
 #!/usr/bin/env bash
-# Cloudflare Serverless Deployment Build Pipeline Script (Pages & Workers Hybrid)
-set -e
+# ==============================================================================
+# Cloudflare Serverless Deployment Build Pipeline Script (Pages & Workers)
+# ==============================================================================
+set -euo pipefail
 
 echo "=== Initializing Cloudflare Serverless Build Pipeline ==="
 
-# 1. Ensure Rust stable cargo bin path is in global environment
+# 1. Environment & PATH Setup
 export PATH="$HOME/.cargo/bin:$PATH"
+mkdir -p "$HOME/.cargo/bin"
 
-# 2. Check if rustup is installed, if not, install it quietly
+# 2. Rust Toolchain & Target Verification
 if ! command -v rustup &> /dev/null && [ ! -f "$HOME/.cargo/bin/rustup" ]; then
     echo "Rust compiler not detected. Installing Rust stable toolchain..."
-    curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y
-    # Sourcing cargo environment is required to bind rustup on fresh installs
+    curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y --default-toolchain stable --target wasm32-unknown-unknown
     . "$HOME/.cargo/env"
 else
     if [ -f "$HOME/.cargo/bin/env" ]; then
@@ -19,58 +21,147 @@ else
     elif [ -f "$HOME/.cargo/env" ]; then
         . "$HOME/.cargo/env"
     fi
-    echo "Rust compiler toolchain detected: $(rustc --version || echo 'Local install active')"
+    echo "Rust toolchain detected: $(rustc --version || echo 'Active')"
+    if command -v rustup &> /dev/null; then
+        rustup target add wasm32-unknown-unknown
+    else
+        "$HOME/.cargo/bin/rustup" target add wasm32-unknown-unknown
+    fi
 fi
 
-# 3. Add WASM compile target
-echo "Adding WebAssembly compile target (wasm32-unknown-unknown)..."
-if command -v rustup &> /dev/null; then
-    rustup target add wasm32-unknown-unknown
-else
-    $HOME/.cargo/bin/rustup target add wasm32-unknown-unknown
-fi
-
-# 4. Install Trunk if missing
+# 3. Trunk Asset Bundler Installation
 if ! command -v trunk &> /dev/null; then
     echo "Installing Trunk asset bundler..."
-    # Download compiled trunk release matching target environment architectures
-    wget -qO- https://github.com/trunk-rs/trunk/releases/latest/download/trunk-x86_64-unknown-linux-gnu.tar.gz | tar -xzf-
-    TRUNK_BIN="./trunk"
+    wget -qO- https://github.com/trunk-rs/trunk/releases/latest/download/trunk-x86_64-unknown-linux-gnu.tar.gz | tar -xzf - -C "$HOME/.cargo/bin"
+    chmod +x "$HOME/.cargo/bin/trunk"
+    TRUNK_BIN="trunk"
 else
     echo "Trunk detected: $(trunk --version)"
     TRUNK_BIN="trunk"
 fi
 
-# 4b. Install updated wasm-opt (binaryen) with bulk memory operations support
-BINARYEN_VERSION="version_118"
-echo "Installing/updating wasm-opt (${BINARYEN_VERSION}) to support bulk memory operations..."
-mkdir -p "$HOME/.cargo/bin"
-wget -qO- "https://github.com/WebAssembly/binaryen/releases/download/${BINARYEN_VERSION}/binaryen-${BINARYEN_VERSION}-x86_64-linux.tar.gz" | tar -xzf -
-mv "binaryen-${BINARYEN_VERSION}/bin/wasm-opt" "$HOME/.cargo/bin/wasm-opt"
-chmod +x "$HOME/.cargo/bin/wasm-opt"
-rm -rf "binaryen-${BINARYEN_VERSION}"
+# 4. Binaryen (wasm-opt) v132 Installation
+BINARYEN_VERSION="version_132"
+WASM_OPT_BIN="$HOME/.cargo/bin/wasm-opt"
 
-echo "wasm-opt active version: $(wasm-opt --version)"
+install_wasm_opt() {
+    echo "Downloading and installing Binaryen wasm-opt (${BINARYEN_VERSION})..."
+    local temp_tar="/tmp/binaryen-${BINARYEN_VERSION}.tar.gz"
+    wget -qO "$temp_tar" "https://github.com/WebAssembly/binaryen/releases/download/${BINARYEN_VERSION}/binaryen-${BINARYEN_VERSION}-x86_64-linux.tar.gz"
+    tar -xzf "$temp_tar" -C /tmp
+    mv "/tmp/binaryen-${BINARYEN_VERSION}/bin/wasm-opt" "$WASM_OPT_BIN"
+    chmod +x "$WASM_OPT_BIN"
+    rm -rf "$temp_tar" "/tmp/binaryen-${BINARYEN_VERSION}"
+}
 
-# 5. Build static production assets
-echo "Purging old Trunk build caches for a guaranteed up-to-date compile..."
-if [ -d "crates/web/dist" ]; then
-    rm -rf crates/web/dist
-fi
-if [ -d "dist" ]; then
-    rm -rf dist
+if [ ! -f "$WASM_OPT_BIN" ]; then
+    install_wasm_opt
 fi
 
-echo "Compiling and bundling web application to distribution path..."
+echo "Active wasm-opt version: $($WASM_OPT_BIN --version || echo 'Installed')"
+
+# 5. Clean & Build Web Application
+echo "Purging previous build distribution caches..."
+rm -rf crates/web/dist dist
+
+echo "Compiling and bundling web application for release..."
 $TRUNK_BIN clean
 $TRUNK_BIN build --release --public-url "/"
 
-echo "=== Build Completed Successfully! Static assets are ready in: 'crates/web/dist' ==="
+# 6. Production Asset Minification (CSS, JS, and HTML)
+DIST_DIR="crates/web/dist"
+if [ ! -d "$DIST_DIR" ] && [ -d "dist" ]; then
+    DIST_DIR="dist"
+fi
 
-# 6. Dynamic Deployment context router
-# If CLOUDFLARE_WORKER_DEPLOY is explicitly set to true, run wrangler deployment.
-# Otherwise, we default to Pages native CDN publishing which requires no worker scripts.
-if [ "$CLOUDFLARE_WORKER_DEPLOY" = "true" ]; then
+if [ -d "$DIST_DIR" ]; then
+    echo "=== Running Production Asset Minification for '$DIST_DIR' ==="
+
+    if command -v npx &> /dev/null; then
+        echo "Minifying JavaScript and CSS assets using esbuild..."
+        for js_file in "$DIST_DIR"/*.js; do
+            if [ -f "$js_file" ]; then
+                echo "  Minifying JS: $js_file"
+                npx --yes esbuild "$js_file" --minify --allow-overwrite --outfile="$js_file" || true
+            fi
+        done
+        for css_file in "$DIST_DIR"/*.css; do
+            if [ -f "$css_file" ]; then
+                echo "  Minifying CSS: $css_file"
+                npx --yes esbuild "$css_file" --minify --allow-overwrite --outfile="$css_file" || true
+            fi
+        done
+        if [ -f "$DIST_DIR/index.html" ]; then
+            echo "  Minifying HTML: $DIST_DIR/index.html"
+            npx --yes html-minifier-terser --collapse-whitespace --remove-comments --minify-css true --minify-js true -o "$DIST_DIR/index.html" "$DIST_DIR/index.html" || true
+        fi
+    elif command -v python3 &> /dev/null; then
+        echo "Node/npx not available. Using Python minification engine fallback..."
+        python3 -c '
+import os, re, sys, glob
+
+dist_dir = sys.argv[1]
+
+def minify_css(content):
+    content = re.sub(r"/\*[\s\S]*?\*/", "", content)
+    content = re.sub(r"\s+", " ", content)
+    content = re.sub(r"\s*([\{\}:;,])\s*", r"\1", content)
+    content = content.replace(";}", "}")
+    return content.strip()
+
+def minify_js(content):
+    lines = []
+    for line in content.splitlines():
+        stripped = line.strip()
+        if stripped.startswith("//") and not stripped.startswith("///"):
+            continue
+        lines.append(line)
+    content = "\n".join(lines)
+    content = re.sub(r"/\*[\s\S]*?\*/", "", content)
+    content = re.sub(r"[ \t]+", " ", content)
+    content = re.sub(r"\n\s*", "\n", content)
+    content = re.sub(r"\s*([=+\-*/%&|!<>?:,;{}()[\]])\s*", r"\1", content)
+    return content.strip()
+
+for fpath in glob.glob(os.path.join(dist_dir, "*.css")):
+    try:
+        with open(fpath, "r", encoding="utf-8") as f:
+            c = f.read()
+        with open(fpath, "w", encoding="utf-8") as f:
+            f.write(minify_css(c))
+        print(f"  Minified CSS: {fpath}")
+    except Exception as e:
+        print(f"  Error minifying {fpath}: {e}")
+
+for fpath in glob.glob(os.path.join(dist_dir, "*.js")):
+    try:
+        with open(fpath, "r", encoding="utf-8") as f:
+            c = f.read()
+        with open(fpath, "w", encoding="utf-8") as f:
+            f.write(minify_js(c))
+        print(f"  Minified JS: {fpath}")
+    except Exception as e:
+        print(f"  Error minifying {fpath}: {e}")
+
+html_path = os.path.join(dist_dir, "index.html")
+if os.path.exists(html_path):
+    try:
+        with open(html_path, "r", encoding="utf-8") as f:
+            html = f.read()
+        html = re.sub(r"<style[^>]*>([\s\S]*?)</style>", lambda m: f"<style>{minify_css(m.group(1))}</style>", html, flags=re.IGNORECASE)
+        with open(html_path, "w", encoding="utf-8") as f:
+            f.write(html)
+        print(f"  Minified inline styles in: {html_path}")
+    except Exception as e:
+        print(f"  Error processing {html_path}: {e}")
+' "$DIST_DIR"
+    fi
+fi
+
+echo "=== Build Completed Successfully! Static assets are ready in: '$DIST_DIR' ==="
+
+# 7. Deployment Context Router
+if [ "${CLOUDFLARE_WORKER_DEPLOY:-false}" = "true" ]; then
     echo "Wrangler Worker deployment context detected."
     if ! command -v wrangler &> /dev/null; then
         if command -v npm &> /dev/null; then
@@ -84,5 +175,5 @@ if [ "$CLOUDFLARE_WORKER_DEPLOY" = "true" ]; then
     echo "Executing Wrangler Deploy..."
     wrangler deploy
 else
-    echo "Pages / Static CDN deployment context detected. Bypassing Wrangler deploy."
+    echo "Pages / Static CDN deployment context detected. Build ready for publishing."
 fi

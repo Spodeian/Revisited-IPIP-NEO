@@ -2,6 +2,10 @@
 name = "desktop"
 version.workspace = true
 edition.workspace = true
+authors.workspace = true
+license.workspace = true
+repository.workspace = true
+description = "Native desktop runner for Revisited IPIP-NEO"
 
 [dependencies]
 eframe = { workspace = true, features = ["default_fonts", "wgpu", "persistence"] }

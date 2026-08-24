@@ -561,10 +561,10 @@ impl QuestionnaireState {
         }
         self.pending_queue = new_queue;
 
-        if let Some(&first_pending) = self.pending_queue.front() {
-            if self.questions.get(self.current_focus_idx).is_none() || self.questions[self.current_focus_idx].response.is_some() {
-                self.current_focus_idx = first_pending;
-            }
+        if let Some(&first_pending) = self.pending_queue.front()
+            && (self.questions.get(self.current_focus_idx).is_none() || self.questions[self.current_focus_idx].response.is_some())
+        {
+            self.current_focus_idx = first_pending;
         }
     }
 

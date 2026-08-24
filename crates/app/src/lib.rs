@@ -6,26 +6,29 @@ use shared::{
     export_to_svg, import_responses_from_csv, import_responses_from_json, AppState, Aspect,
     Facet, MetaTrait, Response, ScoreTier, ThemeMode, Trait,
 };
-use tracing::{info, warn};
+use tracing::{error, info, warn};
 #[cfg(target_arch = "wasm32")]
 use wasm_bindgen::JsCast;
 
-#[derive(Default)]
-pub struct PersonalityApp {
-    pub state: AppState,
-    pub show_reset_dialog: bool,
-    pub show_help_dialog: bool,
-    pub show_import_dialog: bool,
-    pub import_text_buffer: String,
-    pub import_result_message: Option<Result<String, String>>,
-    pub show_export_dialog: Option<ExportType>,
-    pub export_copied_notification: Option<f64>,
-    pub share_link_copied_time: Option<f64>,
-    pub is_viewing_shared_link: bool,
-    pub selected_export_format: ExportFormat,
-    pub hide_header: bool,
-    pub last_scroll_time: f64,
-    pub scroll_accumulator: f32,
+pub struct ScreenConstraints {
+    pub is_mobile: bool,
+    pub is_mobile_portrait: bool,
+    pub is_tight_height: bool,
+    pub is_ultra_tight: bool,
+}
+
+impl ScreenConstraints {
+    pub fn compute(ui: &egui::Ui) -> Self {
+        let avail_w = ui.available_width();
+        let avail_h = ui.available_height();
+
+        Self {
+            is_mobile: avail_w < 800.0,
+            is_mobile_portrait: avail_w < 650.0,
+            is_tight_height: avail_h < 530.0 || avail_w < 350.0,
+            is_ultra_tight: avail_w < 330.0 || avail_h < 490.0,
+        }
+    }
 }
 
 #[derive(Clone, Copy, PartialEq, Eq, Debug, Default)]
@@ -48,11 +51,25 @@ impl ExportFormat {
     }
 }
 
-#[derive(Clone, Copy, PartialEq, Eq, Debug)]
-pub enum ExportType {
-    Csv,
-    Json,
-    PrintableHtml,
+#[derive(Default)]
+pub struct PersonalityApp {
+    pub state: AppState,
+    pub saved_local_state: Option<AppState>,
+    pub current_theme: Option<ThemeMode>,
+    pub show_reset_dialog: bool,
+    pub show_help_dialog: bool,
+    pub show_import_dialog: bool,
+    pub import_text_buffer: String,
+    pub import_result_message: Option<Result<String, String>>,
+    pub show_export_dialog: Option<ExportFormat>,
+    pub export_text_buffer: String,
+    pub export_copied_notification: Option<f64>,
+    pub share_link_copied_time: Option<f64>,
+    pub is_viewing_shared_link: bool,
+    pub selected_export_format: ExportFormat,
+    pub hide_header: bool,
+    pub last_scroll_time: f64,
+    pub scroll_accumulator: f32,
 }
 
 fn trigger_file_download(filename: &str, content: &str, _mime_type: &str) {
@@ -81,7 +98,10 @@ fn trigger_file_download(filename: &str, content: &str, _mime_type: &str) {
     }
     #[cfg(not(target_arch = "wasm32"))]
     {
-        let _ = std::fs::write(filename, content);
+        match std::fs::write(filename, content) {
+            Ok(()) => info!("Successfully exported file: {}", filename),
+            Err(e) => error!("Failed to write export file '{}': {}", filename, e),
+        }
     }
 }
 
@@ -91,9 +111,8 @@ impl PersonalityApp {
 
         let mut state = if let Some(storage) = cc.storage {
             match eframe::get_value::<AppState>(storage, eframe::APP_KEY) {
-                Some(mut s) => {
+                Some(s) => {
                     info!("Loaded personality assessment state from storage.");
-                    s.questionnaire.rebuild_cache();
                     s
                 }
                 None => {
@@ -106,6 +125,7 @@ impl PersonalityApp {
         };
 
         state.questionnaire.rebuild_cache();
+        let saved_local_state = Some(state.clone());
 
         #[allow(unused_mut)]
         let mut is_viewing_shared_link = false;
@@ -139,12 +159,15 @@ impl PersonalityApp {
 
         Self {
             state,
+            saved_local_state,
+            current_theme: None,
             show_reset_dialog: false,
             show_help_dialog: false,
             show_import_dialog: false,
             import_text_buffer: String::new(),
             import_result_message: None,
             show_export_dialog: None,
+            export_text_buffer: String::new(),
             export_copied_notification: None,
             share_link_copied_time: None,
             is_viewing_shared_link,
@@ -155,7 +178,76 @@ impl PersonalityApp {
         }
     }
 
+    pub fn restore_saved_instance(&mut self) {
+        if let Some(ref saved) = self.saved_local_state {
+            self.state = saved.clone();
+        } else {
+            self.state.reset_questionnaire();
+        }
+        self.state.questionnaire.rebuild_cache();
+        self.is_viewing_shared_link = false;
+
+        #[cfg(target_arch = "wasm32")]
+        {
+            if let Some(window) = web_sys::window() {
+                let _ = window.location().set_hash("");
+            }
+        }
+    }
+
+    pub fn open_export_dialog(&mut self, format: ExportFormat) {
+        self.export_text_buffer = match format {
+            ExportFormat::Csv => export_to_csv(&self.state.questionnaire),
+            ExportFormat::Json => export_to_json(&self.state.questionnaire),
+            ExportFormat::Svg => export_to_svg(&self.state.questionnaire),
+            ExportFormat::Html => export_to_printable_html(&self.state.questionnaire),
+        };
+        self.show_export_dialog = Some(format);
+        self.export_copied_notification = None;
+    }
+
+    fn apply_theme(&mut self, ctx: &egui::Context) {
+        if self.current_theme == Some(self.state.config.theme) {
+            return;
+        }
+        self.current_theme = Some(self.state.config.theme);
+
+        let visuals = match self.state.config.theme {
+            ThemeMode::Light => {
+                let mut light = egui::Visuals::light();
+
+                // Soothing neutral/warm light backgrounds instead of blinding pure white
+                light.panel_fill = egui::Color32::from_rgb(245, 244, 241); // Soft warm grey
+                light.window_fill = egui::Color32::from_rgb(252, 250, 246); // Warm off-white
+                light.extreme_bg_color = egui::Color32::from_rgb(238, 236, 231); // Insets background
+
+                // Soft charcoal for high-contrast, comfortable reading without harsh black
+                light.widgets.noninteractive.fg_stroke.color = egui::Color32::from_rgb(45, 44, 42);
+                light.widgets.inactive.fg_stroke.color = egui::Color32::from_rgb(55, 54, 52);
+                light.widgets.hovered.fg_stroke.color = egui::Color32::from_rgb(20, 20, 18);
+                light.widgets.active.fg_stroke.color = egui::Color32::from_rgb(0, 0, 0);
+
+                // Muted border strokes to reduce visual clutter
+                light.widgets.noninteractive.bg_stroke.color = egui::Color32::from_rgb(222, 220, 215);
+                light.widgets.inactive.bg_stroke.color = egui::Color32::from_rgb(212, 210, 205);
+
+                // Subtle buttons background
+                light.widgets.inactive.bg_fill = egui::Color32::from_rgb(252, 251, 248);
+                light.widgets.hovered.bg_fill = egui::Color32::from_rgb(236, 234, 229);
+                light.widgets.active.bg_fill = egui::Color32::from_rgb(220, 218, 212);
+
+                light
+            }
+            ThemeMode::Dark => egui::Visuals::dark(),
+        };
+        ctx.set_visuals(visuals);
+    }
+
     fn handle_keyboard_and_scroll(&mut self, ui: &mut egui::Ui) {
+        if ui.ctx().egui_wants_keyboard_input() {
+            return;
+        }
+
         let input = ui.input(|i| i.clone());
 
         // Keyboard shortcuts for responses: 1-5
@@ -201,6 +293,7 @@ impl PersonalityApp {
                 self.import_result_message = None;
             } else if self.show_export_dialog.is_some() {
                 self.show_export_dialog = None;
+                self.export_text_buffer.clear();
             } else if self.state.questionnaire.show_results {
                 self.state.questionnaire.show_results = false;
             }
@@ -222,255 +315,133 @@ impl PersonalityApp {
                 self.state.questionnaire.skip_current();
             }
         }
-
-        // Mouse scroll detection has been moved specifically to the question focus view
-        // to prevent scrolling results from skipping questions, and to respect directions.
-    }
-}
-
-impl eframe::App for PersonalityApp {
-    fn save(&mut self, storage: &mut dyn eframe::Storage) {
-        // Do not overwrite user's saved local answers if they are only viewing a shared link
-        if !self.is_viewing_shared_link {
-            eframe::set_value(storage, eframe::APP_KEY, &self.state);
-        }
     }
 
-    fn ui(&mut self, ui: &mut egui::Ui, _frame: &mut eframe::Frame) {
-        // Theme visual style
-        let visuals = match self.state.config.theme {
-            ThemeMode::Light => {
-                let mut light = egui::Visuals::light();
+    fn render_top_bar(&mut self, ui: &mut egui::Ui, constraints: &ScreenConstraints) {
+        egui::Panel::top("top_panel").show(ui, |ui| {
+            ui.add_space(4.0);
+            let title_text = if constraints.is_mobile { "IPIP-NEO (TGA)" } else { "Revisited IPIP-NEO Personality Assessment" };
+            let header_row_height = if constraints.is_mobile { 44.0 } else { 32.0 };
 
-                // Soothing neutral/warm light backgrounds instead of blinding pure white
-                light.panel_fill = egui::Color32::from_rgb(245, 244, 241); // Soft warm grey
-                light.window_fill = egui::Color32::from_rgb(252, 250, 246); // Warm off-white
-                light.extreme_bg_color = egui::Color32::from_rgb(238, 236, 231); // Insets background
+            ui.horizontal(|ui| {
+                ui.set_height(header_row_height);
 
-                // Soft charcoal for high-contrast, comfortable reading without harsh black
-                light.widgets.noninteractive.fg_stroke.color = egui::Color32::from_rgb(45, 44, 42);
-                light.widgets.inactive.fg_stroke.color = egui::Color32::from_rgb(55, 54, 52);
-                light.widgets.hovered.fg_stroke.color = egui::Color32::from_rgb(20, 20, 18);
-                light.widgets.active.fg_stroke.color = egui::Color32::from_rgb(0, 0, 0);
+                if constraints.is_mobile {
+                    ui.label(egui::RichText::new(title_text).size(18.0).strong());
+                } else {
+                    ui.heading(title_text);
+                }
 
-                // Muted border strokes to reduce visual clutter
-                light.widgets.noninteractive.bg_stroke.color = egui::Color32::from_rgb(222, 220, 215);
-                light.widgets.inactive.bg_stroke.color = egui::Color32::from_rgb(212, 210, 205);
+                ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
+                    if constraints.is_mobile {
+                        ui.spacing_mut().item_spacing.x = 8.0;
 
-                // Subtle buttons background
-                light.widgets.inactive.bg_fill = egui::Color32::from_rgb(252, 251, 248);
-                light.widgets.hovered.bg_fill = egui::Color32::from_rgb(236, 234, 229);
-                light.widgets.active.bg_fill = egui::Color32::from_rgb(220, 218, 212);
-
-                light
-            }
-            ThemeMode::Dark => egui::Visuals::dark(),
-        };
-        ui.ctx().set_visuals(visuals);
-
-        self.handle_keyboard_and_scroll(ui);
-
-        // Top Navigation Bar (Only rendered if hide_header is false)
-        if !self.hide_header {
-            egui::Panel::top("top_panel").show(ui, |ui| {
-                let width = ui.available_width();
-                let is_mobile = width < 800.0;
-                ui.add_space(4.0);
-
-                let title_text = if is_mobile { "IPIP-NEO (TGA)" } else { "Revisited IPIP-NEO Personality Assessment" };
-                let header_row_height = if is_mobile { 44.0 } else { 32.0 };
-
-                ui.horizontal(|ui| {
-                    ui.set_height(header_row_height);
-
-                    if is_mobile {
-                        ui.label(egui::RichText::new(title_text).size(18.0).strong());
-                    } else {
-                        ui.heading(title_text);
-                    }
-
-                    ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
-                        if is_mobile {
-                            ui.spacing_mut().item_spacing.x = 8.0;
-
-                            // Mobile larger touch-target buttons (min 44x44px standard for easy thumb tapping)
-                            let results_btn_text = if self.state.questionnaire.show_results { "📝 Questions" } else { "📊 Results" };
-                            let res_btn = egui::Button::new(egui::RichText::new(results_btn_text).size(14.0).strong())
-                                .min_size(egui::vec2(96.0, 44.0));
-                            if ui.add(res_btn).on_hover_text("Toggle assessment results").clicked() {
-                                self.state.questionnaire.show_results = !self.state.questionnaire.show_results;
-                            }
-
-                            // Mobile Single Import Button (rendered to the right of Reset on screen)
-                            let import_btn = egui::Button::new(egui::RichText::new("📥").size(20.0))
-                                .min_size(egui::vec2(44.0, 44.0));
-                            if ui.add(import_btn).on_hover_text("Import CSV or JSON answers to resume assessment").clicked() {
-                                self.show_import_dialog = true;
-                                self.import_text_buffer.clear();
-                                self.import_result_message = None;
-                            }
-
-                            let reset_btn = egui::Button::new(egui::RichText::new("🔄").size(20.0))
-                                .min_size(egui::vec2(44.0, 44.0));
-                            if ui.add(reset_btn).on_hover_text("Reset test and clear all answers").clicked() {
-                                self.show_reset_dialog = true;
-                            }
-
-                            let gh_btn = egui::Button::new(egui::RichText::new("🐙").size(20.0))
-                                .min_size(egui::vec2(44.0, 44.0));
-                            if ui.add(gh_btn).on_hover_text("View source on GitHub").clicked() {
-                                ui.ctx().open_url(egui::OpenUrl::new_tab("https://github.com/Spodeian/Revisited-IPIP-NEO"));
-                            }
-
-                            let doi_btn = egui::Button::new(egui::RichText::new("📖").size(20.0))
-                                .min_size(egui::vec2(44.0, 44.0));
-                            if ui.add(doi_btn).on_hover_text("Read the research").clicked() {
-                                ui.ctx().open_url(egui::OpenUrl::new_tab("https://doi.org/10.1177/08902070251352590"));
-                            }
-
-                            let help_btn = egui::Button::new(egui::RichText::new("❓").size(20.0))
-                                .min_size(egui::vec2(44.0, 44.0));
-                            if ui.add(help_btn).on_hover_text("Help, shortcuts & privacy").clicked() {
-                                self.show_help_dialog = true;
-                            }
-
-                            let theme_icon = match self.state.config.theme {
-                                ThemeMode::Light => "🌙",
-                                ThemeMode::Dark => "☀️",
-                            };
-                            let theme_btn = egui::Button::new(egui::RichText::new(theme_icon).size(20.0))
-                                .min_size(egui::vec2(44.0, 44.0));
-                            if ui.add(theme_btn).on_hover_text("Toggle dark / light theme").clicked() {
-                                self.state.config.theme = match self.state.config.theme {
-                                    ThemeMode::Light => ThemeMode::Dark,
-                                    ThemeMode::Dark => ThemeMode::Light,
-                                };
-                            }
-
-                            // Collapse Header button
-                            let hide_btn = egui::Button::new(egui::RichText::new("↑").size(16.0))
-                                .min_size(egui::vec2(44.0, 44.0));
-                            if ui.add(hide_btn).on_hover_text("Hide top navigation header").clicked() {
-                                self.hide_header = true;
-                            }
-                        } else {
-                            // Desktop layout: Right-to-Left (processed reverse-order for on-screen alignment)
-                            let theme_icon = match self.state.config.theme {
-                                ThemeMode::Light => "🌙 Dark",
-                                ThemeMode::Dark => "☀️ Light",
-                            };
-                            if ui.button(theme_icon).on_hover_text("Toggle dark / light theme").clicked() {
-                                self.state.config.theme = match self.state.config.theme {
-                                    ThemeMode::Light => ThemeMode::Dark,
-                                    ThemeMode::Dark => ThemeMode::Light,
-                                };
-                            }
-
-                            // Help Icon
-                            if ui.button("❓").on_hover_text("Help, shortcuts & privacy").clicked() {
-                                self.show_help_dialog = true;
-                            }
-
-                            // Research DOI Icon
-                            if ui.button("📖").on_hover_text("Read the research").clicked() {
-                                ui.ctx().open_url(egui::OpenUrl::new_tab("https://doi.org/10.1177/08902070251352590"));
-                            }
-
-                            // GitHub Icon (Icon only)
-                            if ui.button("🐙").on_hover_text("View source on GitHub").clicked() {
-                                ui.ctx().open_url(egui::OpenUrl::new_tab("https://github.com/Spodeian/Revisited-IPIP-NEO"));
-                            }
-
-                            // Import Button (Sits directly to the right of Reset on screen)
-                            if ui.button("📥 Import").on_hover_text("Import CSV or JSON answers to resume your assessment").clicked() {
-                                self.show_import_dialog = true;
-                                self.import_text_buffer.clear();
-                                self.import_result_message = None;
-                            }
-
-                            // Reset button
-                            if ui.button("🔄 Reset").on_hover_text("Reset test and clear all answers").clicked() {
-                                self.show_reset_dialog = true;
-                            }
-
-                            // Results / Questions Toggle
-                            let results_btn_text = if self.state.questionnaire.show_results {
-                                "📊 Hide Results"
-                            } else {
-                                "📊 Show Results"
-                            };
-                            if ui.button(results_btn_text).on_hover_text("Toggle assessment results").clicked() {
-                                self.state.questionnaire.show_results = !self.state.questionnaire.show_results;
-                            }
-
-                            // Collapse Header button
-                            if ui.button("Hide Header").on_hover_text("Hide top navigation header").clicked() {
-                                self.hide_header = true;
+                        // Return to saved instance button on mobile
+                        if self.is_viewing_shared_link {
+                            let return_btn = egui::Button::new(egui::RichText::new("↩ Saved").size(13.0).strong())
+                                .min_size(egui::vec2(68.0, 44.0));
+                            if ui.add(return_btn).on_hover_text("Return to your own saved assessment").clicked() {
+                                self.restore_saved_instance();
                             }
                         }
-                    });
+
+                        // Mobile larger touch-target buttons (min 44x44px standard for easy thumb tapping)
+                        let results_btn_text = if self.state.questionnaire.show_results { "📝 Questions" } else { "📊 Results" };
+                        let res_btn = egui::Button::new(egui::RichText::new(results_btn_text).size(14.0).strong())
+                            .min_size(egui::vec2(96.0, 44.0));
+                        if ui.add(res_btn).on_hover_text("Toggle assessment results").clicked() {
+                            self.state.questionnaire.show_results = !self.state.questionnaire.show_results;
+                        }
+
+                        // Theme toggle button
+                        let theme_icon = match self.state.config.theme {
+                            ThemeMode::Light => "🌙",
+                            ThemeMode::Dark => "☀️",
+                        };
+                        let theme_btn = egui::Button::new(egui::RichText::new(theme_icon).size(16.0))
+                            .min_size(egui::vec2(44.0, 44.0));
+                        if ui.add(theme_btn).on_hover_text("Toggle theme").clicked() {
+                            self.state.config.theme = match self.state.config.theme {
+                                ThemeMode::Light => ThemeMode::Dark,
+                                ThemeMode::Dark => ThemeMode::Light,
+                            };
+                        }
+
+                        // Collapse Header button
+                        let hide_btn = egui::Button::new(egui::RichText::new("↑").size(16.0))
+                            .min_size(egui::vec2(44.0, 44.0));
+                        if ui.add(hide_btn).on_hover_text("Hide top navigation header").clicked() {
+                            self.hide_header = true;
+                        }
+                    } else {
+                        // Desktop layout: Right-to-Left (processed reverse-order for on-screen alignment)
+                        let theme_icon = match self.state.config.theme {
+                            ThemeMode::Light => "🌙 Dark",
+                            ThemeMode::Dark => "☀️ Light",
+                        };
+                        if ui.button(theme_icon).on_hover_text("Toggle dark / light theme").clicked() {
+                            self.state.config.theme = match self.state.config.theme {
+                                ThemeMode::Light => ThemeMode::Dark,
+                                ThemeMode::Dark => ThemeMode::Light,
+                            };
+                        }
+
+                        // Help Icon
+                        if ui.button("❓").on_hover_text("Help, shortcuts & privacy").clicked() {
+                            self.show_help_dialog = true;
+                        }
+
+                        // Research DOI Icon
+                        if ui.button("📖").on_hover_text("Read the research").clicked() {
+                            ui.ctx().open_url(egui::OpenUrl::new_tab("https://doi.org/10.1177/08902070251352590"));
+                        }
+
+                        // GitHub Icon (Icon only)
+                        if ui.button("🐙").on_hover_text("View source on GitHub").clicked() {
+                            ui.ctx().open_url(egui::OpenUrl::new_tab("https://github.com/Spodeian/Revisited-IPIP-NEO"));
+                        }
+
+                        // Return to saved instance button on desktop
+                        if self.is_viewing_shared_link
+                            && ui.button("↩ My Saved Answers").on_hover_text("Return to your own saved assessment").clicked()
+                        {
+                            self.restore_saved_instance();
+                        }
+
+                        // Import Button (Sits directly to the right of Reset on screen)
+                        if ui.button("📥 Import").on_hover_text("Import CSV or JSON answers to resume your assessment").clicked() {
+                            self.show_import_dialog = true;
+                            self.import_text_buffer.clear();
+                            self.import_result_message = None;
+                        }
+
+                        // Reset button
+                        if ui.button("🔄 Reset").on_hover_text("Reset test and clear all answers").clicked() {
+                            self.show_reset_dialog = true;
+                        }
+
+                        // Results / Questions Toggle
+                        let results_btn_text = if self.state.questionnaire.show_results {
+                            "📊 Hide Results"
+                        } else {
+                            "📊 Show Results"
+                        };
+                        if ui.button(results_btn_text).on_hover_text("Toggle assessment results").clicked() {
+                            self.state.questionnaire.show_results = !self.state.questionnaire.show_results;
+                        }
+
+                        // Collapse Header button
+                        if ui.button("Hide Header").on_hover_text("Hide top navigation header").clicked() {
+                            self.hide_header = true;
+                        }
+                    }
                 });
-                ui.add_space(4.0);
             });
-        }
-
-        // Side Results Panel (Only render on Desktop/Wide viewports)
-        let is_mobile = ui.available_width() < 800.0;
-
-        if self.state.questionnaire.show_results && !is_mobile {
-            egui::Panel::right("results_panel")
-                .min_size(380.0)
-                .default_size(420.0)
-                .show(ui, |ui| {
-                    self.render_results_panel(ui);
-                });
-        }
-
-        // Main Central View Routing
-        let is_tiny = ui.available_width() < 350.0 || ui.available_height() < 500.0;
-        let mut central_frame = egui::Frame::central_panel(ui.style());
-        if is_tiny {
-            central_frame.inner_margin = egui::Margin::same(4);
-        }
-
-        egui::CentralPanel::default().frame(central_frame).show(ui, |ui| {
-            if self.hide_header {
-                // Render subtle unhide button floating at top center when header is collapsed
-                ui.vertical_centered(|ui| {
-                    let expand_btn = egui::Button::new(egui::RichText::new("Show Header").size(11.0).weak())
-                        .min_size(egui::vec2(120.0, 22.0));
-                    if ui.add(expand_btn).on_hover_text("Show top navigation header").clicked() {
-                        self.hide_header = false;
-                    }
-                });
-                ui.add_space(6.0);
-            }
-
-            if is_mobile && self.state.questionnaire.show_results {
-                // Mobile View: Render results screen full-screen inside CentralPanel
-                egui::ScrollArea::vertical().show(ui, |ui| {
-                    ui.add_space(10.0);
-                    if ui.button("📝 Return to Questions").clicked() {
-                        self.state.questionnaire.show_results = false;
-                    }
-                    ui.add_space(10.0);
-                    ui.separator();
-                    ui.add_space(10.0);
-                    self.render_results_panel(ui);
-                });
-            } else {
-                // Desktop View or Mobile Questions View: Render Question Focus Card
-                self.render_question_focus(ui);
-            }
+            ui.add_space(4.0);
         });
-
-        // Dialogs
-        self.render_dialogs(ui);
     }
-}
 
-impl PersonalityApp {
-    fn render_question_focus(&mut self, ui: &mut egui::Ui) {
+    fn render_question_focus(&mut self, ui: &mut egui::Ui, constraints: &ScreenConstraints) {
         let total = self.state.questionnaire.total_questions();
         if total == 0 {
             ui.centered_and_justified(|ui| {
@@ -488,13 +459,10 @@ impl PersonalityApp {
             (q.id, q.text.clone(), q.response)
         };
 
-        // Measure available space to detect viewport constraints
-        let avail_height = ui.available_height();
+        let is_mobile_portrait = constraints.is_mobile_portrait;
+        let is_tight_height = constraints.is_tight_height;
+        let is_ultra_tight = constraints.is_ultra_tight;
         let avail_width = ui.available_width();
-
-        let is_mobile_portrait = avail_width < 650.0;
-        let is_tight_height = avail_height < 530.0 || avail_width < 350.0;
-        let is_ultra_tight = avail_width < 330.0 || avail_height < 490.0;
 
         let _scroll_response = egui::ScrollArea::vertical()
             .auto_shrink([false, false])
@@ -617,6 +585,7 @@ impl PersonalityApp {
                             if q_response.is_some() {
                                 let btn_clear = if is_ultra_tight { "❌" } else { "❌ Clear" };
                                 if ui.button(btn_clear).on_hover_text("Clear recorded answer").clicked() {
+                                    self.is_viewing_shared_link = false;
                                     self.state.questionnaire.clear_response(curr_idx);
                                 }
                             }
@@ -666,6 +635,12 @@ impl PersonalityApp {
         } else {
             self.scroll_accumulator = 0.0;
         }
+
+        // Fix UI Repaint Freeze on Mouse Scroll: Ensure egui continues rendering frame cycles
+        // to reset the scroll cooldown state even if mouse movement stops.
+        if self.scroll_accumulator.abs() > 0.0 {
+            ui.ctx().request_repaint();
+        }
     }
 
     fn render_results_panel(&mut self, ui: &mut egui::Ui) {
@@ -693,6 +668,10 @@ impl PersonalityApp {
                         .color(egui::Color32::from_rgb(147, 197, 253))
                         .small(),
                 );
+                ui.add_space(2.0);
+                if ui.button("↩ Return to My Saved Assessment").on_hover_text("Exit shared link view and restore your local saved answers").clicked() {
+                    self.restore_saved_instance();
+                }
             }
 
             ui.add_space(4.0);
@@ -759,10 +738,10 @@ impl PersonalityApp {
                 }
             });
 
-            if let Some(t) = self.share_link_copied_time {
-                if ui.input(|i| i.time) - t < 3.0 {
-                    ui.label(egui::RichText::new("Share link copied to clipboard!").color(egui::Color32::from_rgb(80, 180, 90)).strong());
-                }
+            if let Some(t) = self.share_link_copied_time
+                && ui.input(|i| i.time) - t < 3.0
+            {
+                ui.label(egui::RichText::new("Share link copied to clipboard!").color(egui::Color32::from_rgb(80, 180, 90)).strong());
             }
 
             ui.add_space(8.0);
@@ -853,26 +832,39 @@ impl PersonalityApp {
     }
 
     fn render_dialogs(&mut self, ui: &mut egui::Ui) {
-        // Help & Shortcuts Dialog (Docked to bottom-left, expanding upward & outward with generous sizing)
         if self.show_help_dialog {
-            let mut open = true;
-            let win_w = (ui.available_width() - 24.0).clamp(320.0, 480.0);
-            let win_h = (ui.available_height() - 32.0).clamp(400.0, 560.0);
+            self.render_help_dialog(ui);
+        }
+        if self.show_reset_dialog {
+            self.render_reset_dialog(ui);
+        }
+        if self.show_export_dialog.is_some() {
+            self.render_export_dialog(ui);
+        }
+        if self.show_import_dialog {
+            self.render_import_dialog(ui);
+        }
+    }
 
-            egui::Window::new("❓ Help & Information ")
-                .open(&mut open)
-                .resizable(true)
-                .collapsible(true)
-                .default_size(egui::vec2(win_w, win_h))
-                .min_width(300.0)
-                .min_height(340.0)
-                .max_width((ui.available_width() - 16.0).min(520.0))
-                .max_height(ui.available_height() - 20.0)
-                .anchor(egui::Align2::LEFT_BOTTOM, egui::vec2(12.0, -12.0))
-                .show(ui.ctx(), |ui| {
-                    egui::ScrollArea::vertical()
-                        .auto_shrink([false, false])
-                        .show(ui, |ui| {
+    fn render_help_dialog(&mut self, ui: &mut egui::Ui) {
+        let mut open = true;
+        let win_w = (ui.available_width() - 24.0).clamp(320.0, 480.0);
+        let win_h = (ui.available_height() - 32.0).clamp(400.0, 560.0);
+
+        egui::Window::new("❓ Help & Information ")
+            .open(&mut open)
+            .resizable(true)
+            .collapsible(true)
+            .default_size(egui::vec2(win_w, win_h))
+            .min_width(300.0)
+            .min_height(340.0)
+            .max_width((ui.available_width() - 16.0).min(520.0))
+            .max_height(ui.available_height() - 20.0)
+            .anchor(egui::Align2::LEFT_BOTTOM, egui::vec2(12.0, -12.0))
+            .show(ui.ctx(), |ui| {
+                egui::ScrollArea::vertical()
+                    .auto_shrink([false, false])
+                    .show(ui, |ui| {
                         ui.heading("Estimated Time");
                         ui.add_space(4.0);
                         ui.label("⏱ ~10–15 minutes (221 items). Take your time to answer honestly without overthinking.");
@@ -912,6 +904,17 @@ impl PersonalityApp {
                                 .small(),
                         );
 
+                        if self.is_viewing_shared_link {
+                            ui.add_space(8.0);
+                            ui.horizontal(|ui| {
+                                ui.label(egui::RichText::new("Currently viewing shared link.").weak());
+                                if ui.button("↩ Return to My Saved Assessment").clicked() {
+                                    self.restore_saved_instance();
+                                    self.show_help_dialog = false;
+                                }
+                            });
+                        }
+
                         ui.add_space(12.0);
                         ui.separator();
                         ui.add_space(8.0);
@@ -936,156 +939,237 @@ impl PersonalityApp {
                             );
                         });
                     });
-                });
-            if !open {
-                self.show_help_dialog = false;
-            }
+            });
+        if !open {
+            self.show_help_dialog = false;
         }
+    }
 
-        // Reset Confirmation Dialog
-        if self.show_reset_dialog {
-            egui::Window::new("Reset Assessment?")
-                .collapsible(false)
-                .resizable(false)
-                .anchor(egui::Align2::CENTER_CENTER, egui::vec2(0.0, 0.0))
-                .show(ui.ctx(), |ui| {
-                    ui.label("Are you sure you want to clear all responses and start over?");
-                    ui.add_space(12.0);
-                    ui.horizontal(|ui| {
-                        if ui.button("Yes, Reset").clicked() {
-                            self.state.reset_questionnaire();
-                            self.show_reset_dialog = false;
-                        }
-                        if ui.button("Cancel").clicked() {
-                            self.show_reset_dialog = false;
-                        }
-                    });
+    fn render_reset_dialog(&mut self, ui: &mut egui::Ui) {
+        egui::Window::new("Reset Assessment?")
+            .collapsible(false)
+            .resizable(false)
+            .anchor(egui::Align2::CENTER_CENTER, egui::vec2(0.0, 0.0))
+            .show(ui.ctx(), |ui| {
+                ui.label("Are you sure you want to clear all responses and start over?");
+                ui.add_space(12.0);
+                ui.horizontal(|ui| {
+                    if ui.button("Yes, Reset").clicked() {
+                        self.is_viewing_shared_link = false;
+                        self.state.reset_questionnaire();
+                        self.show_reset_dialog = false;
+                    }
+                    if ui.button("Cancel").clicked() {
+                        self.show_reset_dialog = false;
+                    }
                 });
-        }
+            });
+    }
 
-        // Export Dialog
-        if let Some(export_type) = self.show_export_dialog {
-            let title = match export_type {
-                ExportType::Csv => "Export CSV",
-                ExportType::Json => "Export JSON",
-                ExportType::PrintableHtml => "Printable Report (HTML/PDF)",
+    fn render_export_dialog(&mut self, ui: &mut egui::Ui) {
+        let export_format = match self.show_export_dialog {
+            Some(fmt) => fmt,
+            None => return,
+        };
+
+        // Cache export text buffer if it's empty (e.g. if dialog state was set directly)
+        if self.export_text_buffer.is_empty() {
+            self.export_text_buffer = match export_format {
+                ExportFormat::Csv => export_to_csv(&self.state.questionnaire),
+                ExportFormat::Json => export_to_json(&self.state.questionnaire),
+                ExportFormat::Svg => export_to_svg(&self.state.questionnaire),
+                ExportFormat::Html => export_to_printable_html(&self.state.questionnaire),
             };
-
-            let content = match export_type {
-                ExportType::Csv => export_to_csv(&self.state.questionnaire),
-                ExportType::Json => export_to_json(&self.state.questionnaire),
-                ExportType::PrintableHtml => export_to_printable_html(&self.state.questionnaire),
-            };
-
-            let mut open = true;
-            egui::Window::new(title)
-                .open(&mut open)
-                .default_size(egui::vec2(600.0, 450.0))
-                .anchor(egui::Align2::CENTER_CENTER, egui::vec2(0.0, 0.0))
-                .show(ui.ctx(), |ui| {
-                    ui.horizontal(|ui| {
-                        if ui.button("📋 Copy to Clipboard").clicked() {
-                            ui.ctx().copy_text(content.clone());
-                            self.export_copied_notification = Some(ui.input(|i| i.time));
-                        }
-                        if let Some(t) = self.export_copied_notification {
-                            if ui.input(|i| i.time) - t < 3.0 {
-                                ui.label(egui::RichText::new("✓ Copied to clipboard!").color(egui::Color32::GREEN));
-                            }
-                        }
-                    });
-
-                    ui.add_space(8.0);
-                    egui::ScrollArea::both().show(ui, |ui| {
-                        let mut display_content = content;
-                        ui.add(
-                            egui::TextEdit::multiline(&mut display_content)
-                                .font(egui::TextStyle::Monospace)
-                                .code_editor()
-                                .lock_focus(true)
-                                .desired_width(f32::INFINITY),
-                        );
-                    });
-                });
-
-            if !open {
-                self.show_export_dialog = None;
-            }
         }
 
-        // Import Progress Dialog
-        if self.show_import_dialog {
-            let mut open = true;
-            egui::Window::new("📥 Import Saved Progress")
-                .open(&mut open)
-                .default_size(egui::vec2(500.0, 400.0))
-                .anchor(egui::Align2::CENTER_CENTER, egui::vec2(0.0, 0.0))
-                .show(ui.ctx(), |ui| {
-                    ui.label("Paste the contents of your exported CSV or JSON file below to restore your answers and resume the assessment:");
-                    ui.add_space(8.0);
+        let title = match export_format {
+            ExportFormat::Csv => "Export CSV",
+            ExportFormat::Json => "Export JSON",
+            ExportFormat::Svg => "Export SVG Vector Graphic",
+            ExportFormat::Html => "Printable Report (HTML/PDF)",
+        };
 
-                    egui::ScrollArea::both()
-                        .max_height(240.0)
-                        .show(ui, |ui| {
-                            ui.add(
-                                egui::TextEdit::multiline(&mut self.import_text_buffer)
-                                    .font(egui::TextStyle::Monospace)
-                                    .hint_text("Paste CSV or JSON content here...")
-                                    .desired_width(f32::INFINITY)
-                                    .desired_rows(12),
-                            );
-                        });
-
-                    ui.add_space(12.0);
-                    ui.horizontal(|ui| {
-                        if ui.button("▶ Apply and Resume").clicked() {
-                            let input = self.import_text_buffer.trim();
-                            if input.is_empty() {
-                                self.import_result_message = Some(Err("Input is empty.".to_string()));
-                            } else if input.starts_with('{') {
-                                // Attempt JSON parse
-                                match import_responses_from_json(&mut self.state.questionnaire, input) {
-                                    Ok(count) => {
-                                        self.import_result_message = Some(Ok(format!("Successfully imported {} answers!", count)));
-                                    }
-                                    Err(e) => {
-                                        self.import_result_message = Some(Err(e.to_string()));
-                                    }
-                                }
-                            } else {
-                                // Attempt CSV parse
-                                match import_responses_from_csv(&mut self.state.questionnaire, input) {
-                                    Ok(count) => {
-                                        self.import_result_message = Some(Ok(format!("Successfully imported {} answers!", count)));
-                                    }
-                                    Err(e) => {
-                                        self.import_result_message = Some(Err(e.to_string()));
-                                    }
-                                }
-                            }
-                        }
-
-                        if ui.button("Cancel").clicked() {
-                            self.show_import_dialog = false;
-                        }
-                    });
-
-                    ui.add_space(8.0);
-                    if let Some(ref result) = self.import_result_message {
-                        match result {
-                            Ok(msg) => {
-                                ui.label(egui::RichText::new(msg).color(egui::Color32::from_rgb(80, 180, 90)).strong());
-                            }
-                            Err(msg) => {
-                                ui.label(egui::RichText::new(msg).color(egui::Color32::from_rgb(220, 70, 70)).strong());
-                            }
-                        }
+        let mut open = true;
+        egui::Window::new(title)
+            .open(&mut open)
+            .default_size(egui::vec2(600.0, 450.0))
+            .anchor(egui::Align2::CENTER_CENTER, egui::vec2(0.0, 0.0))
+            .show(ui.ctx(), |ui| {
+                ui.horizontal(|ui| {
+                    if ui.button("📋 Copy to Clipboard").clicked() {
+                        ui.ctx().copy_text(self.export_text_buffer.clone());
+                        self.export_copied_notification = Some(ui.input(|i| i.time));
+                    }
+                    if let Some(t) = self.export_copied_notification
+                        && ui.input(|i| i.time) - t < 3.0
+                    {
+                        ui.label(egui::RichText::new("✓ Copied to clipboard!").color(egui::Color32::GREEN));
                     }
                 });
 
-            if !open {
-                self.show_import_dialog = false;
-            }
+                ui.add_space(8.0);
+                egui::ScrollArea::both().show(ui, |ui| {
+                    ui.add(
+                        egui::TextEdit::multiline(&mut self.export_text_buffer)
+                            .font(egui::TextStyle::Monospace)
+                            .code_editor()
+                            .lock_focus(true)
+                            .desired_width(f32::INFINITY),
+                    );
+                });
+            });
+
+        if !open {
+            self.show_export_dialog = None;
+            self.export_text_buffer.clear();
         }
+    }
+
+    fn render_import_dialog(&mut self, ui: &mut egui::Ui) {
+        let mut open = true;
+        egui::Window::new("📥 Import Saved Progress")
+            .open(&mut open)
+            .default_size(egui::vec2(500.0, 400.0))
+            .anchor(egui::Align2::CENTER_CENTER, egui::vec2(0.0, 0.0))
+            .show(ui.ctx(), |ui| {
+                ui.label("Paste the contents of your exported CSV or JSON file below to restore your answers and resume the assessment:");
+                ui.add_space(8.0);
+
+                egui::ScrollArea::both()
+                    .max_height(240.0)
+                    .show(ui, |ui| {
+                        ui.add(
+                            egui::TextEdit::multiline(&mut self.import_text_buffer)
+                                .font(egui::TextStyle::Monospace)
+                                .hint_text("Paste CSV or JSON content here...")
+                                .desired_width(f32::INFINITY)
+                                .desired_rows(12),
+                        );
+                    });
+
+                ui.add_space(12.0);
+                ui.horizontal(|ui| {
+                    if ui.button("▶ Apply and Resume").clicked() {
+                        let input = self.import_text_buffer.trim();
+                        if input.is_empty() {
+                            self.import_result_message = Some(Err("Input is empty.".to_string()));
+                        } else if input.starts_with('{') {
+                            // Attempt JSON parse
+                            match import_responses_from_json(&mut self.state.questionnaire, input) {
+                                Ok(count) => {
+                                    self.is_viewing_shared_link = false;
+                                    self.import_result_message = Some(Ok(format!("Successfully imported {} answers!", count)));
+                                }
+                                Err(e) => {
+                                    self.import_result_message = Some(Err(e.to_string()));
+                                }
+                            }
+                        } else {
+                            // Attempt CSV parse
+                            match import_responses_from_csv(&mut self.state.questionnaire, input) {
+                                Ok(count) => {
+                                    self.is_viewing_shared_link = false;
+                                    self.import_result_message = Some(Ok(format!("Successfully imported {} answers!", count)));
+                                }
+                                Err(e) => {
+                                    self.import_result_message = Some(Err(e.to_string()));
+                                }
+                            }
+                        }
+                    }
+
+                    if ui.button("Cancel").clicked() {
+                        self.show_import_dialog = false;
+                        self.import_text_buffer.clear();
+                        self.import_result_message = None;
+                    }
+                });
+
+                ui.add_space(8.0);
+                if let Some(ref result) = self.import_result_message {
+                    match result {
+                        Ok(msg) => {
+                            ui.label(egui::RichText::new(msg).color(egui::Color32::from_rgb(80, 180, 90)).strong());
+                        }
+                        Err(msg) => {
+                            ui.label(egui::RichText::new(msg).color(egui::Color32::from_rgb(220, 70, 70)).strong());
+                        }
+                    }
+                }
+            });
+
+        if !open {
+            self.show_import_dialog = false;
+            self.import_text_buffer.clear();
+            self.import_result_message = None;
+        }
+    }
+}
+
+impl eframe::App for PersonalityApp {
+    fn save(&mut self, storage: &mut dyn eframe::Storage) {
+        // Do not overwrite user's saved local answers if they are only viewing a shared link
+        if !self.is_viewing_shared_link {
+            eframe::set_value(storage, eframe::APP_KEY, &self.state);
+        }
+    }
+
+    fn ui(&mut self, ui: &mut egui::Ui, _frame: &mut eframe::Frame) {
+        self.apply_theme(ui.ctx());
+        self.handle_keyboard_and_scroll(ui);
+
+        let constraints = ScreenConstraints::compute(ui);
+
+        if !self.hide_header {
+            self.render_top_bar(ui, &constraints);
+        }
+
+        if self.state.questionnaire.show_results && !constraints.is_mobile {
+            egui::Panel::right("results_panel")
+                .min_size(380.0)
+                .default_size(420.0)
+                .show(ui, |ui| {
+                    self.render_results_panel(ui);
+                });
+        }
+
+        let is_tiny = constraints.is_tight_height;
+        let mut central_frame = egui::Frame::central_panel(ui.style());
+        if is_tiny {
+            central_frame.inner_margin = egui::Margin::same(4);
+        }
+
+        egui::CentralPanel::default().frame(central_frame).show(ui, |ui| {
+            if self.hide_header {
+                // Render subtle unhide button floating at top center when header is collapsed
+                ui.vertical_centered(|ui| {
+                    let expand_btn = egui::Button::new(egui::RichText::new("Show Header").size(11.0).weak())
+                        .min_size(egui::vec2(120.0, 22.0));
+                    if ui.add(expand_btn).on_hover_text("Show top navigation header").clicked() {
+                        self.hide_header = false;
+                    }
+                });
+                ui.add_space(6.0);
+            }
+
+            if constraints.is_mobile && self.state.questionnaire.show_results {
+                // Mobile View: Render results screen full-screen inside CentralPanel
+                egui::ScrollArea::vertical().show(ui, |ui| {
+                    ui.add_space(10.0);
+                    if ui.button("📝 Return to Questions").clicked() {
+                        self.state.questionnaire.show_results = false;
+                    }
+                    ui.add_space(10.0);
+                    ui.separator();
+                    ui.add_space(10.0);
+                    self.render_results_panel(ui);
+                });
+            } else {
+                // Desktop View or Mobile Questions View: Render Question Focus Card
+                self.render_question_focus(ui, &constraints);
+            }
+        });
+
+        self.render_dialogs(ui);
     }
 }

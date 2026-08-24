@@ -21,14 +21,13 @@ concurrency:
   cancel-in-progress: false
 
 jobs:
-  # Single deploy job since we're just deploying
   deploy:
     environment:
       name: github-pages
       url: ${{ steps.deployment.outputs.page_url }}
     runs-on: ubuntu-latest
     steps:
-      - name: Checkout
+      - name: Checkout Repository
         uses: actions/checkout@v4
 
       - name: Install Rust Stable Toolchain
@@ -50,20 +49,20 @@ jobs:
         if: steps.cache-trunk.outputs.cache-hit != 'true'
         run: |
           mkdir -p ~/.cargo/bin
-          wget -qO- https://github.com/trunk-rs/trunk/releases/latest/download/trunk-x86_64-unknown-linux-gnu.tar.gz | tar -xzf- -C ~/.cargo/bin
+          wget -qO- https://github.com/trunk-rs/trunk/releases/latest/download/trunk-x86_64-unknown-linux-gnu.tar.gz | tar -xzf - -C ~/.cargo/bin
           chmod +x ~/.cargo/bin/trunk
 
-      - name: Cache wasm-opt Binary
+      - name: Cache wasm-opt Binary (Binaryen)
         id: cache-wasm-opt
         uses: actions/cache@v4
         with:
           path: ~/.cargo/bin/wasm-opt
-          key: ${{ runner.os }}-wasm-opt-version_118
+          key: ${{ runner.os }}-wasm-opt-version_132
 
-      - name: Install binaryen (wasm-opt)
+      - name: Install Binaryen wasm-opt (v132)
         if: steps.cache-wasm-opt.outputs.cache-hit != 'true'
         run: |
-          BINARYEN_VERSION="version_118"
+          BINARYEN_VERSION="version_132"
           mkdir -p ~/.cargo/bin
           wget -qO- "https://github.com/WebAssembly/binaryen/releases/download/${BINARYEN_VERSION}/binaryen-${BINARYEN_VERSION}-x86_64-linux.tar.gz" | tar -xzf -
           mv "binaryen-${BINARYEN_VERSION}/bin/wasm-opt" ~/.cargo/bin/wasm-opt
@@ -75,8 +74,30 @@ jobs:
 
       - name: Build Web Application
         run: |
-          wasm-opt --version
+          echo "Active wasm-opt version: $(wasm-opt --version)"
           trunk build --release --public-url "/Revisited-IPIP-NEO/"
+
+      - name: Minify Production Assets (CSS & JS)
+        run: |
+          echo "=== Minifying Production Distribution Assets in crates/web/dist ==="
+          if [ -d "crates/web/dist" ]; then
+            for js_file in crates/web/dist/*.js; do
+              if [ -f "$js_file" ]; then
+                echo "Minifying JS: $js_file"
+                npx --yes esbuild "$js_file" --minify --allow-overwrite --outfile="$js_file"
+              fi
+            done
+            for css_file in crates/web/dist/*.css; do
+              if [ -f "$css_file" ]; then
+                echo "Minifying CSS: $css_file"
+                npx --yes esbuild "$css_file" --minify --allow-overwrite --outfile="$css_file"
+              fi
+            done
+            if [ -f "crates/web/dist/index.html" ]; then
+              echo "Minifying HTML: crates/web/dist/index.html"
+              npx --yes html-minifier-terser --collapse-whitespace --remove-comments --minify-css true --minify-js true -o crates/web/dist/index.html crates/web/dist/index.html || true
+            fi
+          fi
 
       - name: Setup Pages
         uses: actions/configure-pages@v5
@@ -84,7 +105,6 @@ jobs:
       - name: Upload compiled assets artifact
         uses: actions/upload-pages-artifact@v3
         with:
-          # Upload only the compiled production output directory
           path: 'crates/web/dist'
 
       - name: Deploy to GitHub Pages
