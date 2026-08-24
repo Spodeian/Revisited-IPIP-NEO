@@ -42,7 +42,7 @@ else
 fi
 
 # 4b. Install updated wasm-opt (binaryen) with bulk memory operations support
-BINARYEN_VERSION="version_132"
+BINARYEN_VERSION="version_118"
 echo "Installing/updating wasm-opt (${BINARYEN_VERSION}) to support bulk memory operations..."
 mkdir -p "$HOME/.cargo/bin"
 wget -qO- "https://github.com/WebAssembly/binaryen/releases/download/${BINARYEN_VERSION}/binaryen-${BINARYEN_VERSION}-x86_64-linux.tar.gz" | tar -xzf -
