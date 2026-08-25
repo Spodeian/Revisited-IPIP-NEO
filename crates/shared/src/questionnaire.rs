@@ -453,12 +453,16 @@ impl ScoreAccumulator {
         }
     }
 
-    /// Standard Error (SE) = \frac{\sqrt{\sum w_i^2}}{\sum |w_i|}
+    /// Standard Error (SE) projected onto the normalized [-1.0, 1.0] interval:
+    /// SE = \frac{\sqrt{\sum w_i^2}}{\sum |w_i|} \times \sigma_{\text{scale}}
+    /// where \sigma_{\text{scale}} = 0.5 (standard deviation scale of discrete Likert responses mapped to [-1, 1]).
     pub fn standard_error(&self) -> Option<f32> {
         if self.total_abs_weight == 0.0 {
             None
         } else {
-            Some(self.total_sq_weight.sqrt() / self.total_abs_weight)
+            let response_sigma = 0.5_f32;
+            let weighted_se = self.total_sq_weight.sqrt() / self.total_abs_weight;
+            Some(weighted_se * response_sigma)
         }
     }
 

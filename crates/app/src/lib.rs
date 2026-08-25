@@ -1277,7 +1277,12 @@ impl PersonalityApp {
                         );
                         ui.add_space(4.0);
                         ui.label(
-                            "Visual score error bars represent confidence intervals scaled by Euler's constant (e ≈ 2.718) across the construct hierarchy, strictly clamped within [-1.0, +1.0]:",
+                            "Standard error is projected to the normalized [-1.0, +1.0] interval by weighting item loadings against the discrete Likert response scale (σ = 0.5):",
+                        );
+                        ui.label("  SE = (√(Σ w_i²) / Σ |w_i|) × 0.5");
+                        ui.add_space(4.0);
+                        ui.label(
+                            "Visual score error bars apply hierarchical confidence interval multipliers based on Euler's constant (e ≈ 2.718) and are strictly clamped within [-1.0, +1.0]:",
                         );
                         ui.label("• Meta-Traits (Global Factors): ±e × SE (≈ ±2.72 × SE)");
                         ui.label("• Traits (Broad Domains): ±(e / 2) × SE (≈ ±1.36 × SE)");

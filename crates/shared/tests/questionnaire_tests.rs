@@ -54,7 +54,7 @@ fn test_scoring_math_and_se() {
     assert_eq!(acc.total_sq_weight, facet_w * facet_w);
 
     let expected_norm = (1.0 * facet_w) / facet_w.abs();
-    let expected_se = (facet_w * facet_w).sqrt() / facet_w.abs(); // for 1 item, sqrt(w^2)/|w| = 1.0
+    let expected_se = ((facet_w * facet_w).sqrt() / facet_w.abs()) * 0.5; // for 1 item, (sqrt(w^2)/|w|) * 0.5 = 0.5
 
     assert!((acc.normalized_score().unwrap() - expected_norm).abs() < 1e-5);
     assert!((acc.standard_error().unwrap() - expected_se).abs() < 1e-5);
