@@ -870,13 +870,23 @@ impl PersonalityApp {
     fn render_meta_trait_node(&self, ui: &mut egui::Ui, meta: MetaTrait) {
         let acc = self.state.questionnaire.meta_trait_acc.get(&meta).copied().unwrap_or_default();
         let show_detailed = self.state.questionnaire.show_detailed_stats;
+        let id = ui.make_persistent_id(meta.display_name());
+        let collapsing = egui::collapsing_header::CollapsingState::load_with_default_open(ui.ctx(), id, true);
 
-        egui::CollapsingHeader::new(egui::RichText::new(meta.display_name()).strong().size(15.0))
-            .default_open(true)
-            .show(ui, |ui| {
-                self.render_construct_badge_row(ui, &acc, show_detailed);
-
-                // Child Traits
+        collapsing
+            .show_header(ui, |ui| {
+                ui.label(egui::RichText::new(meta.display_name()).strong().size(15.0));
+                ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
+                    self.render_construct_badge_row(
+                        ui,
+                        &acc,
+                        show_detailed,
+                        std::f32::consts::E,
+                        "e",
+                    );
+                });
+            })
+            .body(|ui| {
                 for trait_item in meta.child_traits() {
                     self.render_trait_node(ui, trait_item);
                 }
@@ -886,13 +896,23 @@ impl PersonalityApp {
     fn render_trait_node(&self, ui: &mut egui::Ui, trait_item: Trait) {
         let acc = self.state.questionnaire.trait_acc.get(&trait_item).copied().unwrap_or_default();
         let show_detailed = self.state.questionnaire.show_detailed_stats;
+        let id = ui.make_persistent_id(trait_item.display_name());
+        let collapsing = egui::collapsing_header::CollapsingState::load_with_default_open(ui.ctx(), id, true);
 
-        egui::CollapsingHeader::new(egui::RichText::new(trait_item.display_name()).size(14.0))
-            .default_open(true)
-            .show(ui, |ui| {
-                self.render_construct_badge_row(ui, &acc, show_detailed);
-
-                // Child Facets
+        collapsing
+            .show_header(ui, |ui| {
+                ui.label(egui::RichText::new(trait_item.display_name()).size(14.0));
+                ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
+                    self.render_construct_badge_row(
+                        ui,
+                        &acc,
+                        show_detailed,
+                        std::f32::consts::E / 2.0,
+                        "e/2",
+                    );
+                });
+            })
+            .body(|ui| {
                 for facet in trait_item.child_facets() {
                     self.render_facet_row(ui, facet);
                 }
@@ -906,7 +926,13 @@ impl PersonalityApp {
         ui.horizontal(|ui| {
             ui.label(facet.display_name());
             ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
-                self.render_construct_badge_row(ui, &acc, show_detailed);
+                self.render_construct_badge_row(
+                    ui,
+                    &acc,
+                    show_detailed,
+                    std::f32::consts::E / 3.0,
+                    "e/3",
+                );
             });
         });
     }
@@ -917,6 +943,8 @@ impl PersonalityApp {
         se: f32,
         tier_color: egui::Color32,
         width: f32,
+        ci_mult: f32,
+        ci_label: &str,
     ) {
         let (rect, response) = ui.allocate_exact_size(egui::vec2(width, 14.0), egui::Sense::hover());
         if ui.is_rect_visible(rect) {
@@ -952,8 +980,7 @@ impl PersonalityApp {
             let score_x = score_to_x(norm_score);
             let center_y = rect.center().y;
 
-            // Error bracket scaled by Euler's constant (e ≈ 2.71828)
-            let ci_mult = std::f32::consts::E;
+            // Error bracket scaled by construct hierarchy multiplier, strictly clamped to [-1.0, 1.0]
             let error_span = se * ci_mult;
             let ci_min = (norm_score - error_span).clamp(-1.0, 1.0);
             let ci_max = (norm_score + error_span).clamp(-1.0, 1.0);
@@ -992,17 +1019,23 @@ impl PersonalityApp {
             );
         }
 
-        let ci_mult = std::f32::consts::E;
         let ci_min = (norm_score - se * ci_mult).clamp(-1.0, 1.0);
         let ci_max = (norm_score + se * ci_mult).clamp(-1.0, 1.0);
         response.on_hover_ui(|ui| {
             ui.label(egui::RichText::new(format!("Normalized Score: {:+.2}", norm_score)).strong());
             ui.label(format!("Standard Error (SE): {:.2}", se));
-            ui.label(format!("Confidence Interval (±e×SE): [{:+.2}, {:+.2}]", ci_min, ci_max));
+            ui.label(format!("Confidence Interval (±{}×SE): [{:+.2}, {:+.2}]", ci_label, ci_min, ci_max));
         });
     }
 
-    fn render_construct_badge_row(&self, ui: &mut egui::Ui, acc: &shared::ScoreAccumulator, show_detailed: bool) {
+    fn render_construct_badge_row(
+        &self,
+        ui: &mut egui::Ui,
+        acc: &shared::ScoreAccumulator,
+        show_detailed: bool,
+        ci_mult: f32,
+        ci_label: &str,
+    ) {
         if let Some(norm_score) = acc.normalized_score() {
             let tier = acc.tier().unwrap_or(ScoreTier::Average);
             let tier_color = match tier {
@@ -1014,7 +1047,7 @@ impl PersonalityApp {
             };
 
             let se = acc.standard_error().unwrap_or(0.0);
-            Self::render_score_gauge(ui, norm_score, se, tier_color, 80.0);
+            Self::render_score_gauge(ui, norm_score, se, tier_color, 80.0, ci_mult, ci_label);
 
             ui.colored_label(tier_color, egui::RichText::new(tier.label()).strong());
 
@@ -1237,11 +1270,19 @@ impl PersonalityApp {
                         ui.separator();
                         ui.add_space(8.0);
 
-                        ui.heading("Psychometric Methodology");
+                        ui.heading("Psychometric Methodology & Confidence Intervals");
                         ui.add_space(4.0);
                         ui.label(
                             "This assessment implements the Trait-Group-Aspect (TGA) model based on the IPIP-NEO, optimizing question sequences for minimal standard error.",
                         );
+                        ui.add_space(4.0);
+                        ui.label(
+                            "Visual score error bars represent confidence intervals scaled by Euler's constant (e ≈ 2.718) across the construct hierarchy, strictly clamped within [-1.0, +1.0]:",
+                        );
+                        ui.label("• Meta-Traits (Global Factors): ±e × SE (≈ ±2.72 × SE)");
+                        ui.label("• Traits (Broad Domains): ±(e / 2) × SE (≈ ±1.36 × SE)");
+                        ui.label("• Facets (Specific Aspects): ±(e / 3) × SE (≈ ±0.91 × SE)");
+                        ui.add_space(4.0);
                         ui.horizontal(|ui| {
                             ui.label("Reference:");
                             ui.hyperlink_to(
