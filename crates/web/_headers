@@ -9,28 +9,37 @@
 
 # HTML Entrypoint: Must always revalidate with edge so atomic deployments take effect immediately
 /
-  Cache-Control: public, max-age=0, must-revalidate
+  Cache-Control: no-cache, no-store, must-revalidate, max-age=0
 
 /index.html
-  Cache-Control: public, max-age=0, must-revalidate
+  Cache-Control: no-cache, no-store, must-revalidate, max-age=0
 
 # Service Worker: Never cached so browser checks for deployment updates on every visit
 /sw.js
   Cache-Control: no-cache, no-store, must-revalidate, max-age=0
+  Content-Type: application/javascript; charset=utf-8
 
-# Progressive Web App Manifest & Static Icons
+# Progressive Web App Manifest & Static Assets
 /manifest.json
   Cache-Control: public, max-age=86400, stale-while-revalidate=604800
+  Content-Type: application/manifest+json; charset=utf-8
+
+/og-image.png
+  Cache-Control: public, max-age=604800, stale-while-revalidate=86400
+
+/favicon.ico
+  Cache-Control: public, max-age=604800, stale-while-revalidate=86400
 
 # WebAssembly Binaries: Immutable content-hashed binaries (cached indefinitely)
 /*.wasm
   Cache-Control: public, max-age=31536000, immutable
   Access-Control-Allow-Origin: *
   Cross-Origin-Resource-Policy: cross-origin
+  Content-Type: application/wasm
 
 # Compiled & Bundled Assets: Immutable content-hashed JS and CSS bundles
-/*.js
+/*-*.js
   Cache-Control: public, max-age=31536000, immutable
 
-/*.css
+/*-*.css
   Cache-Control: public, max-age=31536000, immutable

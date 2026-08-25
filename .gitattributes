@@ -1,0 +1,14 @@
+# Enforce consistent LF line endings and binary attributes across platforms
+* text=auto eol=lf
+*.sh text eol=lf
+*.toml text eol=lf
+*.rs text eol=lf
+*.html text eol=lf
+*.css text eol=lf
+*.js text eol=lf
+*.json text eol=lf
+*.csv text eol=lf
+*.md text eol=lf
+*.png binary
+*.wasm binary
+*.ico binary
