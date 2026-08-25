@@ -41,14 +41,15 @@
       data-reference-types
       data-wasm-opt="z"
       data-wasm-opt-params="--all-features"
+      data-integrity="none"
     >
     <link data-trunk rel="copy-file" href="_headers">
     <link data-trunk rel="copy-file" href="sw.js">
     <link data-trunk rel="copy-file" href="manifest.json">
 
     <!-- CSS and JavaScript Assets Managed by Trunk -->
-    <link data-trunk rel="css" href="index.css">
-    <script data-trunk rel="inline" src="index.js" defer></script>
+    <link data-trunk rel="css" href="index.css" data-integrity="none">
+    <script data-trunk rel="inline" src="index.js" defer data-integrity="none"></script>
   </head>
   <body>
     <canvas id="egui_canvas"></canvas>

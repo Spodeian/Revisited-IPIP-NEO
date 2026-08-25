@@ -1,22 +1,22 @@
-// Service Worker for Revisited IPIP-NEO (TGA) - Stale-While-Revalidate Caching Strategy
-const CACHE_NAME = 'ipip-neo-tga-cache-v2';
+// Service Worker for Revisited IPIP-NEO (TGA) - Production Hybrid Caching Strategy
+const CACHE_NAME = 'ipip-neo-tga-cache-v3';
 
-// Essential static assets to pre-cache on install
-const STATIC_ASSETS = [
+// Static assets to pre-cache on install
+const PRECACHE_ASSETS = [
   './',
   './index.html',
   './manifest.json'
 ];
 
-// Pre-cache static shell roots
+// Pre-cache on install and activate immediately
 self.addEventListener('install', (event) => {
   event.waitUntil(
-    caches.open(CACHE_NAME).then((cache) => cache.addAll(STATIC_ASSETS))
+    caches.open(CACHE_NAME).then((cache) => cache.addAll(PRECACHE_ASSETS))
   );
   self.skipWaiting();
 });
 
-// Clean up previous cache versions
+// Purge all legacy caches on activation
 self.addEventListener('activate', (event) => {
   event.waitUntil(
     caches.keys().then((keys) =>
@@ -27,33 +27,49 @@ self.addEventListener('activate', (event) => {
   );
 });
 
-// Stale-While-Revalidate fetch handler
+// Fetch router
 self.addEventListener('fetch', (event) => {
+  // Only handle local same-origin GET requests
   if (event.request.method !== 'GET' || !event.request.url.startsWith(self.location.origin)) {
     return;
   }
 
-  event.respondWith(
-    caches.open(CACHE_NAME).then((cache) =>
-      cache.match(event.request).then((cachedResponse) => {
-        const fetchPromise = fetch(event.request)
+  const url = new URL(event.request.url);
+  const isNavigation = event.request.mode === 'navigate' || event.request.destination === 'document' || url.pathname.endsWith('.html') || url.pathname === '/';
+
+  if (isNavigation) {
+    // Network-First for HTML/Navigation to guarantee fresh release manifests
+    event.respondWith(
+      fetch(event.request)
+        .then((networkResponse) => {
+          if (networkResponse && networkResponse.status === 200) {
+            const copy = networkResponse.clone();
+            caches.open(CACHE_NAME).then((cache) => cache.put(event.request, copy));
+          }
+          return networkResponse;
+        })
+        .catch(() => caches.match(event.request).then((cached) => cached || caches.match('./index.html') || caches.match('./')))
+    );
+  } else {
+    // Cache-First for version-hashed assets (WASM, JS, CSS, images)
+    event.respondWith(
+      caches.match(event.request).then((cachedResponse) => {
+        if (cachedResponse) {
+          return cachedResponse;
+        }
+        return fetch(event.request)
           .then((networkResponse) => {
             if (networkResponse && networkResponse.status === 200) {
-              cache.put(event.request, networkResponse.clone());
+              const copy = networkResponse.clone();
+              caches.open(CACHE_NAME).then((cache) => cache.put(event.request, copy));
             }
             return networkResponse;
           })
           .catch((err) => {
-            if (cachedResponse) return cachedResponse;
+            console.warn('SW fetch failed for:', event.request.url, err);
             throw err;
           });
-
-        return cachedResponse || fetchPromise;
-      }).catch(() => {
-        if (event.request.mode === 'navigate') {
-          return cache.match('./index.html') || cache.match('./');
-        }
       })
-    )
-  );
+    );
+  }
 });

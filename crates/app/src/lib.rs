@@ -6,7 +6,7 @@ use shared::{
     export_to_svg, import_responses_from_csv, import_responses_from_json, AppState, Aspect,
     Facet, MetaTrait, Response, ScoreTier, ThemeMode, Trait,
 };
-use tracing::{error, info, warn};
+use tracing::{info, warn};
 #[cfg(target_arch = "wasm32")]
 use wasm_bindgen::JsCast;
 
@@ -100,7 +100,7 @@ fn trigger_file_download(filename: &str, content: &str, _mime_type: &str) {
     {
         match std::fs::write(filename, content) {
             Ok(()) => info!("Successfully exported file: {}", filename),
-            Err(e) => error!("Failed to write export file '{}': {}", filename, e),
+            Err(e) => tracing::error!("Failed to write export file '{}': {}", filename, e),
         }
     }
 }
