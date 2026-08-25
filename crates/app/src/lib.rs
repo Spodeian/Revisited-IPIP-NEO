@@ -930,8 +930,8 @@ impl PersonalityApp {
                     ui,
                     &acc,
                     show_detailed,
-                    std::f32::consts::E / 3.0,
-                    "e/3",
+                    std::f32::consts::E / 4.0,
+                    "e/4",
                 );
             });
         });
@@ -1286,7 +1286,7 @@ impl PersonalityApp {
                         );
                         ui.label("• Meta-Traits (Global Factors): ±e × SE (≈ ±2.72 × SE)");
                         ui.label("• Traits (Broad Domains): ±(e / 2) × SE (≈ ±1.36 × SE)");
-                        ui.label("• Facets (Specific Aspects): ±(e / 3) × SE (≈ ±0.91 × SE)");
+                        ui.label("• Facets (Specific Aspects): ±(e / 4) × SE (≈ ±0.68 × SE)");
                         ui.add_space(4.0);
                         ui.horizontal(|ui| {
                             ui.label("Reference:");
