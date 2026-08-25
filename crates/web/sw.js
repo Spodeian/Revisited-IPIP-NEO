@@ -1,4 +1,4 @@
-// Service Worker for Revisited IPIP-NEO (TGA) - Production Hybrid Caching Strategy
+// Service Worker for Revisited IPIP-NEO (TGA) - Immutable Serverless Deployment Caching Strategy
 const CACHE_NAME = 'ipip-neo-tga-cache-v3';
 
 // Static assets to pre-cache on install
@@ -27,7 +27,7 @@ self.addEventListener('activate', (event) => {
   );
 });
 
-// Fetch router
+// Fetch router tailored for atomic immutable serverless deployments
 self.addEventListener('fetch', (event) => {
   // Only handle local same-origin GET requests
   if (event.request.method !== 'GET' || !event.request.url.startsWith(self.location.origin)) {
@@ -35,10 +35,16 @@ self.addEventListener('fetch', (event) => {
   }
 
   const url = new URL(event.request.url);
+
+  // Bypass third-party analytics or beacon endpoints
+  if (url.hostname.includes('cloudflareinsights.com') || url.hostname.includes('google-analytics.com')) {
+    return;
+  }
+
   const isNavigation = event.request.mode === 'navigate' || event.request.destination === 'document' || url.pathname.endsWith('.html') || url.pathname === '/';
 
   if (isNavigation) {
-    // Network-First for HTML/Navigation to guarantee fresh release manifests
+    // Network-First for HTML: Always fetch newest deployment entrypoint from edge CDN when online; fallback to cached shell when offline
     event.respondWith(
       fetch(event.request)
         .then((networkResponse) => {
@@ -51,7 +57,7 @@ self.addEventListener('fetch', (event) => {
         .catch(() => caches.match(event.request).then((cached) => cached || caches.match('./index.html') || caches.match('./')))
     );
   } else {
-    // Cache-First for version-hashed assets (WASM, JS, CSS, images)
+    // Cache-First for immutable content-hashed assets (.wasm, .js, .css, images)
     event.respondWith(
       caches.match(event.request).then((cachedResponse) => {
         if (cachedResponse) {
@@ -66,7 +72,7 @@ self.addEventListener('fetch', (event) => {
             return networkResponse;
           })
           .catch((err) => {
-            console.warn('SW fetch failed for:', event.request.url, err);
+            console.warn('SW fetch failed for asset:', event.request.url, err);
             throw err;
           });
       })

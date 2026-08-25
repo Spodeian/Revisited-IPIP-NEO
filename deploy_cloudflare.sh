@@ -68,14 +68,14 @@ echo "Compiling and bundling web application for release..."
 $TRUNK_BIN clean
 $TRUNK_BIN build --release --public-url "/"
 
-# 6. Production Asset Minification (CSS, JS, and HTML)
+# 6. Production Asset Minification (HTML, CSS, JS)
 DIST_DIR="crates/web/dist"
 if [ ! -d "$DIST_DIR" ] && [ -d "dist" ]; then
     DIST_DIR="dist"
 fi
 
 if [ -d "$DIST_DIR" ]; then
-    echo "=== Running Production Asset Minification for '$DIST_DIR' ==="
+    echo "=== Running Production Asset Minification (HTML, CSS, JS) for '$DIST_DIR' ==="
 
     if command -v npx &> /dev/null; then
         echo "Minifying JavaScript and CSS assets using esbuild..."
@@ -93,7 +93,7 @@ if [ -d "$DIST_DIR" ]; then
         done
         if [ -f "$DIST_DIR/index.html" ]; then
             echo "  Minifying HTML: $DIST_DIR/index.html"
-            npx --yes html-minifier-terser --collapse-whitespace --remove-comments --minify-css true --minify-js true -o "$DIST_DIR/index.html" "$DIST_DIR/index.html" || true
+            npx --yes html-minifier-terser --collapse-whitespace --remove-comments --remove-redundant-attributes --remove-script-type-attributes --remove-style-link-type-attributes --use-short-doctype --minify-css true --minify-js true -o "$DIST_DIR/index.html" "$DIST_DIR/index.html" || true
         fi
     elif command -v python3 &> /dev/null; then
         echo "Node/npx not available. Using Python minification engine fallback..."
@@ -148,10 +148,13 @@ if os.path.exists(html_path):
     try:
         with open(html_path, "r", encoding="utf-8") as f:
             html = f.read()
+        html = re.sub(r"<!--(?!\[if)[\s\S]*?-->", "", html)
         html = re.sub(r"<style[^>]*>([\s\S]*?)</style>", lambda m: f"<style>{minify_css(m.group(1))}</style>", html, flags=re.IGNORECASE)
+        html = re.sub(r">\s+<", "><", html)
+        html = re.sub(r"[ \t]+", " ", html)
         with open(html_path, "w", encoding="utf-8") as f:
-            f.write(html)
-        print(f"  Minified inline styles in: {html_path}")
+            f.write(html.strip())
+        print(f"  Minified HTML: {html_path}")
     except Exception as e:
         print(f"  Error processing {html_path}: {e}")
 ' "$DIST_DIR"

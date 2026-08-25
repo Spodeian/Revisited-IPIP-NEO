@@ -77,7 +77,7 @@ jobs:
           echo "Active wasm-opt version: $(wasm-opt --version)"
           trunk build --release --public-url "/Revisited-IPIP-NEO/"
 
-      - name: Minify Production Assets (CSS & JS)
+      - name: Minify Production Assets (HTML, CSS, JS)
         run: |
           echo "=== Minifying Production Distribution Assets in crates/web/dist ==="
           if [ -d "crates/web/dist" ]; then
@@ -95,7 +95,7 @@ jobs:
             done
             if [ -f "crates/web/dist/index.html" ]; then
               echo "Minifying HTML: crates/web/dist/index.html"
-              npx --yes html-minifier-terser --collapse-whitespace --remove-comments --minify-css true --minify-js true -o crates/web/dist/index.html crates/web/dist/index.html || true
+              npx --yes html-minifier-terser --collapse-whitespace --remove-comments --remove-redundant-attributes --remove-script-type-attributes --remove-style-link-type-attributes --use-short-doctype --minify-css true --minify-js true -o crates/web/dist/index.html crates/web/dist/index.html
             fi
           fi
 
