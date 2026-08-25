@@ -16,7 +16,7 @@ license = "CC-BY-NC-SA-4.0"
 repository = "https://github.com/Spodeian/Revisited-IPIP-NEO"
 homepage = "https://ipip-neo.spodeian.trade"
 readme = "README.md"
-description = "Scientifically robust psychometric assessment implementing the Trait-Group-Aspect (TGA) model of the IPIP-NEO in Rust & WebAssembly"
+description = "Scientifically robust psychometric assessment implementing Taxonomic Graph Analysis (TGA) of the IPIP-NEO in Rust & WebAssembly"
 
 [workspace.dependencies]
 eframe = { version = "0.36", default-features = false, features = ["default_fonts", "wgpu", "persistence"] }

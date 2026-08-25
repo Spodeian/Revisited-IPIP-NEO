@@ -1202,6 +1202,7 @@ impl PersonalityApp {
                 egui::ScrollArea::vertical()
                     .auto_shrink([false, false])
                     .show(ui, |ui| {
+                        // Title Header
                         ui.horizontal(|ui| {
                             ui.heading("Revisited IPIP-NEO");
                             ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
@@ -1212,91 +1213,130 @@ impl PersonalityApp {
                                 );
                             });
                         });
-                        ui.add_space(4.0);
-                        ui.separator();
+                        ui.label(
+                            egui::RichText::new("221-Item Psychometric Personality Evaluation")
+                                .small()
+                                .italics(),
+                        );
                         ui.add_space(6.0);
-
-                        ui.heading("Estimated Time");
-                        ui.add_space(4.0);
-                        ui.label("⏱ ~10–15 minutes (221 items). Take your time to answer honestly without overthinking.");
-
-                        ui.add_space(12.0);
                         ui.separator();
                         ui.add_space(8.0);
 
-                        ui.heading("Keyboard Shortcuts & Navigation");
+                        // Overview & Timing
+                        ui.horizontal(|ui| {
+                            ui.label("⏱ Estimated Time:");
+                            ui.label(egui::RichText::new("~10–15 minutes (221 items)").strong());
+                        });
+                        ui.label("Answer spontaneously and honestly based on how you generally perceive yourself.");
+
+                        if self.is_viewing_shared_link {
+                            ui.add_space(6.0);
+                            egui::Frame::group(ui.style())
+                                .inner_margin(8.0)
+                                .corner_radius(6.0)
+                                .show(ui, |ui| {
+                                    ui.horizontal(|ui| {
+                                        ui.label(egui::RichText::new("Currently viewing shared link.").weak());
+                                        if ui.button("↩ Return to My Saved Assessment").clicked() {
+                                            self.restore_saved_instance();
+                                            self.show_help_dialog = false;
+                                        }
+                                    });
+                                });
+                        }
+
+                        ui.add_space(10.0);
+                        ui.separator();
+                        ui.add_space(8.0);
+
+                        // Taxonomic Graph Analysis (TGA) Methodology
+                        ui.heading("Taxonomic Graph Analysis (TGA)");
+                        ui.add_space(4.0);
+                        ui.label(
+                            "This assessment implements Taxonomic Graph Analysis (TGA), a mathematically and statistically rigorous psychometric framework based on the IPIP-NEO:",
+                        );
+                        ui.label("• Empirical Factor Loadings: TGA statistically models the continuous loadings (w_i) of each question across all construct levels.");
+                        ui.label("• Optimized Item Distillation: Trimmed redundant questions from the original 300-item inventory down to the distilled 221-item set.");
+                        ui.label("• Dimensional Mapping: Statistically models topological connections across 3 Meta-Traits, 6 Traits, and 28 Facets.");
+                        ui.label("• Dynamic Sequencing: Questions are ordered to achieve rapid convergence and minimize cumulative standard error.");
+
+                        ui.add_space(10.0);
+                        ui.separator();
+                        ui.add_space(8.0);
+
+                        // Scoring & Confidence Intervals
+                        ui.heading("Scoring & Confidence Intervals");
+                        ui.add_space(4.0);
+                        ui.label(
+                            "Construct scores are normalized to [-1.0, +1.0]. Standard Error (SE) is projected to the normalized interval using discrete Likert response dispersion (σ = 0.5):",
+                        );
+                        ui.label(
+                            egui::RichText::new("  SE = (√(Σ w_i²) / Σ |w_i|) × 0.5")
+                                .monospace()
+                                .strong(),
+                        );
+                        ui.add_space(4.0);
+                        ui.label(
+                            "Visual score error bars apply hierarchical confidence interval multipliers based on Euler's constant (e ≈ 2.718) and are strictly bounded on [-1.0, +1.0]:",
+                        );
+                        ui.label("• Meta-Traits (Global Factors): ±e × SE (≈ ±2.72 × SE)");
+                        ui.label("• Traits (Broad Domains): ±(e / 2) × SE (≈ ±1.36 × SE)");
+                        ui.label("• Facets (Specific Aspects): ±(e / 4) × SE (≈ ±0.68 × SE)");
+
+                        ui.add_space(10.0);
+                        ui.separator();
+                        ui.add_space(8.0);
+
+                        // Keyboard Shortcuts & Navigation
+                        ui.heading("Navigation & Keyboard Shortcuts");
                         ui.add_space(4.0);
                         ui.label("• 1, 2, 3, 4, 5: Select response (Strongly Disagree to Strongly Agree)");
                         ui.label("• Left / Up Arrow: Navigate to previous question");
                         ui.label("• Right / Down Arrow: Skip question (defers to back of queue)");
                         ui.label("• Shift + Left Arrow: Jump to previous unanswered question");
                         ui.label("• Shift + Right Arrow: Jump to next unanswered question");
-                        ui.label("• Escape: Close open menus or return from results");
+                        ui.label("• Ctrl+Z / Cmd+Z: Undo previous response change");
+                        ui.label("• ⊞ Item Map: Open interactive 221-item matrix map");
+                        ui.label("• Escape: Close dialogs or return from results screen");
                         ui.label("• Mouse Scroll: Scroll to skip / navigate questions (Desktop)");
 
-                        ui.add_space(12.0);
+                        ui.add_space(10.0);
                         ui.separator();
                         ui.add_space(8.0);
 
+                        // Privacy & Data Safety
                         ui.heading("Privacy & Data Safety");
                         ui.add_space(4.0);
                         ui.label(
-                            egui::RichText::new("🔒 Privacy: 100% Local. No data ever leaves your device.")
+                            egui::RichText::new("🔒 100% Client-Side: No data ever leaves your device.")
                                 .color(egui::Color32::from_rgb(80, 160, 90))
                                 .strong(),
                         );
                         ui.label(
-                            "This application runs entirely in your local browser using client-side WebAssembly. Your responses, scores, and exports are never transmitted to any server or external database.",
+                            "This application executes entirely in your browser using WebAssembly. Responses, scores, and exports are never transmitted to any external server.",
                         );
-                        ui.add_space(4.0);
                         ui.label(
-                            egui::RichText::new("⚡ 100% Offline Capable: Once loaded, you can complete the entire assessment and export results even without an internet connection.")
+                            egui::RichText::new("⚡ 100% Offline Capable: PWA service worker caches all static assets for full offline use.")
                                 .italics()
                                 .small(),
                         );
 
-                        if self.is_viewing_shared_link {
-                            ui.add_space(8.0);
-                            ui.horizontal(|ui| {
-                                ui.label(egui::RichText::new("Currently viewing shared link.").weak());
-                                if ui.button("↩ Return to My Saved Assessment").clicked() {
-                                    self.restore_saved_instance();
-                                    self.show_help_dialog = false;
-                                }
-                            });
-                        }
-
-                        ui.add_space(12.0);
+                        ui.add_space(10.0);
                         ui.separator();
                         ui.add_space(8.0);
 
-                        ui.heading("Psychometric Methodology & Confidence Intervals");
-                        ui.add_space(4.0);
-                        ui.label(
-                            "This assessment implements the Trait-Group-Aspect (TGA) model based on the IPIP-NEO, optimizing question sequences for minimal standard error.",
-                        );
-                        ui.add_space(4.0);
-                        ui.label(
-                            "Standard error is projected to the normalized [-1.0, +1.0] interval by weighting item loadings against the discrete Likert response scale (σ = 0.5):",
-                        );
-                        ui.label("  SE = (√(Σ w_i²) / Σ |w_i|) × 0.5");
-                        ui.add_space(4.0);
-                        ui.label(
-                            "Visual score error bars apply hierarchical confidence interval multipliers based on Euler's constant (e ≈ 2.718) and are strictly clamped within [-1.0, +1.0]:",
-                        );
-                        ui.label("• Meta-Traits (Global Factors): ±e × SE (≈ ±2.72 × SE)");
-                        ui.label("• Traits (Broad Domains): ±(e / 2) × SE (≈ ±1.36 × SE)");
-                        ui.label("• Facets (Specific Aspects): ±(e / 4) × SE (≈ ±0.68 × SE)");
+                        // Academic Reference & Source Code
+                        ui.heading("Academic Reference & Source");
                         ui.add_space(4.0);
                         ui.horizontal(|ui| {
-                            ui.label("Reference:");
+                            ui.label("Published Research Paper:");
                             ui.hyperlink_to(
                                 "doi:10.1177/08902070251352590",
                                 "https://doi.org/10.1177/08902070251352590",
                             );
                         });
                         ui.horizontal(|ui| {
-                            ui.label("Source code:");
+                            ui.label("Source Code:");
                             ui.hyperlink_to(
                                 "GitHub Repository",
                                 "https://github.com/Spodeian/Revisited-IPIP-NEO",
