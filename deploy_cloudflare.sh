@@ -184,7 +184,7 @@ if os.path.exists(html_path):
     echo "=== Generating Pre-Compressed Brotli (.br) & Gzip (.gz) Assets ==="
     if command -v python3 &> /dev/null; then
         python3 -c '
-import os, gzip, glob
+import os, sys, gzip, glob
 
 dist_dir = sys.argv[1]
 extensions = ("*.wasm", "*.js", "*.css", "*.html", "*.json", "*.svg")
@@ -214,7 +214,7 @@ try:
     print("  Successfully pre-compressed assets with Brotli (q11) & Gzip (level 9)")
 except ImportError:
     print("  Pre-compressed assets with Gzip (level 9). Brotli CLI check...")
-' "$DIST_DIR"
+' "$DIST_DIR" || true
         if command -v brotli &> /dev/null; then
             for fpath in "$DIST_DIR"/*.{wasm,js,css,html,json,svg}; do
                 if [ -f "$fpath" ] && [ ! -f "${fpath}.br" ]; then
