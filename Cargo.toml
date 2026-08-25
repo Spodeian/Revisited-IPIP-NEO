@@ -38,10 +38,13 @@ num = "0.4"
 
 [profile.release]
 opt-level = "z"
-lto = true
+lto = "fat"
 codegen-units = 1
 panic = "abort"
 strip = true
+overflow-checks = false
+incremental = false
+rpath = false
 
 [profile.release.build-override]
 opt-level = 2
