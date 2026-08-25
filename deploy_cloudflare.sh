@@ -162,7 +162,6 @@ if os.path.exists(html_path):
     fi
     # Ensure Cloudflare configuration files are guaranteed present in output distribution
     cp -f crates/web/_headers "$DIST_DIR/_headers" 2>/dev/null || true
-    cp -f crates/web/_redirects "$DIST_DIR/_redirects" 2>/dev/null || true
 fi
 
 echo "=== Build Completed Successfully! Static assets are ready in: '$DIST_DIR' ==="
