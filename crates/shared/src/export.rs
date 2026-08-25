@@ -621,13 +621,11 @@ pub fn export_to_printable_html(state: &QuestionnaireState) -> String {
 
 const BASE64_URL_ALPHABET: &[u8; 64] = b"ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-_";
 
-/// Encodes all current question responses into a compact, URL-safe Base64 string (~148 chars).
+/// Encodes all current question responses into an ultra-compact, URL-safe Base64 bitpacked string (~111 chars).
 pub fn encode_responses_to_url_code(state: &QuestionnaireState) -> String {
-    let mut packed_bytes = Vec::with_capacity(state.questions.len().div_ceil(2));
-    let mut iter = state.questions.iter();
-
-    while let Some(q1) = iter.next() {
-        let v1 = match q1.response {
+    let mut raw_vals = Vec::with_capacity(state.questions.len());
+    for q in &state.questions {
+        let v = match q.response {
             None => 0u8,
             Some(Response::StronglyDisagree) => 1,
             Some(Response::Disagree) => 2,
@@ -635,36 +633,66 @@ pub fn encode_responses_to_url_code(state: &QuestionnaireState) -> String {
             Some(Response::Agree) => 4,
             Some(Response::StronglyAgree) => 5,
         };
-        let v2 = match iter.next() {
-            None => 0u8,
-            Some(q2) => match q2.response {
-                None => 0u8,
-                Some(Response::StronglyDisagree) => 1,
-                Some(Response::Disagree) => 2,
-                Some(Response::Neutral) => 3,
-                Some(Response::Agree) => 4,
-                Some(Response::StronglyAgree) => 5,
-            },
-        };
-        packed_bytes.push((v1 << 3) | v2);
+        raw_vals.push(v);
     }
-
+    let packed_bytes = pack_3bit_stream(&raw_vals);
     base64_url_encode(&packed_bytes)
 }
 
+/// Packs an arbitrary sequence of 3-bit values into a continuous byte array.
+pub fn pack_3bit_stream(values: &[u8]) -> Vec<u8> {
+    let total_bits = values.len() * 3;
+    let mut bytes = vec![0u8; total_bits.div_ceil(8)];
+    for (i, &val) in values.iter().enumerate() {
+        let bit_offset = i * 3;
+        let byte_idx = bit_offset / 8;
+        let bit_in_byte = bit_offset % 8;
+        let v = (val & 0x07) as u16;
+        let shifted = v << (16 - 3 - bit_in_byte);
+        bytes[byte_idx] |= (shifted >> 8) as u8;
+        if byte_idx + 1 < bytes.len() {
+            bytes[byte_idx + 1] |= (shifted & 0xFF) as u8;
+        }
+    }
+    bytes
+}
+
+/// Unpacks 3-bit values from a continuous byte array.
+pub fn unpack_3bit_stream(bytes: &[u8], count: usize) -> Vec<u8> {
+    let mut values = Vec::with_capacity(count);
+    for i in 0..count {
+        let bit_offset = i * 3;
+        let byte_idx = bit_offset / 8;
+        let bit_in_byte = bit_offset % 8;
+        if byte_idx >= bytes.len() {
+            break;
+        }
+        let b0 = bytes[byte_idx] as u16;
+        let b1 = if byte_idx + 1 < bytes.len() { bytes[byte_idx + 1] as u16 } else { 0 };
+        let combined = (b0 << 8) | b1;
+        let shifted = combined >> (16 - 3 - bit_in_byte);
+        values.push((shifted & 0x07) as u8);
+    }
+    values
+}
+
 /// Decodes responses from a compact URL-safe Base64 string into state.
+/// Supports both modern 3-bit continuous bitpacking (~111 chars) and legacy 2-per-byte format (~148 chars).
 /// Returns the number of successfully applied answers.
 pub fn decode_responses_from_url_code(state: &mut QuestionnaireState, code: &str) -> Result<usize, &'static str> {
     let bytes = base64_url_decode(code.trim())?;
+    if bytes.is_empty() {
+        return Err("Empty code provided");
+    }
+
     let mut applied_count = 0;
-    let mut q_idx = 0;
 
-    for byte in bytes {
-        let v1 = (byte >> 3) & 0x07;
-        let v2 = byte & 0x07;
-
-        for val in [v1, v2] {
-            if q_idx >= state.questions.len() {
+    // If bytes length <= 90 (221 * 3 bits = 83 bytes), it is the modern continuous 3-bit stream.
+    // If bytes length > 90 (e.g. 111 bytes for 2-per-byte), it is the legacy format.
+    if bytes.len() <= 90 {
+        let unpacked = unpack_3bit_stream(&bytes, state.questions.len());
+        for (i, val) in unpacked.into_iter().enumerate() {
+            if i >= state.questions.len() {
                 break;
             }
             let resp = match val {
@@ -679,8 +707,34 @@ pub fn decode_responses_from_url_code(state: &mut QuestionnaireState, code: &str
             if resp.is_some() {
                 applied_count += 1;
             }
-            state.questions[q_idx].response = resp;
-            q_idx += 1;
+            state.questions[i].response = resp;
+        }
+    } else {
+        // Legacy 2-per-byte unpacking
+        let mut q_idx = 0;
+        for byte in bytes {
+            let v1 = (byte >> 3) & 0x07;
+            let v2 = byte & 0x07;
+
+            for val in [v1, v2] {
+                if q_idx >= state.questions.len() {
+                    break;
+                }
+                let resp = match val {
+                    0 => None,
+                    1 => Some(Response::StronglyDisagree),
+                    2 => Some(Response::Disagree),
+                    3 => Some(Response::Neutral),
+                    4 => Some(Response::Agree),
+                    5 => Some(Response::StronglyAgree),
+                    _ => None,
+                };
+                if resp.is_some() {
+                    applied_count += 1;
+                }
+                state.questions[q_idx].response = resp;
+                q_idx += 1;
+            }
         }
     }
 

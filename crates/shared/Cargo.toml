@@ -11,3 +11,6 @@ description = "Core psychometric models, scoring calculations, datasets, and ser
 serde = { workspace = true, features = ["derive"] }
 serde_json = { workspace = true }
 num = { workspace = true }
+
+[dev-dependencies]
+proptest = "1"

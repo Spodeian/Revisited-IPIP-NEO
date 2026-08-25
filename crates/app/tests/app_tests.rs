@@ -125,3 +125,47 @@ fn test_restore_saved_instance() {
     assert_eq!(app.state.questionnaire.questions[0].response, Some(Response::StronglyAgree));
     assert_eq!(app.state.questionnaire.questions[1].response, None);
 }
+
+#[test]
+fn test_app_undo_functionality() {
+    let mut app = PersonalityApp::default();
+    assert_eq!(app.state.questionnaire.answered_count(), 0);
+
+    // Answer Q0
+    app.state.questionnaire.answer_question(0, Response::StronglyAgree);
+    assert_eq!(app.state.questionnaire.answered_count(), 1);
+    assert_eq!(app.state.questionnaire.questions[0].response, Some(Response::StronglyAgree));
+
+    // Change Q0
+    app.state.questionnaire.answer_question(0, Response::Disagree);
+    assert_eq!(app.state.questionnaire.questions[0].response, Some(Response::Disagree));
+
+    // Undo change -> should be StronglyAgree
+    assert!(app.state.questionnaire.undo());
+    assert_eq!(app.state.questionnaire.questions[0].response, Some(Response::StronglyAgree));
+    assert_eq!(app.state.questionnaire.answered_count(), 1);
+
+    // Undo first answer -> should be None
+    assert!(app.state.questionnaire.undo());
+    assert_eq!(app.state.questionnaire.questions[0].response, None);
+    assert_eq!(app.state.questionnaire.answered_count(), 0);
+
+    // No more undo steps
+    assert!(!app.state.questionnaire.undo());
+}
+
+#[test]
+fn test_app_grid_matrix_navigation() {
+    let mut app = PersonalityApp::default();
+    assert!(!app.show_grid_dialog);
+    assert_eq!(app.state.questionnaire.current_focus_idx, 0);
+
+    // Toggle grid dialog
+    app.show_grid_dialog = true;
+    assert!(app.show_grid_dialog);
+
+    // Simulate clicking question 42
+    app.state.questionnaire.current_focus_idx = 42;
+    assert_eq!(app.state.questionnaire.current_focus_idx, 42);
+}
+

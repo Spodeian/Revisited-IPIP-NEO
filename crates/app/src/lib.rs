@@ -58,6 +58,7 @@ pub struct PersonalityApp {
     pub current_theme: Option<ThemeMode>,
     pub show_reset_dialog: bool,
     pub show_help_dialog: bool,
+    pub show_grid_dialog: bool,
     pub show_import_dialog: bool,
     pub import_text_buffer: String,
     pub import_result_message: Option<Result<String, String>>,
@@ -70,6 +71,9 @@ pub struct PersonalityApp {
     pub hide_header: bool,
     pub last_scroll_time: f64,
     pub scroll_accumulator: f32,
+    pub answer_timestamps: std::collections::VecDeque<f64>,
+    pub last_save_time: Option<f64>,
+    pub undo_notification_time: Option<f64>,
 }
 
 fn trigger_file_download(filename: &str, content: &str, _mime_type: &str) {
@@ -163,6 +167,7 @@ impl PersonalityApp {
             current_theme: None,
             show_reset_dialog: false,
             show_help_dialog: false,
+            show_grid_dialog: false,
             show_import_dialog: false,
             import_text_buffer: String::new(),
             import_result_message: None,
@@ -175,6 +180,9 @@ impl PersonalityApp {
             hide_header: false,
             last_scroll_time: 0.0,
             scroll_accumulator: 0.0,
+            answer_timestamps: std::collections::VecDeque::new(),
+            last_save_time: None,
+            undo_notification_time: None,
         }
     }
 
@@ -249,6 +257,15 @@ impl PersonalityApp {
         }
 
         let input = ui.input(|i| i.clone());
+        let current_time = input.time;
+
+        let record_answer_timestamp = |timestamps: &mut std::collections::VecDeque<f64>, save_time: &mut Option<f64>| {
+            timestamps.push_back(current_time);
+            if timestamps.len() > 25 {
+                timestamps.pop_front();
+            }
+            *save_time = Some(current_time);
+        };
 
         // Keyboard shortcuts for responses: 1-5
         if input.key_pressed(egui::Key::Num1) {
@@ -256,26 +273,41 @@ impl PersonalityApp {
             self.state
                 .questionnaire
                 .answer_question(self.state.questionnaire.current_focus_idx, Response::StronglyDisagree);
+            record_answer_timestamp(&mut self.answer_timestamps, &mut self.last_save_time);
         } else if input.key_pressed(egui::Key::Num2) {
             self.is_viewing_shared_link = false;
             self.state
                 .questionnaire
                 .answer_question(self.state.questionnaire.current_focus_idx, Response::Disagree);
+            record_answer_timestamp(&mut self.answer_timestamps, &mut self.last_save_time);
         } else if input.key_pressed(egui::Key::Num3) {
             self.is_viewing_shared_link = false;
             self.state
                 .questionnaire
                 .answer_question(self.state.questionnaire.current_focus_idx, Response::Neutral);
+            record_answer_timestamp(&mut self.answer_timestamps, &mut self.last_save_time);
         } else if input.key_pressed(egui::Key::Num4) {
             self.is_viewing_shared_link = false;
             self.state
                 .questionnaire
                 .answer_question(self.state.questionnaire.current_focus_idx, Response::Agree);
+            record_answer_timestamp(&mut self.answer_timestamps, &mut self.last_save_time);
         } else if input.key_pressed(egui::Key::Num5) {
             self.is_viewing_shared_link = false;
             self.state
                 .questionnaire
                 .answer_question(self.state.questionnaire.current_focus_idx, Response::StronglyAgree);
+            record_answer_timestamp(&mut self.answer_timestamps, &mut self.last_save_time);
+        }
+
+        // Undo shortcut: Ctrl+Z / Cmd+Z
+        if (input.modifiers.command || input.modifiers.ctrl)
+            && input.key_pressed(egui::Key::Z)
+            && !input.modifiers.shift
+            && self.state.questionnaire.undo()
+        {
+            self.undo_notification_time = Some(current_time);
+            self.last_save_time = Some(current_time);
         }
 
         // Navigation shortcuts:
@@ -283,7 +315,9 @@ impl PersonalityApp {
 
         // Escape key to dismiss dialogs or close results screen
         if input.key_pressed(egui::Key::Escape) {
-            if self.show_help_dialog {
+            if self.show_grid_dialog {
+                self.show_grid_dialog = false;
+            } else if self.show_help_dialog {
                 self.show_help_dialog = false;
             } else if self.show_reset_dialog {
                 self.show_reset_dialog = false;
@@ -317,7 +351,34 @@ impl PersonalityApp {
         }
     }
 
+    fn calculate_estimated_time_remaining(&self) -> Option<String> {
+        let unanswered = self.state.questionnaire.unanswered_count();
+        if unanswered == 0 {
+            return None;
+        }
+        if self.answer_timestamps.len() >= 3 {
+            let first = *self.answer_timestamps.front()?;
+            let last = *self.answer_timestamps.back()?;
+            let elapsed = last - first;
+            let count = self.answer_timestamps.len() - 1;
+            if count > 0 && elapsed > 0.5 {
+                let sec_per_item = (elapsed / count as f64).clamp(1.0, 30.0);
+                let remaining_secs = (unanswered as f64 * sec_per_item).round() as u64;
+                let minutes = remaining_secs / 60;
+                let seconds = remaining_secs % 60;
+                if minutes > 0 {
+                    return Some(format!("⏱ ~{}m {}s", minutes, seconds));
+                } else {
+                    return Some(format!("⏱ ~{}s", seconds));
+                }
+            }
+        }
+        None
+    }
+
     fn render_top_bar(&mut self, ui: &mut egui::Ui, constraints: &ScreenConstraints) {
+        let current_time = ui.input(|i| i.time);
+
         egui::Panel::top("top_panel").show(ui, |ui| {
             ui.add_space(4.0);
             let title_text = if constraints.is_mobile { "IPIP-NEO (TGA)" } else { "Revisited IPIP-NEO Personality Assessment" };
@@ -330,6 +391,23 @@ impl PersonalityApp {
                     ui.label(egui::RichText::new(title_text).size(18.0).strong());
                 } else {
                     ui.heading(title_text);
+                }
+
+                // Dynamic Status & Time indicators
+                if let Some(save_t) = self.last_save_time
+                    && current_time - save_t < 2.0
+                {
+                    ui.colored_label(egui::Color32::from_rgb(70, 180, 90), "💾 Saved");
+                }
+                if let Some(undo_t) = self.undo_notification_time
+                    && current_time - undo_t < 2.0
+                {
+                    ui.colored_label(egui::Color32::from_rgb(240, 160, 40), "↩ Undone");
+                }
+                if !constraints.is_mobile
+                    && let Some(est) = self.calculate_estimated_time_remaining()
+                {
+                    ui.label(egui::RichText::new(est).small().weak());
                 }
 
                 ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
@@ -351,6 +429,13 @@ impl PersonalityApp {
                             .min_size(egui::vec2(96.0, 44.0));
                         if ui.add(res_btn).on_hover_text("Toggle assessment results").clicked() {
                             self.state.questionnaire.show_results = !self.state.questionnaire.show_results;
+                        }
+
+                        // Matrix / Grid button
+                        let grid_btn = egui::Button::new(egui::RichText::new("🗺️").size(16.0))
+                            .min_size(egui::vec2(44.0, 44.0));
+                        if ui.add(grid_btn).on_hover_text("Question item matrix map").clicked() {
+                            self.show_grid_dialog = true;
                         }
 
                         // Theme toggle button
@@ -418,6 +503,11 @@ impl PersonalityApp {
                         // Reset button
                         if ui.button("🔄 Reset").on_hover_text("Reset test and clear all answers").clicked() {
                             self.show_reset_dialog = true;
+                        }
+
+                        // Matrix / Grid button
+                        if ui.button("🗺️ Item Map").on_hover_text("View all 221 items in interactive grid").clicked() {
+                            self.show_grid_dialog = true;
                         }
 
                         // Results / Questions Toggle
@@ -542,6 +632,12 @@ impl PersonalityApp {
                         if ui.add(btn).clicked() {
                             self.is_viewing_shared_link = false;
                             self.state.questionnaire.answer_question(curr_idx, resp);
+                            let current_t = ui.input(|i| i.time);
+                            self.answer_timestamps.push_back(current_t);
+                            if self.answer_timestamps.len() > 25 {
+                                self.answer_timestamps.pop_front();
+                            }
+                            self.last_save_time = Some(current_t);
                         }
                         ui.add_space(if is_ultra_tight { 2.0 } else if is_tight_height { 4.0 } else { 6.0 });
                     }
@@ -570,6 +666,17 @@ impl PersonalityApp {
                             self.state.questionnaire.navigate_previous_unanswered();
                         }
 
+                        if !self.state.questionnaire.undo_history.is_empty() {
+                            let btn_undo = if is_ultra_tight { "↩" } else { "↩ Undo" };
+                            if ui.button(btn_undo).on_hover_text("Undo previous answer (Ctrl+Z / Cmd+Z)").clicked()
+                                && self.state.questionnaire.undo()
+                            {
+                                let current_t = ui.input(|i| i.time);
+                                self.undo_notification_time = Some(current_t);
+                                self.last_save_time = Some(current_t);
+                            }
+                        }
+
                         // Right Action Cluster + Center Expanding Progress Bar
                         ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
                             let btn_skip = if is_ultra_tight { "⏭" } else { "Skip ⏭" };
@@ -587,6 +694,8 @@ impl PersonalityApp {
                                 if ui.button(btn_clear).on_hover_text("Clear recorded answer").clicked() {
                                     self.is_viewing_shared_link = false;
                                     self.state.questionnaire.clear_response(curr_idx);
+                                    let current_t = ui.input(|i| i.time);
+                                    self.last_save_time = Some(current_t);
                                 }
                             }
 
@@ -802,6 +911,97 @@ impl PersonalityApp {
         });
     }
 
+    fn render_score_gauge(
+        ui: &mut egui::Ui,
+        norm_score: f32,
+        se: f32,
+        tier_color: egui::Color32,
+        width: f32,
+    ) {
+        let (rect, response) = ui.allocate_exact_size(egui::vec2(width, 14.0), egui::Sense::hover());
+        if ui.is_rect_visible(rect) {
+            let painter = ui.painter();
+            let is_dark = ui.visuals().dark_mode;
+            let track_bg = if is_dark {
+                egui::Color32::from_rgba_unmultiplied(255, 255, 255, 20)
+            } else {
+                egui::Color32::from_rgba_unmultiplied(0, 0, 0, 25)
+            };
+
+            // Track background [-1.0, 1.0]
+            painter.rect_filled(rect, 3.0, track_bg);
+
+            // Center zero tick
+            let center_x = rect.left() + rect.width() * 0.5;
+            let tick_color = if is_dark {
+                egui::Color32::from_rgba_unmultiplied(255, 255, 255, 60)
+            } else {
+                egui::Color32::from_rgba_unmultiplied(0, 0, 0, 60)
+            };
+            painter.line_segment(
+                [egui::pos2(center_x, rect.top() + 1.0), egui::pos2(center_x, rect.bottom() - 1.0)],
+                egui::Stroke::new(1.0, tick_color),
+            );
+
+            // Scale score from [-1.0, 1.0] to [rect.left(), rect.right()]
+            let score_to_x = |s: f32| -> f32 {
+                let norm = ((s.clamp(-1.0, 1.0) + 1.0) / 2.0).clamp(0.0, 1.0);
+                rect.left() + norm * rect.width()
+            };
+
+            let score_x = score_to_x(norm_score);
+            let center_y = rect.center().y;
+
+            // Error bracket scaled by 2.5 (95%+ Confidence Interval)
+            let ci_mult = 2.5;
+            let error_span = se * ci_mult;
+            let ci_min = (norm_score - error_span).max(-1.0);
+            let ci_max = (norm_score + error_span).min(1.0);
+            let left_ci_x = score_to_x(ci_min);
+            let right_ci_x = score_to_x(ci_max);
+
+            // CI error band (semi-transparent)
+            let band_color = egui::Color32::from_rgba_unmultiplied(
+                tier_color.r(),
+                tier_color.g(),
+                tier_color.b(),
+                80,
+            );
+            let ci_rect = egui::Rect::from_min_max(
+                egui::pos2(left_ci_x, center_y - 3.0),
+                egui::pos2(right_ci_x, center_y + 3.0),
+            );
+            painter.rect_filled(ci_rect, 2.0, band_color);
+
+            // Error bar caps / strokes
+            painter.line_segment(
+                [egui::pos2(left_ci_x, center_y - 4.0), egui::pos2(left_ci_x, center_y + 4.0)],
+                egui::Stroke::new(1.0, tier_color),
+            );
+            painter.line_segment(
+                [egui::pos2(right_ci_x, center_y - 4.0), egui::pos2(right_ci_x, center_y + 4.0)],
+                egui::Stroke::new(1.0, tier_color),
+            );
+
+            // Score point dot
+            painter.circle_filled(egui::pos2(score_x, center_y), 4.5, tier_color);
+            painter.circle_stroke(
+                egui::pos2(score_x, center_y),
+                4.5,
+                egui::Stroke::new(1.0, egui::Color32::WHITE),
+            );
+        }
+
+        let ci_mult = 2.5;
+        let ci_min = (norm_score - se * ci_mult).max(-1.0);
+        let ci_max = (norm_score + se * ci_mult).min(1.0);
+        response.on_hover_ui(|ui| {
+            ui.label(egui::RichText::new(format!("Normalized Score: {:+.2}", norm_score)).strong());
+            ui.label(format!("Standard Error (SE): {:.2}", se));
+            ui.label(format!("Confidence Interval (±2.5×SE): [{:+.2}, {:+.2}]", ci_min, ci_max));
+        });
+    }
+
     fn render_construct_badge_row(&self, ui: &mut egui::Ui, acc: &shared::ScoreAccumulator, show_detailed: bool) {
         if let Some(norm_score) = acc.normalized_score() {
             let tier = acc.tier().unwrap_or(ScoreTier::Average);
@@ -813,10 +1013,12 @@ impl PersonalityApp {
                 ScoreTier::VeryHigh => egui::Color32::from_rgb(30, 140, 220),
             };
 
+            let se = acc.standard_error().unwrap_or(0.0);
+            Self::render_score_gauge(ui, norm_score, se, tier_color, 80.0);
+
             ui.colored_label(tier_color, egui::RichText::new(tier.label()).strong());
 
             if show_detailed {
-                let se = acc.standard_error().unwrap_or(0.0);
                 ui.label(
                     egui::RichText::new(format!(
                         "score: {:.2} (SE: {:.2}, raw: {:.1}, n: {})",
@@ -832,6 +1034,9 @@ impl PersonalityApp {
     }
 
     fn render_dialogs(&mut self, ui: &mut egui::Ui) {
+        if self.show_grid_dialog {
+            self.render_grid_dialog(ui);
+        }
         if self.show_help_dialog {
             self.render_help_dialog(ui);
         }
@@ -843,6 +1048,107 @@ impl PersonalityApp {
         }
         if self.show_import_dialog {
             self.render_import_dialog(ui);
+        }
+    }
+
+    fn render_grid_dialog(&mut self, ui: &mut egui::Ui) {
+        let mut open = true;
+        let win_w = (ui.available_width() - 24.0).clamp(320.0, 580.0);
+        let win_h = (ui.available_height() - 32.0).clamp(380.0, 540.0);
+
+        egui::Window::new("🗺️ Question Item Matrix (221 Items)")
+            .open(&mut open)
+            .resizable(true)
+            .collapsible(true)
+            .default_size(egui::vec2(win_w, win_h))
+            .min_width(300.0)
+            .min_height(340.0)
+            .show(ui.ctx(), |ui| {
+                ui.horizontal(|ui| {
+                    ui.label(egui::RichText::new("Click any item to jump directly to that question.").small().weak());
+                    ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
+                        let answered = self.state.questionnaire.answered_count();
+                        let total = self.state.questionnaire.total_questions();
+                        ui.label(egui::RichText::new(format!("{}/{} Answered", answered, total)).strong());
+                    });
+                });
+                ui.separator();
+
+                egui::ScrollArea::vertical().show(ui, |ui| {
+                    ui.horizontal_wrapped(|ui| {
+                        ui.spacing_mut().item_spacing = egui::vec2(4.0, 4.0);
+                        let curr_idx = self.state.questionnaire.current_focus_idx;
+
+                        for (idx, q) in self.state.questionnaire.questions.iter().enumerate() {
+                            let is_curr = idx == curr_idx;
+                            let (bg_color, text_color, status_text) = match q.response {
+                                Some(Response::StronglyAgree) => (
+                                    egui::Color32::from_rgb(34, 139, 34),
+                                    egui::Color32::WHITE,
+                                    "Strongly Agree",
+                                ),
+                                Some(Response::Agree) => (
+                                    egui::Color32::from_rgb(70, 170, 90),
+                                    egui::Color32::WHITE,
+                                    "Agree",
+                                ),
+                                Some(Response::Neutral) => (
+                                    egui::Color32::from_rgb(140, 140, 150),
+                                    egui::Color32::WHITE,
+                                    "Neutral",
+                                ),
+                                Some(Response::Disagree) => (
+                                    egui::Color32::from_rgb(230, 140, 50),
+                                    egui::Color32::WHITE,
+                                    "Disagree",
+                                ),
+                                Some(Response::StronglyDisagree) => (
+                                    egui::Color32::from_rgb(220, 70, 70),
+                                    egui::Color32::WHITE,
+                                    "Strongly Disagree",
+                                ),
+                                None => {
+                                    if ui.visuals().dark_mode {
+                                        (egui::Color32::from_rgb(50, 50, 55), egui::Color32::LIGHT_GRAY, "Unanswered")
+                                    } else {
+                                        (egui::Color32::from_rgb(220, 220, 225), egui::Color32::DARK_GRAY, "Unanswered")
+                                    }
+                                }
+                            };
+
+                            let mut btn_text = egui::RichText::new(format!("{}", q.id)).size(11.0).color(text_color);
+                            if is_curr {
+                                btn_text = btn_text.strong();
+                            }
+
+                            let mut btn = egui::Button::new(btn_text)
+                                .fill(bg_color)
+                                .min_size(egui::vec2(28.0, 24.0));
+
+                            if is_curr {
+                                btn = btn.stroke(egui::Stroke::new(2.0, egui::Color32::from_rgb(30, 140, 240)));
+                            }
+
+                            let tooltip = format!(
+                                "#{}. {}\nFacet: {} | Trait: {}\nStatus: {}",
+                                q.id,
+                                q.text,
+                                q.facet.category.display_name(),
+                                q.r#trait.category.display_name(),
+                                status_text
+                            );
+
+                            if ui.add(btn).on_hover_text(tooltip).clicked() {
+                                self.state.questionnaire.current_focus_idx = idx;
+                                self.state.questionnaire.show_results = false;
+                            }
+                        }
+                    });
+                });
+            });
+
+        if !open {
+            self.show_grid_dialog = false;
         }
     }
 

@@ -121,6 +121,18 @@ impl Aspect for Facet {
     }
 }
 
+#[inline]
+fn matches_ci(input: &str, pattern: &str) -> bool {
+    let input_bytes = input.as_bytes();
+    let pattern_bytes = pattern.as_bytes();
+    if input_bytes.len() < pattern_bytes.len() {
+        return false;
+    }
+    input_bytes.windows(pattern_bytes.len()).any(|window| {
+        window.iter().zip(pattern_bytes).all(|(a, b)| a.eq_ignore_ascii_case(b))
+    })
+}
+
 impl Facet {
     pub const ALL: [Facet; 28] = [
         Facet::Anxiety,
@@ -154,62 +166,62 @@ impl Facet {
     ];
 
     pub fn parse(s: &str) -> Option<Self> {
-        let cleaned = s.trim().to_lowercase();
-        if cleaned.contains("anxiety") {
+        let trimmed = s.trim();
+        if matches_ci(trimmed, "anxiety") {
             Some(Self::Anxiety)
-        } else if cleaned.contains("gregariousness") {
+        } else if matches_ci(trimmed, "gregariousness") {
             Some(Self::Gregariousness)
-        } else if cleaned.contains("trust") {
+        } else if matches_ci(trimmed, "trust") {
             Some(Self::Trust)
-        } else if cleaned.contains("self-efficacy") || cleaned.contains("self.efficacy") {
+        } else if matches_ci(trimmed, "self-efficacy") || matches_ci(trimmed, "self.efficacy") || matches_ci(trimmed, "selfefficacy") {
             Some(Self::SelfEfficacy)
-        } else if cleaned.contains("anger") {
+        } else if matches_ci(trimmed, "anger") {
             Some(Self::Anger)
-        } else if cleaned.contains("fairness") {
+        } else if matches_ci(trimmed, "fairness") {
             Some(Self::Fairness)
-        } else if cleaned.contains("orderliness") {
+        } else if matches_ci(trimmed, "orderliness") {
             Some(Self::Orderliness)
-        } else if cleaned.contains("dominance") {
+        } else if matches_ci(trimmed, "dominance") {
             Some(Self::Dominance)
-        } else if cleaned.contains("emotionality") {
+        } else if matches_ci(trimmed, "emotionality") {
             Some(Self::Emotionality)
-        } else if cleaned.contains("adventurousness") {
+        } else if matches_ci(trimmed, "adventurousness") {
             Some(Self::Adventurousness)
-        } else if cleaned.contains("determination") {
+        } else if matches_ci(trimmed, "determination") {
             Some(Self::Determination)
-        } else if cleaned.contains("excitement-seeking") || cleaned.contains("excitement.seeking") {
+        } else if matches_ci(trimmed, "excitement-seeking") || matches_ci(trimmed, "excitement.seeking") || matches_ci(trimmed, "excitementseeking") {
             Some(Self::ExcitementSeeking)
-        } else if cleaned.contains("intellect") {
+        } else if matches_ci(trimmed, "intellect") {
             Some(Self::Intellect)
-        } else if cleaned.contains("attention-seeking") || cleaned.contains("attention.seeking") {
+        } else if matches_ci(trimmed, "attention-seeking") || matches_ci(trimmed, "attention.seeking") || matches_ci(trimmed, "attentionseeking") {
             Some(Self::AttentionSeeking)
-        } else if cleaned.contains("cheerfulness") {
+        } else if matches_ci(trimmed, "cheerfulness") {
             Some(Self::Cheerfulness)
-        } else if cleaned.contains("liberalism") {
+        } else if matches_ci(trimmed, "liberalism") {
             Some(Self::Liberalism)
-        } else if cleaned.contains("artistic interests") || cleaned.contains("artistic.interests") {
+        } else if matches_ci(trimmed, "artistic interests") || matches_ci(trimmed, "artistic.interests") || matches_ci(trimmed, "artisticinterests") {
             Some(Self::ArtisticInterests)
-        } else if cleaned.contains("empathy") {
+        } else if matches_ci(trimmed, "empathy") {
             Some(Self::Empathy)
-        } else if cleaned.contains("work ethic") || cleaned.contains("work.ethic") {
+        } else if matches_ci(trimmed, "work ethic") || matches_ci(trimmed, "work.ethic") || matches_ci(trimmed, "workethic") {
             Some(Self::WorkEthic)
-        } else if cleaned.contains("cautiousness") {
+        } else if matches_ci(trimmed, "cautiousness") {
             Some(Self::Cautiousness)
-        } else if cleaned.contains("manipulativeness") {
+        } else if matches_ci(trimmed, "manipulativeness") {
             Some(Self::Manipulativeness)
-        } else if cleaned.contains("humility") {
+        } else if matches_ci(trimmed, "humility") {
             Some(Self::Humility)
-        } else if cleaned.contains("introspection") {
+        } else if matches_ci(trimmed, "introspection") {
             Some(Self::Introspection)
-        } else if cleaned.contains("honesty") {
+        } else if matches_ci(trimmed, "honesty") {
             Some(Self::Honesty)
-        } else if cleaned.contains("immoderation") {
+        } else if matches_ci(trimmed, "immoderation") {
             Some(Self::Immoderation)
-        } else if cleaned.contains("self-discipline") || cleaned.contains("self.discipline") {
+        } else if matches_ci(trimmed, "self-discipline") || matches_ci(trimmed, "self.discipline") || matches_ci(trimmed, "selfdiscipline") {
             Some(Self::SelfDiscipline)
-        } else if cleaned.contains("recklessness") {
+        } else if matches_ci(trimmed, "recklessness") {
             Some(Self::Recklessness)
-        } else if cleaned.contains("calmness") {
+        } else if matches_ci(trimmed, "calmness") {
             Some(Self::Calmness)
         } else {
             None
@@ -262,18 +274,18 @@ impl Trait {
     ];
 
     pub fn parse(s: &str) -> Option<Self> {
-        let cleaned = s.trim().to_lowercase();
-        if cleaned.contains("neuroticism") {
+        let trimmed = s.trim();
+        if matches_ci(trimmed, "neuroticism") {
             Some(Self::Neuroticism)
-        } else if cleaned.contains("sociability") {
+        } else if matches_ci(trimmed, "sociability") {
             Some(Self::Sociability)
-        } else if cleaned.contains("conscientiousness") {
+        } else if matches_ci(trimmed, "conscientiousness") {
             Some(Self::Conscientiousness)
-        } else if cleaned.contains("integrity") {
+        } else if matches_ci(trimmed, "integrity") {
             Some(Self::Integrity)
-        } else if cleaned.contains("openness") {
+        } else if matches_ci(trimmed, "openness") {
             Some(Self::OpennessToExperience)
-        } else if cleaned.contains("impulsivity") {
+        } else if matches_ci(trimmed, "impulsivity") {
             Some(Self::Impulsivity)
         } else {
             None
@@ -322,12 +334,12 @@ impl MetaTrait {
     ];
 
     pub fn parse(s: &str) -> Option<Self> {
-        let cleaned = s.trim().to_lowercase();
-        if cleaned.contains("stability") {
+        let trimmed = s.trim();
+        if matches_ci(trimmed, "stability") {
             Some(Self::Stability)
-        } else if cleaned.contains("plasticity") {
+        } else if matches_ci(trimmed, "plasticity") {
             Some(Self::Plasticity)
-        } else if cleaned.contains("disinhibition") {
+        } else if matches_ci(trimmed, "disinhibition") {
             Some(Self::Disinhibition)
         } else {
             None
@@ -473,6 +485,9 @@ pub struct QuestionnaireState {
     pub trait_acc: HashMap<Trait, ScoreAccumulator>,
     #[serde(skip)]
     pub meta_trait_acc: HashMap<MetaTrait, ScoreAccumulator>,
+    /// Undo history stack storing (question_idx, previous_response)
+    #[serde(skip)]
+    pub undo_history: Vec<(usize, Option<Response>)>,
 }
 
 impl Default for QuestionnaireState {
@@ -495,6 +510,7 @@ impl QuestionnaireState {
             facet_acc: HashMap::new(),
             trait_acc: HashMap::new(),
             meta_trait_acc: HashMap::new(),
+            undo_history: Vec::new(),
         };
         state.rebuild_cache();
         state
@@ -574,8 +590,10 @@ impl QuestionnaireState {
             return false;
         }
 
+        let old_response = self.questions[question_idx].response;
+        self.undo_history.push((question_idx, old_response));
+
         let q = &mut self.questions[question_idx];
-        let old_response = q.response;
         q.response = Some(response);
 
         // Update accumulators
@@ -626,6 +644,9 @@ impl QuestionnaireState {
             return false;
         }
 
+        let old_response = self.questions[question_idx].response;
+        self.undo_history.push((question_idx, old_response));
+
         let q = &mut self.questions[question_idx];
         if let Some(old_r) = q.response.take() {
             let old_score = old_r.to_score();
@@ -646,6 +667,50 @@ impl QuestionnaireState {
         } else {
             false
         }
+    }
+
+    /// Reverts the most recent response change or clear operation.
+    pub fn undo(&mut self) -> bool {
+        if let Some((idx, prev_resp)) = self.undo_history.pop()
+            && idx < self.questions.len()
+        {
+            let current_r = self.questions[idx].response;
+            if let Some(r) = current_r {
+                let score = r.to_score();
+                let q = &self.questions[idx];
+                if let Some(acc) = self.facet_acc.get_mut(&q.facet.category) {
+                    acc.remove_response(score, q.facet.weight);
+                }
+                if let Some(acc) = self.trait_acc.get_mut(&q.r#trait.category) {
+                    acc.remove_response(score, q.r#trait.weight);
+                }
+                if let Some(acc) = self.meta_trait_acc.get_mut(&q.meta_trait.category) {
+                    acc.remove_response(score, q.meta_trait.weight);
+                }
+            }
+
+            self.questions[idx].response = prev_resp;
+            if let Some(prev) = prev_resp {
+                let score = prev.to_score();
+                let q = &self.questions[idx];
+                if let Some(acc) = self.facet_acc.get_mut(&q.facet.category) {
+                    acc.record_response(score, q.facet.weight);
+                }
+                if let Some(acc) = self.trait_acc.get_mut(&q.r#trait.category) {
+                    acc.record_response(score, q.r#trait.weight);
+                }
+                if let Some(acc) = self.meta_trait_acc.get_mut(&q.meta_trait.category) {
+                    acc.record_response(score, q.meta_trait.weight);
+                }
+                self.pending_queue.retain(|&i| i != idx);
+            } else if !self.pending_queue.contains(&idx) {
+                self.pending_queue.push_front(idx);
+            }
+
+            self.current_focus_idx = idx;
+            return true;
+        }
+        false
     }
 
     /// Skips the currently focused question, deferring it to the back of the queue.
@@ -727,9 +792,14 @@ impl QuestionnaireState {
         }
     }
 
-    /// Number of questions answered.
+    /// Count of questions that have been answered.
     pub fn answered_count(&self) -> usize {
         self.questions.iter().filter(|q| q.response.is_some()).count()
+    }
+
+    /// Count of questions that remain unanswered.
+    pub fn unanswered_count(&self) -> usize {
+        self.total_questions().saturating_sub(self.answered_count())
     }
 
     /// Total questions count.
@@ -767,8 +837,17 @@ type RawQuestionMap = HashMap<
     ),
 >;
 
+static PARSED_QUESTIONS_CACHE: std::sync::OnceLock<Vec<Question>> = std::sync::OnceLock::new();
+
 /// Parses the embedded CSV files and returns the questions ordered according to `Optimized_Keys.csv`.
+/// Results are cached statically in memory via `OnceLock`.
 pub fn load_optimized_questions() -> Vec<Question> {
+    PARSED_QUESTIONS_CACHE
+        .get_or_init(parse_and_order_raw_questions)
+        .clone()
+}
+
+fn parse_and_order_raw_questions() -> Vec<Question> {
     // 1. Parse Distillined Key.csv into a map: Label -> Question
     let mut raw_map: RawQuestionMap = HashMap::new();
 
