@@ -11,20 +11,26 @@ export NODE_ENV="production"
 export PATH="$HOME/.cargo/bin:/opt/buildhome/.cargo/bin:$PATH"
 mkdir -p "$HOME/.cargo/bin"
 
+if [ -f "$HOME/.cargo/env" ]; then
+    . "$HOME/.cargo/env"
+fi
+if [ -f "/opt/buildhome/.cargo/env" ]; then
+    . "/opt/buildhome/.cargo/env"
+fi
+
 # 2. Rust Toolchain & Target Verification
-if ! command -v rustup &> /dev/null && [ ! -f "$HOME/.cargo/bin/rustup" ]; then
+if ! command -v rustup &> /dev/null && [ ! -f "$HOME/.cargo/bin/rustup" ] && [ ! -f "/opt/buildhome/.cargo/bin/rustup" ]; then
     echo "Rust compiler not detected. Installing Rust stable toolchain..."
     curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y --default-toolchain stable --target wasm32-unknown-unknown
-    . "$HOME/.cargo/env"
-else
-    if [ -f "$HOME/.cargo/bin/env" ]; then
-        . "$HOME/.cargo/bin/env"
-    elif [ -f "$HOME/.cargo/env" ]; then
+    if [ -f "$HOME/.cargo/env" ]; then
         . "$HOME/.cargo/env"
     fi
+else
     echo "Rust toolchain detected: $(rustc --version || echo 'Active')"
     if command -v rustup &> /dev/null; then
         rustup target add wasm32-unknown-unknown
+    elif [ -f "/opt/buildhome/.cargo/bin/rustup" ]; then
+        "/opt/buildhome/.cargo/bin/rustup" target add wasm32-unknown-unknown
     else
         "$HOME/.cargo/bin/rustup" target add wasm32-unknown-unknown
     fi
