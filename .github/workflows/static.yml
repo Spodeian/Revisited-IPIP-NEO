@@ -97,6 +97,8 @@ jobs:
               echo "Minifying HTML: crates/web/dist/index.html"
               npx --yes html-minifier-terser --collapse-whitespace --remove-comments --remove-redundant-attributes --remove-script-type-attributes --remove-style-link-type-attributes --use-short-doctype --minify-css true --minify-js true -o crates/web/dist/index.html crates/web/dist/index.html
             fi
+            cp -f crates/web/_headers crates/web/dist/_headers 2>/dev/null || true
+            cp -f crates/web/_redirects crates/web/dist/_redirects 2>/dev/null || true
           fi
 
       - name: Setup Pages

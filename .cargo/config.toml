@@ -2,5 +2,12 @@
 
 [target.wasm32-unknown-unknown]
 rustflags = [
+    # 1. Standardized hardware-accelerated instructions (LLVM-level emission)
     "-C", "target-feature=+bulk-memory,+mutable-globals,+nontrapping-fptoint,+sign-ext",
+
+    # 2. WASM Stack Size Allocation (2MB headroom for complex layouts & scoring trees)
+    "-C", "link-arg=-zstack-size=2097152",
+
+    # 3. Universal Target CPU
+    "-C", "target-cpu=generic",
 ]
