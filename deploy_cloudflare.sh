@@ -7,7 +7,8 @@ set -euo pipefail
 echo "=== Initializing Cloudflare Serverless Build Pipeline ==="
 
 # 1. Environment & PATH Setup
-export PATH="$HOME/.cargo/bin:$PATH"
+export NODE_ENV="production"
+export PATH="$HOME/.cargo/bin:/opt/buildhome/.cargo/bin:$PATH"
 mkdir -p "$HOME/.cargo/bin"
 
 # 2. Rust Toolchain & Target Verification
@@ -158,6 +159,7 @@ if os.path.exists(html_path):
     except Exception as e:
         print(f"  Error processing {html_path}: {e}")
 ' "$DIST_DIR"
+    fi
     # Ensure Cloudflare configuration files are guaranteed present in output distribution
     cp -f crates/web/_headers "$DIST_DIR/_headers" 2>/dev/null || true
     cp -f crates/web/_redirects "$DIST_DIR/_redirects" 2>/dev/null || true
