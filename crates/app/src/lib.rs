@@ -432,7 +432,7 @@ impl PersonalityApp {
                         }
 
                         // Matrix / Grid button
-                        let grid_btn = egui::Button::new(egui::RichText::new("🗺️").size(16.0))
+                        let grid_btn = egui::Button::new(egui::RichText::new("⊞").size(17.0).strong())
                             .min_size(egui::vec2(44.0, 44.0));
                         if ui.add(grid_btn).on_hover_text("Question item matrix map").clicked() {
                             self.show_grid_dialog = true;
@@ -441,7 +441,7 @@ impl PersonalityApp {
                         // Theme toggle button
                         let theme_icon = match self.state.config.theme {
                             ThemeMode::Light => "🌙",
-                            ThemeMode::Dark => "☀️",
+                            ThemeMode::Dark => "☀",
                         };
                         let theme_btn = egui::Button::new(egui::RichText::new(theme_icon).size(16.0))
                             .min_size(egui::vec2(44.0, 44.0));
@@ -453,7 +453,7 @@ impl PersonalityApp {
                         }
 
                         // Collapse Header button
-                        let hide_btn = egui::Button::new(egui::RichText::new("↑").size(16.0))
+                        let hide_btn = egui::Button::new(egui::RichText::new("▲").size(14.0))
                             .min_size(egui::vec2(44.0, 44.0));
                         if ui.add(hide_btn).on_hover_text("Hide top navigation header").clicked() {
                             self.hide_header = true;
@@ -462,7 +462,7 @@ impl PersonalityApp {
                         // Desktop layout: Right-to-Left (processed reverse-order for on-screen alignment)
                         let theme_icon = match self.state.config.theme {
                             ThemeMode::Light => "🌙 Dark",
-                            ThemeMode::Dark => "☀️ Light",
+                            ThemeMode::Dark => "☀ Light",
                         };
                         if ui.button(theme_icon).on_hover_text("Toggle dark / light theme").clicked() {
                             self.state.config.theme = match self.state.config.theme {
@@ -472,17 +472,17 @@ impl PersonalityApp {
                         }
 
                         // Help Icon
-                        if ui.button("❓").on_hover_text("Help, shortcuts & privacy").clicked() {
+                        if ui.button("? Help").on_hover_text("Help, shortcuts & privacy").clicked() {
                             self.show_help_dialog = true;
                         }
 
                         // Research DOI Icon
-                        if ui.button("📖").on_hover_text("Read the research").clicked() {
+                        if ui.button("DOI").on_hover_text("Read the published research paper (doi:10.1177/08902070251352590)").clicked() {
                             ui.ctx().open_url(egui::OpenUrl::new_tab("https://doi.org/10.1177/08902070251352590"));
                         }
 
-                        // GitHub Icon (Icon only)
-                        if ui.button("🐙").on_hover_text("View source on GitHub").clicked() {
+                        // GitHub Link
+                        if ui.button("GitHub").on_hover_text("View source code on GitHub").clicked() {
                             ui.ctx().open_url(egui::OpenUrl::new_tab("https://github.com/Spodeian/Revisited-IPIP-NEO"));
                         }
 
@@ -501,12 +501,12 @@ impl PersonalityApp {
                         }
 
                         // Reset button
-                        if ui.button("🔄 Reset").on_hover_text("Reset test and clear all answers").clicked() {
+                        if ui.button("↺ Reset").on_hover_text("Reset test and clear all answers").clicked() {
                             self.show_reset_dialog = true;
                         }
 
                         // Matrix / Grid button
-                        if ui.button("🗺️ Item Map").on_hover_text("View all 221 items in interactive grid").clicked() {
+                        if ui.button("⊞ Item Map").on_hover_text("View all 221 items in interactive matrix map").clicked() {
                             self.show_grid_dialog = true;
                         }
 
@@ -952,11 +952,11 @@ impl PersonalityApp {
             let score_x = score_to_x(norm_score);
             let center_y = rect.center().y;
 
-            // Error bracket scaled by 2.5 (95%+ Confidence Interval)
-            let ci_mult = 2.5;
+            // Error bracket scaled by Euler's constant (e ≈ 2.71828)
+            let ci_mult = std::f32::consts::E;
             let error_span = se * ci_mult;
-            let ci_min = (norm_score - error_span).max(-1.0);
-            let ci_max = (norm_score + error_span).min(1.0);
+            let ci_min = (norm_score - error_span).clamp(-1.0, 1.0);
+            let ci_max = (norm_score + error_span).clamp(-1.0, 1.0);
             let left_ci_x = score_to_x(ci_min);
             let right_ci_x = score_to_x(ci_max);
 
@@ -992,13 +992,13 @@ impl PersonalityApp {
             );
         }
 
-        let ci_mult = 2.5;
-        let ci_min = (norm_score - se * ci_mult).max(-1.0);
-        let ci_max = (norm_score + se * ci_mult).min(1.0);
+        let ci_mult = std::f32::consts::E;
+        let ci_min = (norm_score - se * ci_mult).clamp(-1.0, 1.0);
+        let ci_max = (norm_score + se * ci_mult).clamp(-1.0, 1.0);
         response.on_hover_ui(|ui| {
             ui.label(egui::RichText::new(format!("Normalized Score: {:+.2}", norm_score)).strong());
             ui.label(format!("Standard Error (SE): {:.2}", se));
-            ui.label(format!("Confidence Interval (±2.5×SE): [{:+.2}, {:+.2}]", ci_min, ci_max));
+            ui.label(format!("Confidence Interval (±e×SE): [{:+.2}, {:+.2}]", ci_min, ci_max));
         });
     }
 
@@ -1056,7 +1056,7 @@ impl PersonalityApp {
         let win_w = (ui.available_width() - 24.0).clamp(320.0, 580.0);
         let win_h = (ui.available_height() - 32.0).clamp(380.0, 540.0);
 
-        egui::Window::new("🗺️ Question Item Matrix (221 Items)")
+        egui::Window::new("⊞ Question Item Matrix (221 Items)")
             .open(&mut open)
             .resizable(true)
             .collapsible(true)
@@ -1154,23 +1154,35 @@ impl PersonalityApp {
 
     fn render_help_dialog(&mut self, ui: &mut egui::Ui) {
         let mut open = true;
-        let win_w = (ui.available_width() - 24.0).clamp(320.0, 480.0);
-        let win_h = (ui.available_height() - 32.0).clamp(400.0, 560.0);
+        let win_w = (ui.available_width() - 24.0).clamp(340.0, 640.0);
+        let win_h = (ui.available_height() - 32.0).clamp(480.0, 750.0);
 
-        egui::Window::new("❓ Help & Information ")
+        egui::Window::new("? Help & Information")
             .open(&mut open)
             .resizable(true)
             .collapsible(true)
             .default_size(egui::vec2(win_w, win_h))
-            .min_width(300.0)
-            .min_height(340.0)
-            .max_width((ui.available_width() - 16.0).min(520.0))
-            .max_height(ui.available_height() - 20.0)
-            .anchor(egui::Align2::LEFT_BOTTOM, egui::vec2(12.0, -12.0))
+            .min_width(320.0)
+            .min_height(420.0)
+            .anchor(egui::Align2::CENTER_CENTER, egui::vec2(0.0, 0.0))
             .show(ui.ctx(), |ui| {
                 egui::ScrollArea::vertical()
                     .auto_shrink([false, false])
                     .show(ui, |ui| {
+                        ui.horizontal(|ui| {
+                            ui.heading("Revisited IPIP-NEO");
+                            ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
+                                ui.label(
+                                    egui::RichText::new(format!("v{}", env!("CARGO_PKG_VERSION")))
+                                        .strong()
+                                        .color(ui.visuals().hyperlink_color),
+                                );
+                            });
+                        });
+                        ui.add_space(4.0);
+                        ui.separator();
+                        ui.add_space(6.0);
+
                         ui.heading("Estimated Time");
                         ui.add_space(4.0);
                         ui.label("⏱ ~10–15 minutes (221 items). Take your time to answer honestly without overthinking.");
