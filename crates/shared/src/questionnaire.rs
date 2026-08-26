@@ -3,7 +3,7 @@ use std::collections::{HashMap, VecDeque};
 use std::fmt;
 
 /// Embed source CSV datasets at compile time.
-pub const DISTILLED_KEY_CSV: &str = include_str!("../../../Distillined Key.csv");
+pub const DISTILLED_KEY_CSV: &str = include_str!("../../../Distilled Key.csv");
 pub const OPTIMIZED_KEYS_CSV: &str = include_str!("../../../Optimized_Keys.csv");
 
 /// Continuous response options mapped into range [-1.0, 1.0].
@@ -92,7 +92,7 @@ impl Aspect for Facet {
             Self::Anxiety => "Anxiety",
             Self::Gregariousness => "Gregariousness",
             Self::Trust => "Trust",
-            Self::SelfEfficacy => "Self-efficacy",
+            Self::SelfEfficacy => "Self-Efficacy",
             Self::Anger => "Anger",
             Self::Fairness => "Fairness",
             Self::Orderliness => "Orderliness",
@@ -100,9 +100,9 @@ impl Aspect for Facet {
             Self::Emotionality => "Emotionality",
             Self::Adventurousness => "Adventurousness",
             Self::Determination => "Determination",
-            Self::ExcitementSeeking => "Excitement-seeking",
+            Self::ExcitementSeeking => "Excitement-Seeking",
             Self::Intellect => "Intellect",
-            Self::AttentionSeeking => "Attention-seeking",
+            Self::AttentionSeeking => "Attention-Seeking",
             Self::Cheerfulness => "Cheerfulness",
             Self::Liberalism => "Liberalism",
             Self::ArtisticInterests => "Artistic Interests",
@@ -114,7 +114,7 @@ impl Aspect for Facet {
             Self::Introspection => "Introspection",
             Self::Honesty => "Honesty",
             Self::Immoderation => "Immoderation",
-            Self::SelfDiscipline => "Self-discipline",
+            Self::SelfDiscipline => "Self-Discipline",
             Self::Recklessness => "Recklessness",
             Self::Calmness => "Calmness",
         }

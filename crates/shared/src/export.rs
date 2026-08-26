@@ -603,7 +603,7 @@ pub fn export_to_printable_html(state: &QuestionnaireState) -> String {
 <div class="header">
     <h1>Revisited IPIP-NEO (TGA) Personality Assessment Report</h1>
     <div class="meta-bar">
-        Progress: {} / {} questions answered ({:.1}%) • Model: 3 Meta-Traits ➔ 6 Traits ➔ 28 Facets
+        Progress: {} / {} questions answered ({:.1}%) • Model: 3 Meta-Traits ➔ 6 Traits ➔ 28 Facets • DOI: 10.1177/08902070251352590
     </div>
 </div>
 

@@ -3,15 +3,17 @@
 A modular, production-ready psychometric application built with Rust and `egui` targeting Native Desktop and Web (WASM) platforms. It administers a comprehensive 221-item questionnaire using a mathematically optimized standard error reduction sequence.
 
 ## Academic Reference
-This implementation is based on the sequence optimization methodology detailed in the following publication:
-- **Reference DOI**: [10.1177/08902070251352590](https://doi.org/10.1177/08902070251352590)
+This implementation is based on the Taxonomic Graph Analysis (TGA) methodology detailed in the following publication:
+- **Article**: Samo, A., Garrido, L. E., Abad, F. J., Golino, H., McAbee, S. T., & Christensen, A. P. (2026). *Revisiting the IPIP-NEO personality hierarchy with taxonomic graph analysis*. European Journal of Personality, 40(2), 369–390.
+- **DOI**: [10.1177/08902070251352590](https://doi.org/10.1177/08902070251352590)
+- **Open Science Framework (OSF)**: [https://osf.io/hwpa9](https://osf.io/hwpa9)
 
 ## Licensing & Attribution
 This project is dual-licensed to fully respect academic research rights and software author contributions:
 
 **Standard Non-Commercial License**: [Creative Commons Attribution-NonCommercial-ShareAlike 4.0 International (CC-BY-NC-SA 4.0)](LICENSE).
    - Allows copying, modifying, and redistributing the codebase for non-commercial purposes, provided downstream edits are shared under the same license.
-**Commercial use**: Any commercial use requires seperate licensing for the [library](https://github.com/Spodeian/Revisited-IPIP-NEO) and the research ([Data](Distilled Key.csv)/[Research](https://doi.org/10.1177/08902070251352590)).
+**Commercial use**: Any commercial use requires separate licensing for the [library](https://github.com/Spodeian/Revisited-IPIP-NEO) and the research ([Data](Distilled%20Key.csv)/[Research](https://doi.org/10.1177/08902070251352590)).
 
 ## Structure
 - `crates/shared`: Core data models, CSV loaders, dynamic queue machine, scoring engine, and data exporters (CSV, JSON, HTML).

@@ -22,7 +22,7 @@ def _compute_se_vector(s_sq: np.ndarray, w_abs: np.ndarray, penalty: float = 1.5
 
 
 def export_optimized_keys(
-    csv_path: str = "Distillined Key.csv",
+    csv_path: str = "Distilled Key.csv",
     output_path: str = "Optimized_Keys.csv",
     key_column: str = "Label",
     alpha: float = 1.0,      # Weight for relative SE reduction

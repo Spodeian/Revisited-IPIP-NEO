@@ -1328,11 +1328,20 @@ impl PersonalityApp {
                         // Academic Reference & Source Code
                         ui.heading("Academic Reference & Source");
                         ui.add_space(4.0);
+                        ui.label("Samo, A., Garrido, L. E., Abad, F. J., Golino, H., McAbee, S. T., & Christensen, A. P. (2026). Revisiting the IPIP-NEO personality hierarchy with taxonomic graph analysis. European Journal of Personality, 40(2), 369–390.");
+                        ui.add_space(2.0);
                         ui.horizontal(|ui| {
-                            ui.label("Published Research Paper:");
+                            ui.label("Published Article:");
                             ui.hyperlink_to(
                                 "doi:10.1177/08902070251352590",
                                 "https://doi.org/10.1177/08902070251352590",
+                            );
+                        });
+                        ui.horizontal(|ui| {
+                            ui.label("Open Science Framework (OSF):");
+                            ui.hyperlink_to(
+                                "osf.io/hwpa9",
+                                "https://osf.io/hwpa9",
                             );
                         });
                         ui.horizontal(|ui| {
