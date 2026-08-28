@@ -52,6 +52,7 @@ impl Response {
 
 pub trait Aspect: Copy + Eq + std::hash::Hash + fmt::Debug + 'static {
     fn display_name(&self) -> &'static str;
+    fn description(&self) -> &'static str;
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize, PartialOrd, Ord)]
@@ -117,6 +118,39 @@ impl Aspect for Facet {
             Self::SelfDiscipline => "Self-Discipline",
             Self::Recklessness => "Recklessness",
             Self::Calmness => "Calmness",
+        }
+    }
+
+    fn description(&self) -> &'static str {
+        match self {
+            Self::Anxiety => "Tendency to feel nervous, fearful, or overwhelmed under pressure (merged Anxiety & Vulnerability).",
+            Self::Gregariousness => "Enthusiasm for making friends, socializing, and welcoming company (merged with Friendliness).",
+            Self::Trust => "Belief in human goodness, sincerity, and the positive intentions of others.",
+            Self::SelfEfficacy => "Confidence in one's competence and ability to accomplish tasks successfully.",
+            Self::Anger => "Tendency to experience irritation, quick temper, and anger.",
+            Self::Fairness => "Adherence to ethical rules, honesty in civic duty, and avoiding cheating.",
+            Self::Orderliness => "Preference for neatness, organization, structure, and avoiding mistakes.",
+            Self::Dominance => "Assertive, confrontational social orientation and willingness to take charge or challenge others.",
+            Self::Emotionality => "Tendency to experience emotions intensely and deeply (migrated from Openness to Neuroticism).",
+            Self::Adventurousness => "Eagerness for variety, new experiences, and diverse interests over routine.",
+            Self::Determination => "Focused goal pursuit, resolve, and turning ambitious plans into decisive action.",
+            Self::ExcitementSeeking => "Craving high stimulation, fast-paced thrills, and novel adventures.",
+            Self::Intellect => "Enjoyment of solving complex intellectual problems and expanding vocabulary.",
+            Self::AttentionSeeking => "Preference regarding being the center of attention and discussing oneself (keyed toward modesty/reserve).",
+            Self::Cheerfulness => "Disposition toward positive affect, joy, good spirits, and having fun.",
+            Self::Liberalism => "Openness to non-traditional values, political open-mindedness, and philosophical flexibility.",
+            Self::ArtisticInterests => "Appreciation and sensitivity for music, aesthetics, art, and natural beauty.",
+            Self::Empathy => "Compassionate concern for others' needs, feelings, and social causes.",
+            Self::WorkEthic => "Dedication to hard work, energetic diligence, and wholehearted commitment to tasks.",
+            Self::Cautiousness => "Careful forethought and deliberation before speaking or acting (reverse-keyed for impulsivity).",
+            Self::Manipulativeness => "Tendency to use flattery, deception, or others for personal advantage (reverse-keyed for integrity).",
+            Self::Humility => "Viewing oneself as an average person and avoiding looking down on others.",
+            Self::Introspection => "Tendency to reflect on internal thoughts, personal feelings, and fantasies.",
+            Self::Honesty => "Commitment to keeping promises, listening to conscience, and truthfulness.",
+            Self::Immoderation => "Difficulty resisting urges, temptations, or excessive indulgence.",
+            Self::SelfDiscipline => "Capacity to begin tasks promptly and persevere to completion without procrastination.",
+            Self::Recklessness => "Propensity for thrill-seeking, rash behavior, and acting wild or crazy.",
+            Self::Calmness => "Preference for an unhurried, easygoing, and steady pace of life.",
         }
     }
 }
@@ -261,6 +295,17 @@ impl Aspect for Trait {
             Self::Impulsivity => "Impulsivity",
         }
     }
+
+    fn description(&self) -> &'static str {
+        match self {
+            Self::Neuroticism => "Tendency to experience negative emotions, stress, and interpersonal friction (Anger, Anxiety, Emotionality, Dominance).",
+            Self::Sociability => "Broad social engagement blending extraverted affiliation with prosocial warmth (Gregariousness, Cheerfulness, Empathy, Trust, Attention-Seeking, Humility).",
+            Self::Conscientiousness => "Self-discipline, diligence, organization, and deliberate goal pursuit (Self-Discipline, Work Ethic, Determination, Self-Efficacy, Orderliness, Calmness).",
+            Self::Integrity => "Moral identity, adherence to ethical principles, and rejection of deceitful behavior (Fairness, Manipulativeness, Honesty).",
+            Self::OpennessToExperience => "Cognitive exploration, intellectual curiosity, creativity, and aesthetic sensitivity (Intellect, Introspection, Artistic Interests, Adventurousness, Liberalism).",
+            Self::Impulsivity => "Multifaceted behavioral regulation capturing thrill-seeking, rash action, and difficulty resisting impulses (Recklessness, Cautiousness, Excitement-Seeking, Immoderation).",
+        }
+    }
 }
 
 impl Trait {
@@ -322,6 +367,14 @@ impl Aspect for MetaTrait {
             Self::Stability => "Stability",
             Self::Plasticity => "Plasticity",
             Self::Disinhibition => "Disinhibition",
+        }
+    }
+
+    fn description(&self) -> &'static str {
+        match self {
+            Self::Stability => "Reflects shared variance in emotional, motivational, and behavioral restraint (Neuroticism and Conscientiousness), capturing purposeful goal pursuit without emotional volatility.",
+            Self::Plasticity => "Reflects shared variance in exploration and engagement (Sociability and Openness to Experience), capturing tendencies toward exploring novel internal ideas and external social experiences.",
+            Self::Disinhibition => "A novel superordinate meta-trait combining Integrity and Impulsivity, spanning externalizing tendencies, ethical self-regulation, and behavioral control vs. rash action.",
         }
     }
 }
@@ -471,7 +524,31 @@ impl ScoreAccumulator {
     }
 }
 
+/// Action entry in the undo/redo history stack.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub enum HistoryAction {
+    /// Single question answer change or clear.
+    AnswerChange {
+        question_idx: usize,
+        old_response: Option<Response>,
+        new_response: Option<Response>,
+        old_focus_idx: usize,
+        new_focus_idx: usize,
+    },
+    /// Bulk state change (e.g. shared link loaded, reset, import, or batch compaction).
+    StateSnapshot {
+        old_responses: Vec<Option<Response>>,
+        new_responses: Vec<Option<Response>>,
+        old_show_results: bool,
+        new_show_results: bool,
+        old_focus_idx: usize,
+        new_focus_idx: usize,
+        label: String,
+    },
+}
+
 #[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(default)]
 pub struct QuestionnaireState {
     pub questions: Vec<Question>,
     /// Queue of question indices (into `questions`) remaining to be answered.
@@ -489,9 +566,12 @@ pub struct QuestionnaireState {
     pub trait_acc: HashMap<Trait, ScoreAccumulator>,
     #[serde(skip)]
     pub meta_trait_acc: HashMap<MetaTrait, ScoreAccumulator>,
-    /// Undo history stack storing (question_idx, previous_response)
-    #[serde(skip)]
-    pub undo_history: Vec<(usize, Option<Response>)>,
+    /// Undo history stack storing actions.
+    #[serde(default)]
+    pub undo_stack: Vec<HistoryAction>,
+    /// Redo history stack storing undone actions.
+    #[serde(default)]
+    pub redo_stack: Vec<HistoryAction>,
 }
 
 impl Default for QuestionnaireState {
@@ -514,7 +594,8 @@ impl QuestionnaireState {
             facet_acc: HashMap::new(),
             trait_acc: HashMap::new(),
             meta_trait_acc: HashMap::new(),
-            undo_history: Vec::new(),
+            undo_stack: Vec::new(),
+            redo_stack: Vec::new(),
         };
         state.rebuild_cache();
         state
@@ -588,6 +669,32 @@ impl QuestionnaireState {
         }
     }
 
+    /// Whether an undo action is currently available.
+    pub fn can_undo(&self) -> bool {
+        !self.undo_stack.is_empty()
+    }
+
+    /// Whether a redo action is currently available.
+    pub fn can_redo(&self) -> bool {
+        !self.redo_stack.is_empty()
+    }
+
+    /// Returns a snapshot of all current question responses.
+    pub fn current_responses_snapshot(&self) -> Vec<Option<Response>> {
+        self.questions.iter().map(|q| q.response).collect()
+    }
+
+    /// Pushes an action to the undo stack and clears the redo stack to begin a new branch.
+    pub fn push_action(&mut self, action: HistoryAction) {
+        self.undo_stack.push(action);
+        self.redo_stack.clear();
+
+        // Auto-compact history if it grows excessively large (> 120 entries)
+        if self.undo_stack.len() > 120 {
+            self.compact_history(80);
+        }
+    }
+
     /// Sets response for a given question index and updates score accumulators.
     pub fn answer_question(&mut self, question_idx: usize, response: Response) -> bool {
         if question_idx >= self.questions.len() {
@@ -595,7 +702,7 @@ impl QuestionnaireState {
         }
 
         let old_response = self.questions[question_idx].response;
-        self.undo_history.push((question_idx, old_response));
+        let old_focus = self.current_focus_idx;
 
         let q = &mut self.questions[question_idx];
         q.response = Some(response);
@@ -639,6 +746,15 @@ impl QuestionnaireState {
             self.show_results = true;
         }
 
+        let new_focus = self.current_focus_idx;
+        self.push_action(HistoryAction::AnswerChange {
+            question_idx,
+            old_response,
+            new_response: Some(response),
+            old_focus_idx: old_focus,
+            new_focus_idx: new_focus,
+        });
+
         true
     }
 
@@ -649,8 +765,11 @@ impl QuestionnaireState {
         }
 
         let old_response = self.questions[question_idx].response;
-        self.undo_history.push((question_idx, old_response));
+        if old_response.is_none() {
+            return false;
+        }
 
+        let old_focus = self.current_focus_idx;
         let q = &mut self.questions[question_idx];
         if let Some(old_r) = q.response.take() {
             let old_score = old_r.to_score();
@@ -667,54 +786,318 @@ impl QuestionnaireState {
             if !self.pending_queue.contains(&question_idx) {
                 self.pending_queue.push_front(question_idx);
             }
+
+            self.push_action(HistoryAction::AnswerChange {
+                question_idx,
+                old_response,
+                new_response: None,
+                old_focus_idx: old_focus,
+                new_focus_idx: self.current_focus_idx,
+            });
+
             true
         } else {
             false
         }
     }
 
-    /// Reverts the most recent response change or clear operation.
+    /// Loads a full response snapshot with complete undo/redo support.
+    pub fn load_snapshot_with_undo(&mut self, new_responses: Vec<Option<Response>>, new_show_results: bool, label: &str) {
+        let old_responses = self.current_responses_snapshot();
+        let old_show_results = self.show_results;
+        let old_focus = self.current_focus_idx;
+
+        for (i, &resp) in new_responses.iter().enumerate() {
+            if i < self.questions.len() {
+                self.questions[i].response = resp;
+            }
+        }
+        self.show_results = new_show_results;
+        self.rebuild_cache();
+
+        let new_focus = self.current_focus_idx;
+        let new_responses_cloned = self.current_responses_snapshot();
+
+        self.push_action(HistoryAction::StateSnapshot {
+            old_responses,
+            new_responses: new_responses_cloned,
+            old_show_results,
+            new_show_results,
+            old_focus_idx: old_focus,
+            new_focus_idx: new_focus,
+            label: label.to_string(),
+        });
+    }
+
+    /// Resets all answers with complete undo capability.
+    pub fn reset_with_undo(&mut self) {
+        let empty = vec![None; self.questions.len()];
+        self.load_snapshot_with_undo(empty, false, "Reset Assessment");
+    }
+
+    /// Alias for reset_with_undo.
+    pub fn reset(&mut self) {
+        self.reset_with_undo();
+    }
+
+    /// Reverts the most recent operation and places it on the redo stack.
     pub fn undo(&mut self) -> bool {
-        if let Some((idx, prev_resp)) = self.undo_history.pop()
-            && idx < self.questions.len()
-        {
-            let current_r = self.questions[idx].response;
-            if let Some(r) = current_r {
-                let score = r.to_score();
-                let q = &self.questions[idx];
-                if let Some(acc) = self.facet_acc.get_mut(&q.facet.category) {
-                    acc.remove_response(score, q.facet.weight);
+        if let Some(action) = self.undo_stack.pop() {
+            match &action {
+                HistoryAction::AnswerChange {
+                    question_idx,
+                    old_response,
+                    old_focus_idx,
+                    ..
+                } => {
+                    let idx = *question_idx;
+                    if idx < self.questions.len() {
+                        let current_r = self.questions[idx].response;
+                        if let Some(r) = current_r {
+                            let score = r.to_score();
+                            let q = &self.questions[idx];
+                            if let Some(acc) = self.facet_acc.get_mut(&q.facet.category) {
+                                acc.remove_response(score, q.facet.weight);
+                            }
+                            if let Some(acc) = self.trait_acc.get_mut(&q.r#trait.category) {
+                                acc.remove_response(score, q.r#trait.weight);
+                            }
+                            if let Some(acc) = self.meta_trait_acc.get_mut(&q.meta_trait.category) {
+                                acc.remove_response(score, q.meta_trait.weight);
+                            }
+                        }
+
+                        self.questions[idx].response = *old_response;
+                        if let Some(prev) = *old_response {
+                            let score = prev.to_score();
+                            let q = &self.questions[idx];
+                            if let Some(acc) = self.facet_acc.get_mut(&q.facet.category) {
+                                acc.record_response(score, q.facet.weight);
+                            }
+                            if let Some(acc) = self.trait_acc.get_mut(&q.r#trait.category) {
+                                acc.record_response(score, q.r#trait.weight);
+                            }
+                            if let Some(acc) = self.meta_trait_acc.get_mut(&q.meta_trait.category) {
+                                acc.record_response(score, q.meta_trait.weight);
+                            }
+                            self.pending_queue.retain(|&i| i != idx);
+                        } else if !self.pending_queue.contains(&idx) {
+                            self.pending_queue.push_front(idx);
+                        }
+
+                        self.current_focus_idx = *old_focus_idx;
+                    }
                 }
-                if let Some(acc) = self.trait_acc.get_mut(&q.r#trait.category) {
-                    acc.remove_response(score, q.r#trait.weight);
-                }
-                if let Some(acc) = self.meta_trait_acc.get_mut(&q.meta_trait.category) {
-                    acc.remove_response(score, q.meta_trait.weight);
+                HistoryAction::StateSnapshot {
+                    old_responses,
+                    old_show_results,
+                    old_focus_idx,
+                    ..
+                } => {
+                    for (i, &resp) in old_responses.iter().enumerate() {
+                        if i < self.questions.len() {
+                            self.questions[i].response = resp;
+                        }
+                    }
+                    self.show_results = *old_show_results;
+                    self.current_focus_idx = *old_focus_idx;
+                    self.rebuild_cache();
                 }
             }
 
-            self.questions[idx].response = prev_resp;
-            if let Some(prev) = prev_resp {
-                let score = prev.to_score();
-                let q = &self.questions[idx];
-                if let Some(acc) = self.facet_acc.get_mut(&q.facet.category) {
-                    acc.record_response(score, q.facet.weight);
-                }
-                if let Some(acc) = self.trait_acc.get_mut(&q.r#trait.category) {
-                    acc.record_response(score, q.r#trait.weight);
-                }
-                if let Some(acc) = self.meta_trait_acc.get_mut(&q.meta_trait.category) {
-                    acc.record_response(score, q.meta_trait.weight);
-                }
-                self.pending_queue.retain(|&i| i != idx);
-            } else if !self.pending_queue.contains(&idx) {
-                self.pending_queue.push_front(idx);
-            }
-
-            self.current_focus_idx = idx;
+            self.redo_stack.push(action);
             return true;
         }
         false
+    }
+
+    /// Redoes the most recently undone operation.
+    pub fn redo(&mut self) -> bool {
+        if let Some(action) = self.redo_stack.pop() {
+            match &action {
+                HistoryAction::AnswerChange {
+                    question_idx,
+                    new_response,
+                    new_focus_idx,
+                    ..
+                } => {
+                    let idx = *question_idx;
+                    if idx < self.questions.len() {
+                        let current_r = self.questions[idx].response;
+                        if let Some(r) = current_r {
+                            let score = r.to_score();
+                            let q = &self.questions[idx];
+                            if let Some(acc) = self.facet_acc.get_mut(&q.facet.category) {
+                                acc.remove_response(score, q.facet.weight);
+                            }
+                            if let Some(acc) = self.trait_acc.get_mut(&q.r#trait.category) {
+                                acc.remove_response(score, q.r#trait.weight);
+                            }
+                            if let Some(acc) = self.meta_trait_acc.get_mut(&q.meta_trait.category) {
+                                acc.remove_response(score, q.meta_trait.weight);
+                            }
+                        }
+
+                        self.questions[idx].response = *new_response;
+                        if let Some(nxt) = *new_response {
+                            let score = nxt.to_score();
+                            let q = &self.questions[idx];
+                            if let Some(acc) = self.facet_acc.get_mut(&q.facet.category) {
+                                acc.record_response(score, q.facet.weight);
+                            }
+                            if let Some(acc) = self.trait_acc.get_mut(&q.r#trait.category) {
+                                acc.record_response(score, q.r#trait.weight);
+                            }
+                            if let Some(acc) = self.meta_trait_acc.get_mut(&q.meta_trait.category) {
+                                acc.record_response(score, q.meta_trait.weight);
+                            }
+                            self.pending_queue.retain(|&i| i != idx);
+                        } else if !self.pending_queue.contains(&idx) {
+                            self.pending_queue.push_front(idx);
+                        }
+
+                        self.current_focus_idx = *new_focus_idx;
+                    }
+                }
+                HistoryAction::StateSnapshot {
+                    new_responses,
+                    new_show_results,
+                    new_focus_idx,
+                    ..
+                } => {
+                    for (i, &resp) in new_responses.iter().enumerate() {
+                        if i < self.questions.len() {
+                            self.questions[i].response = resp;
+                        }
+                    }
+                    self.show_results = *new_show_results;
+                    self.current_focus_idx = *new_focus_idx;
+                    self.rebuild_cache();
+                }
+            }
+
+            self.undo_stack.push(action);
+            return true;
+        }
+        false
+    }
+
+    /// Compacts undo history so that the density of history is relative to recency.
+    /// Recent steps remain 1:1, whereas older steps are consolidated into larger composite checkpoints.
+    pub fn compact_history(&mut self, target_max_entries: usize) {
+        let len = self.undo_stack.len();
+        if len <= target_max_entries || len < 4 {
+            return;
+        }
+
+        let target = target_max_entries.max(4);
+        let tier0_limit = (target * 35 / 100).max(2);
+        let tier1_limit = target;
+        let tier2_limit = target * 5 / 2;
+
+        let mut compacted = Vec::new();
+        let total_questions = self.questions.len();
+
+        let mut idx = 0;
+        while idx < len {
+            let distance_from_top = len - 1 - idx;
+            let group_size = if distance_from_top < tier0_limit {
+                1
+            } else if distance_from_top < tier1_limit {
+                2
+            } else if distance_from_top < tier2_limit {
+                4
+            } else {
+                8
+            };
+
+            let end = (idx + group_size).min(len);
+            let chunk = &self.undo_stack[idx..end];
+
+            if chunk.len() == 1 {
+                compacted.push(chunk[0].clone());
+            } else {
+                // Consolidate chunk into a single StateSnapshot
+                let first = &chunk[0];
+                let last = &chunk[chunk.len() - 1];
+
+                let (old_focus_idx, old_show_results) = match first {
+                    HistoryAction::AnswerChange { old_focus_idx, .. } => (*old_focus_idx, false),
+                    HistoryAction::StateSnapshot { old_focus_idx, old_show_results, .. } => (*old_focus_idx, *old_show_results),
+                };
+
+                let (new_focus_idx, new_show_results) = match last {
+                    HistoryAction::AnswerChange { new_focus_idx, .. } => (*new_focus_idx, false),
+                    HistoryAction::StateSnapshot { new_focus_idx, new_show_results, .. } => (*new_focus_idx, *new_show_results),
+                };
+
+                // Track diff across chunk:
+                let mut old_map: HashMap<usize, Option<Response>> = HashMap::new();
+                let mut new_map: HashMap<usize, Option<Response>> = HashMap::new();
+
+                for item in chunk {
+                    match item {
+                        HistoryAction::AnswerChange { question_idx, old_response, new_response, .. } => {
+                            old_map.entry(*question_idx).or_insert(*old_response);
+                            new_map.insert(*question_idx, *new_response);
+                        }
+                        HistoryAction::StateSnapshot { old_responses, new_responses, .. } => {
+                            for (q_i, &resp) in old_responses.iter().enumerate() {
+                                old_map.entry(q_i).or_insert(resp);
+                            }
+                            for (q_i, &resp) in new_responses.iter().enumerate() {
+                                new_map.insert(q_i, resp);
+                            }
+                        }
+                    }
+                }
+
+                // If chunk was purely a single net question change, keep it as AnswerChange
+                let changed_keys: Vec<usize> = old_map
+                    .keys()
+                    .copied()
+                    .filter(|k| old_map.get(k) != new_map.get(k))
+                    .collect();
+
+                if changed_keys.len() == 1 {
+                    let k = changed_keys[0];
+                    compacted.push(HistoryAction::AnswerChange {
+                        question_idx: k,
+                        old_response: old_map.get(&k).copied().flatten(),
+                        new_response: new_map.get(&k).copied().flatten(),
+                        old_focus_idx,
+                        new_focus_idx,
+                    });
+                } else {
+                    let mut old_responses = vec![None; total_questions];
+                    let mut new_responses = vec![None; total_questions];
+                    for (k, v) in old_map {
+                        if k < total_questions {
+                            old_responses[k] = v;
+                        }
+                    }
+                    for (k, v) in new_map {
+                        if k < total_questions {
+                            new_responses[k] = v;
+                        }
+                    }
+
+                    compacted.push(HistoryAction::StateSnapshot {
+                        old_responses,
+                        new_responses,
+                        old_show_results,
+                        new_show_results,
+                        old_focus_idx,
+                        new_focus_idx,
+                        label: format!("Consolidated History ({} steps)", chunk.len()),
+                    });
+                }
+            }
+
+            idx = end;
+        }
+
+        self.undo_stack = compacted;
     }
 
     /// Skips the currently focused question, deferring it to the back of the queue.
@@ -823,11 +1206,6 @@ impl QuestionnaireState {
     /// Checks if all questions have been answered.
     pub fn is_completed(&self) -> bool {
         !self.questions.is_empty() && self.answered_count() == self.questions.len()
-    }
-
-    /// Resets all answers and restores initial state.
-    pub fn reset(&mut self) {
-        *self = Self::from_embedded_data();
     }
 }
 

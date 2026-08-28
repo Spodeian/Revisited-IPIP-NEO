@@ -1,10 +1,12 @@
-//! UI Implementations and View Controller logic for Revisited IPIP-NEO.
+pub mod storage_manager;
+pub use storage_manager::*;
 
 use eframe::egui;
 use shared::{
-    encode_responses_to_url_code, export_to_csv, export_to_json, export_to_printable_html,
-    export_to_svg, import_responses_from_csv, import_responses_from_json, AppState, Aspect,
-    Facet, MetaTrait, Response, ScoreTier, ThemeMode, Trait,
+    encode_responses_to_url_code, export_to_compressed_bson, export_to_csv, export_to_json,
+    export_to_printable_html, export_to_svg, import_responses_from_bson, import_responses_from_csv,
+    import_responses_from_json, AppState, Aspect, Facet, MetaTrait, Response, ScoreTier, ThemeMode,
+    Trait,
 };
 use tracing::{info, warn};
 #[cfg(target_arch = "wasm32")]
@@ -36,6 +38,7 @@ pub enum ExportFormat {
     #[default]
     Csv,
     Json,
+    Bson,
     Svg,
     Html,
 }
@@ -43,10 +46,11 @@ pub enum ExportFormat {
 impl ExportFormat {
     pub fn label(self) -> &'static str {
         match self {
-            Self::Csv => "📄 CSV File",
-            Self::Json => "{ } JSON File",
-            Self::Svg => "🖼 SVG Vector Graphic",
-            Self::Html => "📋 HTML Report",
+            Self::Csv => "CSV File",
+            Self::Json => "JSON File",
+            Self::Bson => "Compressed BSON (.bson)",
+            Self::Svg => "SVG Vector Graphic",
+            Self::Html => "HTML Report",
         }
     }
 }
@@ -74,6 +78,13 @@ pub struct PersonalityApp {
     pub answer_timestamps: std::collections::VecDeque<f64>,
     pub last_save_time: Option<f64>,
     pub undo_notification_time: Option<f64>,
+    pub redo_notification_time: Option<f64>,
+    pub storage_diag: StorageDiagnostics,
+    pub show_storage_modal: bool,
+    pub dismissed_ephemeral_warning: bool,
+    pub dismissed_quota_warning: bool,
+    pub dismissed_combined_warning: bool,
+    pub last_diag_poll_time: f64,
 }
 
 fn trigger_file_download(filename: &str, content: &str, _mime_type: &str) {
@@ -152,8 +163,8 @@ impl PersonalityApp {
                         let mut shared_state = shared::QuestionnaireState::from_embedded_data();
                         if let Ok(_count) = shared::decode_responses_from_url_code(&mut shared_state, c) {
                             info!("Loaded shared results from URL hash with {} answers", _count);
-                            state.questionnaire = shared_state;
-                            state.questionnaire.show_results = true;
+                            let shared_responses = shared_state.current_responses_snapshot();
+                            state.questionnaire.load_snapshot_with_undo(shared_responses, true, "Friend's Shared Link Loaded");
                             is_viewing_shared_link = true;
                         }
                     }
@@ -183,6 +194,13 @@ impl PersonalityApp {
             answer_timestamps: std::collections::VecDeque::new(),
             last_save_time: None,
             undo_notification_time: None,
+            redo_notification_time: None,
+            storage_diag: query_storage_diagnostics(),
+            show_storage_modal: false,
+            dismissed_ephemeral_warning: false,
+            dismissed_quota_warning: false,
+            dismissed_combined_warning: false,
+            last_diag_poll_time: 0.0,
         }
     }
 
@@ -204,12 +222,21 @@ impl PersonalityApp {
     }
 
     pub fn open_export_dialog(&mut self, format: ExportFormat) {
-        self.export_text_buffer = match format {
-            ExportFormat::Csv => export_to_csv(&self.state.questionnaire),
-            ExportFormat::Json => export_to_json(&self.state.questionnaire),
-            ExportFormat::Svg => export_to_svg(&self.state.questionnaire),
-            ExportFormat::Html => export_to_printable_html(&self.state.questionnaire),
-        };
+        if format == ExportFormat::Bson {
+            if let Ok(bytes) = export_to_compressed_bson(&self.state.questionnaire) {
+                use base64::{engine::general_purpose, Engine as _};
+                self.export_text_buffer = general_purpose::STANDARD.encode(&bytes);
+                trigger_binary_download("ipip_neo_assessment_backup.bson", &bytes, "application/octet-stream");
+            }
+        } else {
+            self.export_text_buffer = match format {
+                ExportFormat::Csv => export_to_csv(&self.state.questionnaire),
+                ExportFormat::Json => export_to_json(&self.state.questionnaire),
+                ExportFormat::Bson => unreachable!(),
+                ExportFormat::Svg => export_to_svg(&self.state.questionnaire),
+                ExportFormat::Html => export_to_printable_html(&self.state.questionnaire),
+            };
+        }
         self.show_export_dialog = Some(format);
         self.export_copied_notification = None;
     }
@@ -300,13 +327,22 @@ impl PersonalityApp {
             record_answer_timestamp(&mut self.answer_timestamps, &mut self.last_save_time);
         }
 
-        // Undo shortcut: Ctrl+Z / Cmd+Z
+        // Undo shortcut: Ctrl+Z / Cmd+Z (without Shift)
         if (input.modifiers.command || input.modifiers.ctrl)
             && input.key_pressed(egui::Key::Z)
             && !input.modifiers.shift
             && self.state.questionnaire.undo()
         {
             self.undo_notification_time = Some(current_time);
+            self.last_save_time = Some(current_time);
+        }
+
+        // Redo shortcut: Ctrl+Y / Cmd+Y OR Ctrl+Shift+Z / Cmd+Shift+Z
+        if (((input.modifiers.command || input.modifiers.ctrl) && input.key_pressed(egui::Key::Y))
+            || ((input.modifiers.command || input.modifiers.ctrl) && input.modifiers.shift && input.key_pressed(egui::Key::Z)))
+            && self.state.questionnaire.redo()
+        {
+            self.redo_notification_time = Some(current_time);
             self.last_save_time = Some(current_time);
         }
 
@@ -367,9 +403,9 @@ impl PersonalityApp {
                 let minutes = remaining_secs / 60;
                 let seconds = remaining_secs % 60;
                 if minutes > 0 {
-                    return Some(format!("⏱ ~{}m {}s", minutes, seconds));
+                    return Some(format!("~{}m {}s", minutes, seconds));
                 } else {
-                    return Some(format!("⏱ ~{}s", seconds));
+                    return Some(format!("~{}s", seconds));
                 }
             }
         }
@@ -387,27 +423,37 @@ impl PersonalityApp {
             ui.horizontal(|ui| {
                 ui.set_height(header_row_height);
 
-                if constraints.is_mobile {
-                    ui.label(egui::RichText::new(title_text).size(18.0).strong());
+                let title_label = if constraints.is_mobile {
+                    ui.label(egui::RichText::new(title_text).size(18.0).strong())
                 } else {
-                    ui.heading(title_text);
-                }
+                    ui.heading(title_text)
+                };
+                title_label.on_hover_text("Revisited IPIP-NEO Personality Assessment based on Taxonomic Graph Analysis (Samo et al., 2026)");
 
                 // Dynamic Status & Time indicators
                 if let Some(save_t) = self.last_save_time
                     && current_time - save_t < 2.0
                 {
-                    ui.colored_label(egui::Color32::from_rgb(70, 180, 90), "💾 Saved");
+                    ui.colored_label(egui::Color32::from_rgb(70, 180, 90), "Saved")
+                        .on_hover_text("Your assessment responses are saved automatically to local storage");
                 }
                 if let Some(undo_t) = self.undo_notification_time
                     && current_time - undo_t < 2.0
                 {
-                    ui.colored_label(egui::Color32::from_rgb(240, 160, 40), "↩ Undone");
+                    ui.colored_label(egui::Color32::from_rgb(240, 160, 40), "↩ Undone")
+                        .on_hover_text("Previous answer change was undone (Ctrl+Z / Cmd+Z)");
+                }
+                if let Some(redo_t) = self.redo_notification_time
+                    && current_time - redo_t < 2.0
+                {
+                    ui.colored_label(egui::Color32::from_rgb(100, 180, 240), "↪ Redone")
+                        .on_hover_text("Previous answer change was restored (Ctrl+Y / Cmd+Shift+Z)");
                 }
                 if !constraints.is_mobile
                     && let Some(est) = self.calculate_estimated_time_remaining()
                 {
-                    ui.label(egui::RichText::new(est).small().weak());
+                    ui.label(egui::RichText::new(est).small().weak())
+                        .on_hover_text("Estimated time to complete remaining questions based on your average answering speed");
                 }
 
                 ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
@@ -416,36 +462,48 @@ impl PersonalityApp {
 
                         // Return to saved instance button on mobile
                         if self.is_viewing_shared_link {
-                            let return_btn = egui::Button::new(egui::RichText::new("↩ Saved").size(13.0).strong())
+                            let return_btn = egui::Button::new(egui::RichText::new("My Answers").size(13.0).strong())
                                 .min_size(egui::vec2(68.0, 44.0));
-                            if ui.add(return_btn).on_hover_text("Return to your own saved assessment").clicked() {
+                            if ui.add(return_btn).on_hover_text("Exit shared link view and restore your local saved answers").clicked() {
                                 self.restore_saved_instance();
                             }
                         }
 
                         // Mobile larger touch-target buttons (min 44x44px standard for easy thumb tapping)
-                        let results_btn_text = if self.state.questionnaire.show_results { "📝 Questions" } else { "📊 Results" };
+                        let results_btn_text = if self.state.questionnaire.show_results { "Questions" } else { "Results" };
                         let res_btn = egui::Button::new(egui::RichText::new(results_btn_text).size(14.0).strong())
                             .min_size(egui::vec2(96.0, 44.0));
-                        if ui.add(res_btn).on_hover_text("Toggle assessment results").clicked() {
+                        if ui.add(res_btn).on_hover_text("Toggle between questionnaire answering view and hierarchical results report").clicked() {
                             self.state.questionnaire.show_results = !self.state.questionnaire.show_results;
                         }
 
                         // Matrix / Grid button
-                        let grid_btn = egui::Button::new(egui::RichText::new("⊞").size(17.0).strong())
+                        let grid_btn = egui::Button::new(egui::RichText::new("Map").size(14.0).strong())
                             .min_size(egui::vec2(44.0, 44.0));
-                        if ui.add(grid_btn).on_hover_text("Question item matrix map").clicked() {
+                        if ui.add(grid_btn).on_hover_text("Open interactive 221-item questionnaire matrix map").clicked() {
                             self.show_grid_dialog = true;
+                        }
+
+                        // Storage Diagnostics Button (Mobile)
+                        let storage_icon = match self.storage_diag.is_persisted {
+                            Some(true) => "Storage (P)",
+                            Some(false) => "Storage (E)",
+                            None => "Storage",
+                        };
+                        let stor_btn = egui::Button::new(egui::RichText::new(storage_icon).size(13.0))
+                            .min_size(egui::vec2(44.0, 44.0));
+                        if ui.add(stor_btn).on_hover_text("View storage persistence status, offline durability, and backups").clicked() {
+                            self.show_storage_modal = true;
                         }
 
                         // Theme toggle button
                         let theme_icon = match self.state.config.theme {
-                            ThemeMode::Light => "🌙",
-                            ThemeMode::Dark => "☀",
+                            ThemeMode::Light => "Dark",
+                            ThemeMode::Dark => "Light",
                         };
-                        let theme_btn = egui::Button::new(egui::RichText::new(theme_icon).size(16.0))
+                        let theme_btn = egui::Button::new(egui::RichText::new(theme_icon).size(14.0))
                             .min_size(egui::vec2(44.0, 44.0));
-                        if ui.add(theme_btn).on_hover_text("Toggle theme").clicked() {
+                        if ui.add(theme_btn).on_hover_text("Switch between dark and light color themes").clicked() {
                             self.state.config.theme = match self.state.config.theme {
                                 ThemeMode::Light => ThemeMode::Dark,
                                 ThemeMode::Dark => ThemeMode::Light,
@@ -453,18 +511,18 @@ impl PersonalityApp {
                         }
 
                         // Collapse Header button
-                        let hide_btn = egui::Button::new(egui::RichText::new("▲").size(14.0))
+                        let hide_btn = egui::Button::new(egui::RichText::new("Hide").size(13.0))
                             .min_size(egui::vec2(44.0, 44.0));
-                        if ui.add(hide_btn).on_hover_text("Hide top navigation header").clicked() {
+                        if ui.add(hide_btn).on_hover_text("Collapse top navigation header to maximize questionnaire focus area").clicked() {
                             self.hide_header = true;
                         }
                     } else {
                         // Desktop layout: Right-to-Left (processed reverse-order for on-screen alignment)
                         let theme_icon = match self.state.config.theme {
-                            ThemeMode::Light => "🌙 Dark",
-                            ThemeMode::Dark => "☀ Light",
+                            ThemeMode::Light => "Dark Mode",
+                            ThemeMode::Dark => "Light Mode",
                         };
-                        if ui.button(theme_icon).on_hover_text("Toggle dark / light theme").clicked() {
+                        if ui.button(theme_icon).on_hover_text("Toggle between dark and light visual themes").clicked() {
                             self.state.config.theme = match self.state.config.theme {
                                 ThemeMode::Light => ThemeMode::Dark,
                                 ThemeMode::Dark => ThemeMode::Light,
@@ -472,56 +530,74 @@ impl PersonalityApp {
                         }
 
                         // Help Icon
-                        if ui.button("? Help").on_hover_text("Help, shortcuts & privacy").clicked() {
+                        if ui.button("Help").on_hover_text("View instructions, psychometric background, keyboard shortcuts, and data privacy").clicked() {
                             self.show_help_dialog = true;
                         }
 
+                        // Storage diagnostics button
+                        let storage_text = match self.storage_diag.is_persisted {
+                            Some(true) => "Storage: Persistent",
+                            Some(false) => "Storage: Ephemeral",
+                            None => "Storage",
+                        };
+                        if ui.button(storage_text).on_hover_text("Inspect offline storage durability, quota status, and binary backups").clicked() {
+                            self.show_storage_modal = true;
+                        }
+
+                        // PWA Install Button (if installable and not yet installed)
+                        if self.storage_diag.pwa_install_available
+                            && !self.storage_diag.is_pwa_installed
+                            && ui.button("Install App").on_hover_text("Install assessment as a standalone application with permanent offline storage").clicked()
+                        {
+                            trigger_pwa_install();
+                        }
+
                         // Research DOI Icon
-                        if ui.button("DOI").on_hover_text("Read the published research paper (doi:10.1177/08902070251352590)").clicked() {
+                        if ui.button("DOI").on_hover_text("Read published paper: 'Revisiting the IPIP-NEO personality hierarchy with taxonomic graph analysis' (doi:10.1177/08902070251352590)").clicked() {
                             ui.ctx().open_url(egui::OpenUrl::new_tab("https://doi.org/10.1177/08902070251352590"));
                         }
 
                         // GitHub Link
-                        if ui.button("GitHub").on_hover_text("View source code on GitHub").clicked() {
+                        if ui.button("GitHub").on_hover_text("View open-source repository and Rust codebase on GitHub").clicked() {
                             ui.ctx().open_url(egui::OpenUrl::new_tab("https://github.com/Spodeian/Revisited-IPIP-NEO"));
                         }
 
                         // Return to saved instance button on desktop
                         if self.is_viewing_shared_link
-                            && ui.button("↩ My Saved Answers").on_hover_text("Return to your own saved assessment").clicked()
+                            && ui.button("My Saved Answers").on_hover_text("Exit shared link view and restore your local saved answers").clicked()
                         {
                             self.restore_saved_instance();
                         }
 
                         // Import Button (Sits directly to the right of Reset on screen)
-                        if ui.button("📥 Import").on_hover_text("Import CSV or JSON answers to resume your assessment").clicked() {
+                        if ui.button("Import").on_hover_text("Import previously exported CSV, JSON, or BSON backup to resume testing").clicked() {
                             self.show_import_dialog = true;
                             self.import_text_buffer.clear();
                             self.import_result_message = None;
                         }
 
                         // Reset button
-                        if ui.button("↺ Reset").on_hover_text("Reset test and clear all answers").clicked() {
+                        if ui.button("Reset").on_hover_text("Clear all recorded responses and restart assessment from item #1").clicked() {
                             self.show_reset_dialog = true;
                         }
 
                         // Matrix / Grid button
-                        if ui.button("⊞ Item Map").on_hover_text("View all 221 items in interactive matrix map").clicked() {
+                        if ui.button("Item Map").on_hover_text("Open interactive 221-item questionnaire matrix map").clicked() {
                             self.show_grid_dialog = true;
                         }
 
                         // Results / Questions Toggle
                         let results_btn_text = if self.state.questionnaire.show_results {
-                            "📊 Hide Results"
+                            "Hide Results"
                         } else {
-                            "📊 Show Results"
+                            "Show Results"
                         };
-                        if ui.button(results_btn_text).on_hover_text("Toggle assessment results").clicked() {
+                        if ui.button(results_btn_text).on_hover_text("Toggle between questionnaire answering view and hierarchical results report").clicked() {
                             self.state.questionnaire.show_results = !self.state.questionnaire.show_results;
                         }
 
                         // Collapse Header button
-                        if ui.button("Hide Header").on_hover_text("Hide top navigation header").clicked() {
+                        if ui.button("Hide Header").on_hover_text("Collapse top navigation bar to maximize focus area").clicked() {
                             self.hide_header = true;
                         }
                     }
@@ -574,14 +650,14 @@ impl PersonalityApp {
                             .size(framing_font_size)
                             .strong()
                             .color(ui.visuals().hyperlink_color),
-                    );
+                    ).on_hover_text("Select the response option (1–5) that best reflects your typical behavior and self-perception");
                     ui.add_space(if is_ultra_tight { 4.0 } else { 10.0 });
 
                     // Question Statement Box (scaled down for small screens)
                     let card_padding = if is_ultra_tight { 6.0 } else if is_tight_height { 12.0 } else if is_mobile_portrait { 16.0 } else { 24.0 };
                     let font_size = if is_ultra_tight { 14.0 } else if is_tight_height { 17.0 } else if is_mobile_portrait { 20.0 } else { 26.0 };
 
-                    egui::Frame::group(ui.style())
+                    let card_frame = egui::Frame::group(ui.style())
                         .inner_margin(card_padding)
                         .corner_radius(8.0)
                         .show(ui, |ui| {
@@ -594,15 +670,32 @@ impl PersonalityApp {
                             });
                         });
 
+                    if let Some(curr_q) = self.state.questionnaire.questions.get(curr_idx) {
+                        card_frame.response.on_hover_ui(|ui| {
+                            ui.label(egui::RichText::new(format!("Item #{} of {}", curr_q.id, total)).strong());
+                            ui.add_space(2.0);
+                            ui.label(format!("\"{}\"", curr_q.text));
+                            ui.add_space(4.0);
+                            ui.label(format!("• Facet: {} ({:+.3} weight)", curr_q.facet.category.display_name(), curr_q.facet.weight));
+                            ui.label(format!("• Trait: {} ({:+.3} weight)", curr_q.r#trait.category.display_name(), curr_q.r#trait.weight));
+                            ui.label(format!("• Meta-Trait: {} ({:+.3} weight)", curr_q.meta_trait.category.display_name(), curr_q.meta_trait.weight));
+                            if let Some(r) = curr_q.response {
+                                ui.label(format!("• Current Response: {} ({:+.1})", r.label(), r.to_score()));
+                            } else {
+                                ui.label("• Status: Unanswered");
+                            }
+                        });
+                    }
+
                     let space_after_card = if is_ultra_tight { 4.0 } else if is_tight_height { 6.0 } else if is_mobile_portrait { 15.0 } else { 30.0 };
                     ui.add_space(space_after_card);
 
                     let responses = [
-                        (Response::StronglyDisagree, "Strongly Disagree", "1"),
-                        (Response::Disagree, "Disagree", "2"),
-                        (Response::Neutral, "Neutral", "3"),
-                        (Response::Agree, "Agree", "4"),
-                        (Response::StronglyAgree, "Strongly Agree", "5"),
+                        (Response::StronglyDisagree, "Strongly Disagree", "1", "Strongly Disagree (-1.0 point)\nShortcut: Press '1' on keyboard"),
+                        (Response::Disagree, "Disagree", "2", "Disagree (-0.5 points)\nShortcut: Press '2' on keyboard"),
+                        (Response::Neutral, "Neutral", "3", "Neutral (0.0 points)\nShortcut: Press '3' on keyboard"),
+                        (Response::Agree, "Agree", "4", "Agree (+0.5 points)\nShortcut: Press '4' on keyboard"),
+                        (Response::StronglyAgree, "Strongly Agree", "5", "Strongly Agree (+1.0 point)\nShortcut: Press '5' on keyboard"),
                     ];
 
                     // Clean vertical stack for Likert buttons across all orientations
@@ -610,7 +703,7 @@ impl PersonalityApp {
                     let button_text_size = if is_ultra_tight { 12.0 } else if is_tight_height { 13.0 } else if is_mobile_portrait { 14.0 } else { 16.0 };
                     let btn_width = (ui.available_width() - 8.0).min(340.0);
 
-                    for (resp, text, shortcut) in responses {
+                    for (resp, text, shortcut, tooltip_desc) in responses {
                         let is_selected = q_response == Some(resp);
 
                         // Remove keyboard shortcut hints on ultra-tight touchscreens to save space
@@ -629,7 +722,7 @@ impl PersonalityApp {
                             .min_size(egui::vec2(btn_width, button_height))
                             .selected(is_selected);
 
-                        if ui.add(btn).clicked() {
+                        if ui.add(btn).on_hover_text(tooltip_desc).clicked() {
                             self.is_viewing_shared_link = false;
                             self.state.questionnaire.answer_question(curr_idx, resp);
                             let current_t = ui.input(|i| i.time);
@@ -657,18 +750,18 @@ impl PersonalityApp {
 
                         // Left Action Cluster
                         let btn_prev = if is_ultra_tight { "◀" } else { "◀ Prev" };
-                        if ui.button(btn_prev).on_hover_text("Previous item (Left Arrow)").clicked() {
+                        if ui.button(btn_prev).on_hover_text("Previous item in sequence (Left Arrow / Mouse Scroll Up)").clicked() {
                             self.state.questionnaire.navigate_previous();
                         }
 
                         let btn_prev_un = if is_ultra_tight { "⏪" } else { "⏪ Unanswered" };
-                        if ui.button(btn_prev_un).on_hover_text("Jump to previous unanswered (Shift + Left Arrow)").clicked() {
+                        if ui.button(btn_prev_un).on_hover_text("Jump backward to nearest unanswered question (Shift + Left Arrow)").clicked() {
                             self.state.questionnaire.navigate_previous_unanswered();
                         }
 
-                        if !self.state.questionnaire.undo_history.is_empty() {
+                        if self.state.questionnaire.can_undo() {
                             let btn_undo = if is_ultra_tight { "↩" } else { "↩ Undo" };
-                            if ui.button(btn_undo).on_hover_text("Undo previous answer (Ctrl+Z / Cmd+Z)").clicked()
+                            if ui.button(btn_undo).on_hover_text("Undo previous response change (Ctrl+Z / Cmd+Z)").clicked()
                                 && self.state.questionnaire.undo()
                             {
                                 let current_t = ui.input(|i| i.time);
@@ -677,21 +770,32 @@ impl PersonalityApp {
                             }
                         }
 
+                        if self.state.questionnaire.can_redo() {
+                            let btn_redo = if is_ultra_tight { "↪" } else { "↪ Redo" };
+                            if ui.button(btn_redo).on_hover_text("Redo reverted response change (Ctrl+Y / Cmd+Shift+Z)").clicked()
+                                && self.state.questionnaire.redo()
+                            {
+                                let current_t = ui.input(|i| i.time);
+                                self.redo_notification_time = Some(current_t);
+                                self.last_save_time = Some(current_t);
+                            }
+                        }
+
                         // Right Action Cluster + Center Expanding Progress Bar
                         ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
                             let btn_skip = if is_ultra_tight { "⏭" } else { "Skip ⏭" };
-                            if ui.button(btn_skip).on_hover_text("Skip question and defer to end of queue (Right Arrow / Scroll)").clicked() {
+                            if ui.button(btn_skip).on_hover_text("Skip question and defer to end of pending queue (Right Arrow / Mouse Scroll Down)").clicked() {
                                 self.state.questionnaire.skip_current();
                             }
 
                             let btn_next_un = if is_ultra_tight { "⏩" } else { "Next Unanswered ⏩" };
-                            if ui.button(btn_next_un).on_hover_text("Jump to next unanswered (Shift + Right Arrow)").clicked() {
+                            if ui.button(btn_next_un).on_hover_text("Jump forward to nearest unanswered question (Shift + Right Arrow)").clicked() {
                                 self.state.questionnaire.navigate_next_unanswered();
                             }
 
                             if q_response.is_some() {
                                 let btn_clear = if is_ultra_tight { "❌" } else { "❌ Clear" };
-                                if ui.button(btn_clear).on_hover_text("Clear recorded answer").clicked() {
+                                if ui.button(btn_clear).on_hover_text("Clear recorded answer for this question and mark it unanswered").clicked() {
                                     self.is_viewing_shared_link = false;
                                     self.state.questionnaire.clear_response(curr_idx);
                                     let current_t = ui.input(|i| i.time);
@@ -702,11 +806,16 @@ impl PersonalityApp {
                             // Center Progress Bar filling remaining horizontal space
                             let remaining_width = ui.available_width() - 8.0;
                             if remaining_width > 40.0 {
+                                let answered = self.state.questionnaire.answered_count();
+                                let remaining = total.saturating_sub(answered);
                                 ui.add(
                                     egui::ProgressBar::new(progress)
                                         .text(progress_text)
                                         .desired_width(remaining_width),
-                                );
+                                ).on_hover_text(format!(
+                                    "Assessment Progress: {}/{} answered ({:.1}%)\n{} remaining question{}",
+                                    answered, total, progress * 100.0, remaining, if remaining == 1 { "" } else { "s" }
+                                ));
                             }
                         });
                     });
@@ -758,7 +867,7 @@ impl PersonalityApp {
             ui.horizontal(|ui| {
                 ui.heading("Assessment Results");
                 ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
-                    if ui.button("❌").clicked() {
+                    if ui.button("❌").on_hover_text("Close results panel and return to questions (Escape)").clicked() {
                         self.state.questionnaire.show_results = false;
                     }
                 });
@@ -768,12 +877,13 @@ impl PersonalityApp {
             let answered = self.state.questionnaire.answered_count();
             let total = self.state.questionnaire.total_questions();
             let pct = self.state.questionnaire.completion_rate() * 100.0;
-            ui.label(format!("Completed: {}/{} ({:.1}%)", answered, total, pct));
+            ui.label(format!("Completed: {}/{} ({:.1}%)", answered, total, pct))
+                .on_hover_text("Total items answered out of the 221-item questionnaire");
 
             if self.is_viewing_shared_link {
                 ui.add_space(4.0);
                 ui.label(
-                    egui::RichText::new("👁 Viewing shared results link. Your own saved answers are preserved unless you answer or modify questions.")
+                    egui::RichText::new("Viewing shared results link. Your own saved answers are preserved unless you answer or modify questions.")
                         .color(egui::Color32::from_rgb(147, 197, 253))
                         .small(),
                 );
@@ -784,11 +894,12 @@ impl PersonalityApp {
             }
 
             ui.add_space(4.0);
-            ui.checkbox(&mut self.state.questionnaire.show_detailed_stats, "Show Detailed Metrics & SE");
+            ui.checkbox(&mut self.state.questionnaire.show_detailed_stats, "Show Detailed Metrics & SE")
+                .on_hover_text("Toggle raw score sums, absolute item weights, sample counts, and Standard Error (SE) values");
 
             ui.add_space(6.0);
             ui.horizontal_wrapped(|ui| {
-                if ui.button("🔗 Share Link").on_hover_text("Copy shareable results URL to clipboard without affecting recipients' saved progress").clicked() {
+                if ui.button("Share Link").on_hover_text("Copy shareable results URL to clipboard without affecting recipients' saved progress").clicked() {
                     let code = encode_responses_to_url_code(&self.state.questionnaire);
 
                     let full_url = {
@@ -819,13 +930,14 @@ impl PersonalityApp {
                 egui::ComboBox::from_id_salt("export_format_dropdown")
                     .selected_text(self.selected_export_format.label())
                     .show_ui(ui, |ui| {
-                        ui.selectable_value(&mut self.selected_export_format, ExportFormat::Csv, "📄 CSV File");
-                        ui.selectable_value(&mut self.selected_export_format, ExportFormat::Json, "{ } JSON File");
-                        ui.selectable_value(&mut self.selected_export_format, ExportFormat::Svg, "🖼 SVG Vector Graphic");
-                        ui.selectable_value(&mut self.selected_export_format, ExportFormat::Html, "📋 HTML Report");
+                        ui.selectable_value(&mut self.selected_export_format, ExportFormat::Csv, "CSV File");
+                        ui.selectable_value(&mut self.selected_export_format, ExportFormat::Json, "JSON File");
+                        ui.selectable_value(&mut self.selected_export_format, ExportFormat::Bson, "Compressed BSON (.bson)");
+                        ui.selectable_value(&mut self.selected_export_format, ExportFormat::Svg, "SVG Vector Graphic");
+                        ui.selectable_value(&mut self.selected_export_format, ExportFormat::Html, "HTML Report");
                     });
 
-                if ui.button("📥 Download File").on_hover_text("Export results and download selected file format").clicked() {
+                if ui.button("Download File").on_hover_text("Export results and download selected file format to your device").clicked() {
                     match self.selected_export_format {
                         ExportFormat::Csv => {
                             let csv_content = export_to_csv(&self.state.questionnaire);
@@ -834,6 +946,11 @@ impl PersonalityApp {
                         ExportFormat::Json => {
                             let json_content = export_to_json(&self.state.questionnaire);
                             trigger_file_download("ipip_neo_tga_results.json", &json_content, "application/json;charset=utf-8");
+                        }
+                        ExportFormat::Bson => {
+                            if let Ok(bytes) = export_to_compressed_bson(&self.state.questionnaire) {
+                                trigger_binary_download("ipip_neo_tga_results.bson", &bytes, "application/octet-stream");
+                            }
                         }
                         ExportFormat::Svg => {
                             let svg_content = export_to_svg(&self.state.questionnaire);
@@ -875,7 +992,16 @@ impl PersonalityApp {
 
         collapsing
             .show_header(ui, |ui| {
-                ui.label(egui::RichText::new(meta.display_name()).strong().size(15.0));
+                let label_resp = ui.label(egui::RichText::new(meta.display_name()).strong().size(15.0));
+                label_resp.on_hover_ui(|ui| {
+                    ui.label(egui::RichText::new(format!("Meta-Trait: {}", meta.display_name())).strong());
+                    ui.add_space(2.0);
+                    ui.label(meta.description());
+                    ui.add_space(4.0);
+                    let children = meta.child_traits().iter().map(|t| t.display_name()).collect::<Vec<_>>().join(", ");
+                    ui.label(egui::RichText::new(format!("Subordinate Traits: {}", children)).small().weak());
+                });
+
                 ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
                     self.render_construct_badge_row(
                         ui,
@@ -901,7 +1027,17 @@ impl PersonalityApp {
 
         collapsing
             .show_header(ui, |ui| {
-                ui.label(egui::RichText::new(trait_item.display_name()).size(14.0));
+                let label_resp = ui.label(egui::RichText::new(trait_item.display_name()).size(14.0));
+                label_resp.on_hover_ui(|ui| {
+                    ui.label(egui::RichText::new(format!("Trait: {}", trait_item.display_name())).strong());
+                    ui.add_space(2.0);
+                    ui.label(trait_item.description());
+                    ui.add_space(4.0);
+                    ui.label(egui::RichText::new(format!("Parent Meta-Trait: {}", trait_item.parent_meta_trait().display_name())).small().weak());
+                    let children = trait_item.child_facets().iter().map(|f| f.display_name()).collect::<Vec<_>>().join(", ");
+                    ui.label(egui::RichText::new(format!("Subordinate Facets: {}", children)).small().weak());
+                });
+
                 ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
                     self.render_construct_badge_row(
                         ui,
@@ -924,7 +1060,15 @@ impl PersonalityApp {
         let show_detailed = self.state.questionnaire.show_detailed_stats;
 
         ui.horizontal(|ui| {
-            ui.label(facet.display_name());
+            let label_resp = ui.label(facet.display_name());
+            label_resp.on_hover_ui(|ui| {
+                ui.label(egui::RichText::new(format!("Facet: {}", facet.display_name())).strong());
+                ui.add_space(2.0);
+                ui.label(facet.description());
+                ui.add_space(4.0);
+                ui.label(egui::RichText::new(format!("Parent Trait: {} (under {})", facet.parent_trait().display_name(), facet.parent_trait().parent_meta_trait().display_name())).small().weak());
+            });
+
             ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
                 self.render_construct_badge_row(
                     ui,
@@ -1049,7 +1193,15 @@ impl PersonalityApp {
             let se = acc.standard_error().unwrap_or(0.0);
             Self::render_score_gauge(ui, norm_score, se, tier_color, 80.0, ci_mult, ci_label);
 
-            ui.colored_label(tier_color, egui::RichText::new(tier.label()).strong());
+            let tier_badge_resp = ui.colored_label(tier_color, egui::RichText::new(tier.label()).strong());
+            tier_badge_resp.on_hover_ui(|ui| {
+                ui.label(egui::RichText::new(format!("Classification: {}", tier.label())).strong());
+                ui.label(format!("Normalized Score: {:+.2} (scale: -1.0 to +1.0)", norm_score));
+                if let Some(se_val) = acc.standard_error() {
+                    ui.label(format!("Standard Error (SE): {:.3}", se_val));
+                }
+                ui.label(format!("Progress: {}/{} items answered", acc.answered_count, acc.total_items));
+            });
 
             if show_detailed {
                 ui.label(
@@ -1059,10 +1211,14 @@ impl PersonalityApp {
                     ))
                     .small()
                     .weak(),
-                );
+                ).on_hover_text(format!(
+                    "Detailed Metrics:\n• Normalized Score: {:.4}\n• Standard Error: {:.4}\n• Raw Sum: {:.2}\n• Absolute Weight Sum: {:.2}\n• Answered Items: {} / {}",
+                    norm_score, se, acc.raw_score, acc.total_abs_weight, acc.answered_count, acc.total_items
+                ));
             }
         } else {
-            ui.label(egui::RichText::new("No items yet").weak().small());
+            ui.label(egui::RichText::new("No items yet").weak().small())
+                .on_hover_text("No questions for this construct have been answered yet");
         }
     }
 
@@ -1076,6 +1232,9 @@ impl PersonalityApp {
         if self.show_reset_dialog {
             self.render_reset_dialog(ui);
         }
+        if self.show_storage_modal {
+            self.render_storage_modal(ui);
+        }
         if self.show_export_dialog.is_some() {
             self.render_export_dialog(ui);
         }
@@ -1084,25 +1243,219 @@ impl PersonalityApp {
         }
     }
 
+    fn render_storage_modal(&mut self, ui: &mut egui::Ui) {
+        let mut open = true;
+        egui::Window::new("Storage & Offline Persistence Diagnostics")
+            .open(&mut open)
+            .default_size(egui::vec2(540.0, 480.0))
+            .anchor(egui::Align2::CENTER_CENTER, egui::vec2(0.0, 0.0))
+            .show(ui.ctx(), |ui| {
+                ui.heading("Storage Durability & Quota");
+                ui.add_space(4.0);
+
+                let is_persisted = self.storage_diag.is_persisted;
+                match is_persisted {
+                    Some(true) => {
+                        ui.horizontal(|ui| {
+                            ui.label("• Persistence Mode:");
+                            ui.colored_label(egui::Color32::from_rgb(80, 180, 90), "Persistent (Immune to eviction)");
+                        });
+                        ui.label("The browser has granted persistent storage. Your responses and assessments are protected against automatic browser cache clearing.");
+                    }
+                    Some(false) => {
+                        ui.horizontal(|ui| {
+                            ui.label("• Persistence Mode:");
+                            ui.colored_label(egui::Color32::from_rgb(230, 140, 50), "Best-Effort / Ephemeral");
+                        });
+                        ui.label("Storage permission has not been granted. Browsers (especially Safari ITP after 7 days or Chrome under disk pressure) may evict site data.");
+                        ui.add_space(4.0);
+                        if ui.button("Request Persistent Storage Permission")
+                            .on_hover_text("Ask your browser for persistent storage permissions to prevent eviction")
+                            .clicked()
+                        {
+                            request_persistent_storage();
+                        }
+                    }
+                    None => {
+                        ui.horizontal(|ui| {
+                            ui.label("• Persistence Mode:");
+                            ui.colored_label(egui::Color32::GRAY, "Checking Browser API...");
+                        });
+                        if ui.button("Request Persistent Storage")
+                            .on_hover_text("Ask your browser for persistent storage permissions to prevent eviction")
+                            .clicked()
+                        {
+                            request_persistent_storage();
+                        }
+                    }
+                }
+
+                ui.add_space(8.0);
+                ui.separator();
+                ui.add_space(8.0);
+
+                ui.heading("Active Storage Tier & Compaction");
+                ui.add_space(4.0);
+                ui.label(format!("• Current Engine: {}", self.storage_diag.backend.label()));
+                ui.label(format!("• Undo/Redo Depth: {} undo actions, {} redo actions", self.state.questionnaire.undo_stack.len(), self.state.questionnaire.redo_stack.len()));
+                if self.storage_diag.quota_exceeded {
+                    ui.colored_label(egui::Color32::from_rgb(220, 70, 70), "localStorage quota reached; undo history was compacted. Consider saving a .bson backup.");
+                } else {
+                    ui.label("Storage engine uses LocalStorage with automatic recency-density undo compaction.");
+                }
+
+                ui.add_space(8.0);
+                ui.separator();
+                ui.add_space(8.0);
+
+                ui.heading("Progressive Web App (PWA)");
+                ui.add_space(4.0);
+                if self.storage_diag.is_pwa_installed {
+                    ui.colored_label(egui::Color32::from_rgb(80, 180, 90), "App is installed as standalone PWA.");
+                } else if self.storage_diag.pwa_install_available {
+                    ui.label("Installing this assessment to your home screen or desktop grants permanent storage status.");
+                    if ui.button("Install Assessment App")
+                        .on_hover_text("Install assessment as a standalone Progressive Web App for permanent offline durability")
+                        .clicked()
+                    {
+                        trigger_pwa_install();
+                    }
+                } else {
+                    ui.label("PWA offline capabilities are active. You can also add this page to your home screen via browser options.");
+                }
+
+                ui.add_space(8.0);
+                ui.separator();
+                ui.add_space(8.0);
+
+                ui.heading("Manual Backups & Compressed BSON");
+                ui.add_space(4.0);
+                ui.label("Download a standalone compressed binary backup of your assessment to store on disk or transfer across devices:");
+                ui.add_space(4.0);
+                ui.horizontal(|ui| {
+                    if ui.button("Download .bson Backup").on_hover_text("Download compact, binary compressed assessment state").clicked()
+                        && let Ok(bytes) = export_to_compressed_bson(&self.state.questionnaire)
+                    {
+                        trigger_binary_download("ipip_neo_assessment_backup.bson", &bytes, "application/octet-stream");
+                    }
+                    if ui.button("Import Saved File").on_hover_text("Open import window to restore saved assessment data").clicked() {
+                        self.show_import_dialog = true;
+                    }
+                });
+            });
+
+        if !open {
+            self.show_storage_modal = false;
+        }
+    }
+
+    fn render_warning_banners(&mut self, ui: &mut egui::Ui) {
+        let is_ephemeral = self.storage_diag.is_persisted == Some(false);
+        let quota_exceeded = self.storage_diag.quota_exceeded;
+
+        // Combined Warning: Both Ephemeral & Quota Exceeded
+        if is_ephemeral && quota_exceeded && !self.dismissed_combined_warning {
+            egui::Frame::group(ui.style())
+                .fill(if ui.visuals().dark_mode { egui::Color32::from_rgb(60, 20, 20) } else { egui::Color32::from_rgb(255, 230, 230) })
+                .stroke(egui::Stroke::new(1.5, egui::Color32::from_rgb(220, 50, 50)))
+                .inner_margin(8.0)
+                .corner_radius(6.0)
+                .show(ui, |ui| {
+                    ui.horizontal_wrapped(|ui| {
+                        ui.label(egui::RichText::new("Storage Alert:").strong().color(egui::Color32::from_rgb(220, 50, 50)));
+                        ui.label("Storage is ephemeral and quota is constrained. To prevent data loss:");
+                        if ui.button("Request Persistence")
+                            .on_hover_text("Ask your browser for persistent storage permissions to prevent eviction")
+                            .clicked()
+                        {
+                            request_persistent_storage();
+                        }
+                        if self.storage_diag.pwa_install_available && !self.storage_diag.is_pwa_installed && ui.button("Install App").on_hover_text("Install application for permanent offline storage").clicked() {
+                            trigger_pwa_install();
+                        }
+                        if ui.button("Save .bson Backup").on_hover_text("Download compressed binary backup of your assessment").clicked()
+                            && let Ok(bytes) = export_to_compressed_bson(&self.state.questionnaire)
+                        {
+                            trigger_binary_download("ipip_neo_assessment_backup.bson", &bytes, "application/octet-stream");
+                        }
+                        if ui.small_button("Dismiss").on_hover_text("Dismiss this warning banner").clicked() {
+                            self.dismissed_combined_warning = true;
+                        }
+                    });
+                });
+            ui.add_space(6.0);
+        } else if is_ephemeral && !self.dismissed_ephemeral_warning {
+            // Ephemeral Only Warning Banner
+            egui::Frame::group(ui.style())
+                .fill(if ui.visuals().dark_mode { egui::Color32::from_rgb(45, 35, 15) } else { egui::Color32::from_rgb(255, 248, 225) })
+                .stroke(egui::Stroke::new(1.0, egui::Color32::from_rgb(230, 140, 50)))
+                .inner_margin(8.0)
+                .corner_radius(6.0)
+                .show(ui, |ui| {
+                    ui.horizontal_wrapped(|ui| {
+                        ui.label(egui::RichText::new("Storage is ephemeral:").strong().color(egui::Color32::from_rgb(230, 140, 50)));
+                        ui.label("Browser may evict data under disk pressure.");
+                        if ui.button("Request Persistence")
+                            .on_hover_text("Ask your browser for persistent storage permissions to prevent eviction")
+                            .clicked()
+                        {
+                            request_persistent_storage();
+                        }
+                        if self.storage_diag.pwa_install_available && !self.storage_diag.is_pwa_installed && ui.button("Install App").on_hover_text("Install application for permanent offline storage").clicked() {
+                            trigger_pwa_install();
+                        }
+                        if ui.small_button("Dismiss").on_hover_text("Dismiss this warning banner").clicked() {
+                            self.dismissed_ephemeral_warning = true;
+                        }
+                    });
+                });
+            ui.add_space(6.0);
+        } else if quota_exceeded && !self.dismissed_quota_warning {
+            // Quota Exceeded Warning Banner
+            egui::Frame::group(ui.style())
+                .fill(if ui.visuals().dark_mode { egui::Color32::from_rgb(45, 35, 15) } else { egui::Color32::from_rgb(255, 248, 225) })
+                .stroke(egui::Stroke::new(1.0, egui::Color32::from_rgb(230, 140, 50)))
+                .inner_margin(8.0)
+                .corner_radius(6.0)
+                .show(ui, |ui| {
+                    ui.horizontal_wrapped(|ui| {
+                        ui.label(egui::RichText::new("Quota Warning:").strong().color(egui::Color32::from_rgb(230, 140, 50)));
+                        ui.label("LocalStorage limit reached; undo history compacted to conserve space.");
+                        if ui.button("Save .bson Backup").on_hover_text("Download compressed binary backup of your assessment").clicked()
+                            && let Ok(bytes) = export_to_compressed_bson(&self.state.questionnaire)
+                        {
+                            trigger_binary_download("ipip_neo_assessment_backup.bson", &bytes, "application/octet-stream");
+                        }
+                        if ui.small_button("Dismiss").on_hover_text("Dismiss this warning banner").clicked() {
+                            self.dismissed_quota_warning = true;
+                        }
+                    });
+                });
+            ui.add_space(6.0);
+        }
+    }
+
     fn render_grid_dialog(&mut self, ui: &mut egui::Ui) {
         let mut open = true;
         let win_w = (ui.available_width() - 24.0).clamp(320.0, 580.0);
         let win_h = (ui.available_height() - 32.0).clamp(380.0, 540.0);
 
-        egui::Window::new("⊞ Question Item Matrix (221 Items)")
+        egui::Window::new("Question Item Matrix (221 Items)")
             .open(&mut open)
             .resizable(true)
             .collapsible(true)
             .default_size(egui::vec2(win_w, win_h))
             .min_width(300.0)
             .min_height(340.0)
+            .anchor(egui::Align2::CENTER_CENTER, egui::vec2(0.0, 0.0))
             .show(ui.ctx(), |ui| {
                 ui.horizontal(|ui| {
                     ui.label(egui::RichText::new("Click any item to jump directly to that question.").small().weak());
                     ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
                         let answered = self.state.questionnaire.answered_count();
                         let total = self.state.questionnaire.total_questions();
-                        ui.label(egui::RichText::new(format!("{}/{} Answered", answered, total)).strong());
+                        ui.label(egui::RichText::new(format!("{}/{} Answered", answered, total)).strong())
+                            .on_hover_text("Total questions answered out of 221");
                     });
                 });
                 ui.separator();
@@ -1163,21 +1516,26 @@ impl PersonalityApp {
                             }
 
                             let tooltip = format!(
-                                "#{}. {}\nFacet: {} | Trait: {}\nStatus: {}",
+                                "#{}. {}\nFacet: {} | Trait: {} | Meta-Trait: {}\nStatus: {}",
                                 q.id,
                                 q.text,
                                 q.facet.category.display_name(),
-                                q.r#trait.category.display_name(),
+                                q.facet.category.parent_trait().display_name(),
+                                q.facet.category.parent_trait().parent_meta_trait().display_name(),
                                 status_text
                             );
 
                             if ui.add(btn).on_hover_text(tooltip).clicked() {
                                 self.state.questionnaire.current_focus_idx = idx;
-                                self.state.questionnaire.show_results = false;
+                                self.show_grid_dialog = false;
                             }
                         }
                     });
                 });
+                ui.add_space(8.0);
+                if ui.button("Close").on_hover_text("Close item matrix map (Escape)").clicked() {
+                    self.show_grid_dialog = false;
+                }
             });
 
         if !open {
@@ -1190,7 +1548,7 @@ impl PersonalityApp {
         let win_w = (ui.available_width() - 24.0).clamp(340.0, 640.0);
         let win_h = (ui.available_height() - 32.0).clamp(480.0, 750.0);
 
-        egui::Window::new("? Help & Information")
+        egui::Window::new("Help & Information")
             .open(&mut open)
             .resizable(true)
             .collapsible(true)
@@ -1202,7 +1560,6 @@ impl PersonalityApp {
                 egui::ScrollArea::vertical()
                     .auto_shrink([false, false])
                     .show(ui, |ui| {
-                        // Title Header
                         ui.horizontal(|ui| {
                             ui.heading("Revisited IPIP-NEO");
                             ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
@@ -1213,21 +1570,13 @@ impl PersonalityApp {
                                 );
                             });
                         });
-                        ui.label(
-                            egui::RichText::new("221-Item Psychometric Personality Evaluation")
-                                .small()
-                                .italics(),
-                        );
-                        ui.add_space(6.0);
+                        ui.add_space(4.0);
                         ui.separator();
-                        ui.add_space(8.0);
+                        ui.add_space(6.0);
 
-                        // Overview & Timing
-                        ui.horizontal(|ui| {
-                            ui.label("⏱ Estimated Time:");
-                            ui.label(egui::RichText::new("~10–15 minutes (221 items)").strong());
-                        });
-                        ui.label("Answer spontaneously and honestly based on how you generally perceive yourself.");
+                        ui.heading("Estimated Time");
+                        ui.add_space(4.0);
+                        ui.label("~10–15 minutes (221 items). Take your time to answer honestly without overthinking.");
 
                         if self.is_viewing_shared_link {
                             ui.add_space(6.0);
@@ -1237,7 +1586,7 @@ impl PersonalityApp {
                                 .show(ui, |ui| {
                                     ui.horizontal(|ui| {
                                         ui.label(egui::RichText::new("Currently viewing shared link.").weak());
-                                        if ui.button("↩ Return to My Saved Assessment").clicked() {
+                                        if ui.button("Return to My Saved Assessment").on_hover_text("Exit shared link view and restore your local saved answers").clicked() {
                                             self.restore_saved_instance();
                                             self.show_help_dialog = false;
                                         }
@@ -1296,7 +1645,7 @@ impl PersonalityApp {
                         ui.label("• Shift + Left Arrow: Jump to previous unanswered question");
                         ui.label("• Shift + Right Arrow: Jump to next unanswered question");
                         ui.label("• Ctrl+Z / Cmd+Z: Undo previous response change");
-                        ui.label("• ⊞ Item Map: Open interactive 221-item matrix map");
+                        ui.label("• Item Map: Open interactive 221-item matrix map");
                         ui.label("• Escape: Close dialogs or return from results screen");
                         ui.label("• Mouse Scroll: Scroll to skip / navigate questions (Desktop)");
 
@@ -1308,7 +1657,7 @@ impl PersonalityApp {
                         ui.heading("Privacy & Data Safety");
                         ui.add_space(4.0);
                         ui.label(
-                            egui::RichText::new("🔒 100% Client-Side: No data ever leaves your device.")
+                            egui::RichText::new("100% Client-Side: No data ever leaves your device.")
                                 .color(egui::Color32::from_rgb(80, 160, 90))
                                 .strong(),
                         );
@@ -1316,7 +1665,7 @@ impl PersonalityApp {
                             "This application executes entirely in your browser using WebAssembly. Responses, scores, and exports are never transmitted to any external server.",
                         );
                         ui.label(
-                            egui::RichText::new("⚡ 100% Offline Capable: PWA service worker caches all static assets for full offline use.")
+                            egui::RichText::new("100% Offline Capable: PWA service worker caches all static assets for full offline use.")
                                 .italics()
                                 .small(),
                         );
@@ -1367,12 +1716,12 @@ impl PersonalityApp {
                 ui.label("Are you sure you want to clear all responses and start over?");
                 ui.add_space(12.0);
                 ui.horizontal(|ui| {
-                    if ui.button("Yes, Reset").clicked() {
+                    if ui.button("Yes, Reset").on_hover_text("Clear all answers, reset queue, and restart the questionnaire").clicked() {
                         self.is_viewing_shared_link = false;
                         self.state.reset_questionnaire();
                         self.show_reset_dialog = false;
                     }
-                    if ui.button("Cancel").clicked() {
+                    if ui.button("Cancel").on_hover_text("Keep existing answers and return to questionnaire").clicked() {
                         self.show_reset_dialog = false;
                     }
                 });
@@ -1387,17 +1736,26 @@ impl PersonalityApp {
 
         // Cache export text buffer if it's empty (e.g. if dialog state was set directly)
         if self.export_text_buffer.is_empty() {
-            self.export_text_buffer = match export_format {
-                ExportFormat::Csv => export_to_csv(&self.state.questionnaire),
-                ExportFormat::Json => export_to_json(&self.state.questionnaire),
-                ExportFormat::Svg => export_to_svg(&self.state.questionnaire),
-                ExportFormat::Html => export_to_printable_html(&self.state.questionnaire),
-            };
+            if export_format == ExportFormat::Bson {
+                if let Ok(bytes) = export_to_compressed_bson(&self.state.questionnaire) {
+                    use base64::{engine::general_purpose, Engine as _};
+                    self.export_text_buffer = general_purpose::STANDARD.encode(&bytes);
+                }
+            } else {
+                self.export_text_buffer = match export_format {
+                    ExportFormat::Csv => export_to_csv(&self.state.questionnaire),
+                    ExportFormat::Json => export_to_json(&self.state.questionnaire),
+                    ExportFormat::Bson => unreachable!(),
+                    ExportFormat::Svg => export_to_svg(&self.state.questionnaire),
+                    ExportFormat::Html => export_to_printable_html(&self.state.questionnaire),
+                };
+            }
         }
 
         let title = match export_format {
             ExportFormat::Csv => "Export CSV",
             ExportFormat::Json => "Export JSON",
+            ExportFormat::Bson => "Export Compressed BSON Binary",
             ExportFormat::Svg => "Export SVG Vector Graphic",
             ExportFormat::Html => "Printable Report (HTML/PDF)",
         };
@@ -1409,14 +1767,20 @@ impl PersonalityApp {
             .anchor(egui::Align2::CENTER_CENTER, egui::vec2(0.0, 0.0))
             .show(ui.ctx(), |ui| {
                 ui.horizontal(|ui| {
-                    if ui.button("📋 Copy to Clipboard").clicked() {
+                    if export_format == ExportFormat::Bson
+                        && ui.button("Download .bson File").on_hover_text("Download compressed binary backup to your device").clicked()
+                        && let Ok(bytes) = export_to_compressed_bson(&self.state.questionnaire)
+                    {
+                        trigger_binary_download("ipip_neo_assessment_backup.bson", &bytes, "application/octet-stream");
+                    }
+                    if ui.button("Copy to Clipboard").on_hover_text("Copy formatted export data directly to clipboard").clicked() {
                         ui.ctx().copy_text(self.export_text_buffer.clone());
                         self.export_copied_notification = Some(ui.input(|i| i.time));
                     }
                     if let Some(t) = self.export_copied_notification
                         && ui.input(|i| i.time) - t < 3.0
                     {
-                        ui.label(egui::RichText::new("✓ Copied to clipboard!").color(egui::Color32::GREEN));
+                        ui.label(egui::RichText::new("Copied to clipboard!").color(egui::Color32::GREEN));
                     }
                 });
 
@@ -1440,12 +1804,12 @@ impl PersonalityApp {
 
     fn render_import_dialog(&mut self, ui: &mut egui::Ui) {
         let mut open = true;
-        egui::Window::new("📥 Import Saved Progress")
+        egui::Window::new("Import Saved Progress")
             .open(&mut open)
-            .default_size(egui::vec2(500.0, 400.0))
+            .default_size(egui::vec2(520.0, 420.0))
             .anchor(egui::Align2::CENTER_CENTER, egui::vec2(0.0, 0.0))
             .show(ui.ctx(), |ui| {
-                ui.label("Paste the contents of your exported CSV or JSON file below to restore your answers and resume the assessment:");
+                ui.label("Paste the contents of your exported CSV, JSON, or Compressed BSON (Base64) file below to restore your answers:");
                 ui.add_space(8.0);
 
                 egui::ScrollArea::both()
@@ -1454,7 +1818,7 @@ impl PersonalityApp {
                         ui.add(
                             egui::TextEdit::multiline(&mut self.import_text_buffer)
                                 .font(egui::TextStyle::Monospace)
-                                .hint_text("Paste CSV or JSON content here...")
+                                .hint_text("Paste CSV, JSON, or Base64 BSON content here...")
                                 .desired_width(f32::INFINITY)
                                 .desired_rows(12),
                         );
@@ -1462,7 +1826,7 @@ impl PersonalityApp {
 
                 ui.add_space(12.0);
                 ui.horizontal(|ui| {
-                    if ui.button("▶ Apply and Resume").clicked() {
+                    if ui.button("Apply and Resume").on_hover_text("Parse pasted data and restore your assessment answers").clicked() {
                         let input = self.import_text_buffer.trim();
                         if input.is_empty() {
                             self.import_result_message = Some(Err("Input is empty.".to_string()));
@@ -1471,27 +1835,46 @@ impl PersonalityApp {
                             match import_responses_from_json(&mut self.state.questionnaire, input) {
                                 Ok(count) => {
                                     self.is_viewing_shared_link = false;
-                                    self.import_result_message = Some(Ok(format!("Successfully imported {} answers!", count)));
+                                    self.import_result_message = Some(Ok(format!("Successfully imported {} answers from JSON!", count)));
+                                }
+                                Err(e) => {
+                                    self.import_result_message = Some(Err(e.to_string()));
+                                }
+                            }
+                        } else if input.contains('#') || input.contains(',') {
+                            // Attempt CSV parse
+                            match import_responses_from_csv(&mut self.state.questionnaire, input) {
+                                Ok(count) => {
+                                    self.is_viewing_shared_link = false;
+                                    self.import_result_message = Some(Ok(format!("Successfully imported {} answers from CSV!", count)));
                                 }
                                 Err(e) => {
                                     self.import_result_message = Some(Err(e.to_string()));
                                 }
                             }
                         } else {
-                            // Attempt CSV parse
-                            match import_responses_from_csv(&mut self.state.questionnaire, input) {
-                                Ok(count) => {
-                                    self.is_viewing_shared_link = false;
-                                    self.import_result_message = Some(Ok(format!("Successfully imported {} answers!", count)));
+                            // Attempt Base64 BSON decode
+                            use base64::{engine::general_purpose, Engine as _};
+                            match general_purpose::STANDARD.decode(input) {
+                                Ok(bytes) => {
+                                    match import_responses_from_bson(&mut self.state.questionnaire, &bytes) {
+                                        Ok(count) => {
+                                            self.is_viewing_shared_link = false;
+                                            self.import_result_message = Some(Ok(format!("Successfully imported {} answers from BSON!", count)));
+                                        }
+                                        Err(e) => {
+                                            self.import_result_message = Some(Err(e.to_string()));
+                                        }
+                                    }
                                 }
-                                Err(e) => {
-                                    self.import_result_message = Some(Err(e.to_string()));
+                                Err(_) => {
+                                    self.import_result_message = Some(Err("Unrecognized format. Please provide valid JSON, CSV, or BSON.".to_string()));
                                 }
                             }
                         }
                     }
 
-                    if ui.button("Cancel").clicked() {
+                    if ui.button("Cancel").on_hover_text("Close import dialog without making changes").clicked() {
                         self.show_import_dialog = false;
                         self.import_text_buffer.clear();
                         self.import_result_message = None;
@@ -1519,15 +1902,47 @@ impl PersonalityApp {
     }
 }
 
+
 impl eframe::App for PersonalityApp {
     fn save(&mut self, storage: &mut dyn eframe::Storage) {
         // Do not overwrite user's saved local answers if they are only viewing a shared link
         if !self.is_viewing_shared_link {
             eframe::set_value(storage, eframe::APP_KEY, &self.state);
+            if let Ok(json_str) = serde_json::to_string(&self.state) {
+                match save_state_multi_tier(eframe::APP_KEY, &json_str) {
+                    Ok(backend) => {
+                        self.storage_diag.backend = backend;
+                        self.storage_diag.quota_exceeded = false;
+                    }
+                    Err(_) => {
+                        // Space ran out: compact undo history and retry saving
+                        self.state.questionnaire.compact_history(30);
+                        if let Ok(compacted_json) = serde_json::to_string(&self.state) {
+                            if let Ok(backend) = save_state_multi_tier(eframe::APP_KEY, &compacted_json) {
+                                self.storage_diag.backend = backend;
+                                self.storage_diag.quota_exceeded = false;
+                            } else {
+                                self.storage_diag.quota_exceeded = true;
+                                self.storage_diag.backend = StorageBackend::MemoryOnly;
+                            }
+                        }
+                    }
+                }
+            }
         }
     }
 
     fn ui(&mut self, ui: &mut egui::Ui, _frame: &mut eframe::Frame) {
+        // Periodic storage diagnostics poll every 2.0s
+        let current_time = ui.input(|i| i.time);
+        if current_time - self.last_diag_poll_time > 2.0 {
+            let fresh_diag = query_storage_diagnostics();
+            self.storage_diag.is_persisted = fresh_diag.is_persisted;
+            self.storage_diag.pwa_install_available = fresh_diag.pwa_install_available;
+            self.storage_diag.is_pwa_installed = fresh_diag.is_pwa_installed;
+            self.last_diag_poll_time = current_time;
+        }
+
         self.apply_theme(ui.ctx());
         self.handle_keyboard_and_scroll(ui);
 
@@ -1565,11 +1980,14 @@ impl eframe::App for PersonalityApp {
                 ui.add_space(6.0);
             }
 
+            // Render warning banners (persistence / quota / combined)
+            self.render_warning_banners(ui);
+
             if constraints.is_mobile && self.state.questionnaire.show_results {
                 // Mobile View: Render results screen full-screen inside CentralPanel
                 egui::ScrollArea::vertical().show(ui, |ui| {
                     ui.add_space(10.0);
-                    if ui.button("📝 Return to Questions").clicked() {
+                    if ui.button("Return to Questions").clicked() {
                         self.state.questionnaire.show_results = false;
                     }
                     ui.add_space(10.0);

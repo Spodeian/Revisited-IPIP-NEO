@@ -10,6 +10,8 @@ description = "Core psychometric models, scoring calculations, datasets, and ser
 [dependencies]
 serde = { workspace = true, features = ["derive"] }
 serde_json = { workspace = true }
+bson = { workspace = true }
+miniz_oxide = { workspace = true }
 num = { workspace = true }
 
 [dev-dependencies]

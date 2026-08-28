@@ -811,6 +811,10 @@ pub fn import_responses_from_json(state: &mut QuestionnaireState, json_str: &str
     let report: FullAssessmentReport = serde_json::from_str(json_str)
         .map_err(|_| "Invalid JSON format. Please ensure this is a valid Revisited IPIP-NEO results file.")?;
 
+    let old_responses = state.current_responses_snapshot();
+    let old_show_results = state.show_results;
+    let old_focus_idx = state.current_focus_idx;
+
     let mut applied_count = 0;
 
     // Build a map: Label -> Response Score
@@ -848,6 +852,17 @@ pub fn import_responses_from_json(state: &mut QuestionnaireState, json_str: &str
 
     if applied_count > 0 {
         state.rebuild_cache();
+        let new_responses = state.current_responses_snapshot();
+        let new_focus_idx = state.current_focus_idx;
+        state.push_action(crate::questionnaire::HistoryAction::StateSnapshot {
+            old_responses,
+            new_responses,
+            old_show_results,
+            new_show_results: state.show_results,
+            old_focus_idx,
+            new_focus_idx,
+            label: "JSON Import".to_string(),
+        });
         Ok(applied_count)
     } else {
         Err("No matching answered questions found in the imported JSON file.")
@@ -857,6 +872,10 @@ pub fn import_responses_from_json(state: &mut QuestionnaireState, json_str: &str
 /// Imports and applies answers from a previously exported CSV results string.
 /// Returns the number of successfully applied answers.
 pub fn import_responses_from_csv(state: &mut QuestionnaireState, csv_str: &str) -> Result<usize, &'static str> {
+    let old_responses = state.current_responses_snapshot();
+    let old_show_results = state.show_results;
+    let old_focus_idx = state.current_focus_idx;
+
     let mut applied_count = 0;
     let mut in_responses_section = false;
 
@@ -913,8 +932,90 @@ pub fn import_responses_from_csv(state: &mut QuestionnaireState, csv_str: &str) 
 
     if applied_count > 0 {
         state.rebuild_cache();
+        let new_responses = state.current_responses_snapshot();
+        let new_focus_idx = state.current_focus_idx;
+        state.push_action(crate::questionnaire::HistoryAction::StateSnapshot {
+            old_responses,
+            new_responses,
+            old_show_results,
+            new_show_results: state.show_results,
+            old_focus_idx,
+            new_focus_idx,
+            label: "CSV Import".to_string(),
+        });
         Ok(applied_count)
     } else {
         Err("No matching answered questions found in the imported CSV file.")
+    }
+}
+
+/// Exports the full assessment report into compressed BSON binary bytes (Zlib-compressed BSON).
+pub fn export_to_compressed_bson(state: &QuestionnaireState) -> Result<Vec<u8>, String> {
+    let report = FullAssessmentReport::from_state(state);
+    let bson_bytes = bson::to_vec(&report).map_err(|e| format!("BSON serialization failed: {}", e))?;
+    Ok(miniz_oxide::deflate::compress_to_vec_zlib(&bson_bytes, 6))
+}
+
+/// Imports and applies answers from a compressed (or raw) BSON slice.
+/// Returns the number of successfully applied answers.
+pub fn import_responses_from_bson(state: &mut QuestionnaireState, bytes: &[u8]) -> Result<usize, &'static str> {
+    // Attempt zlib decompression first; if that fails, try parsing as raw BSON
+    let bson_bytes = miniz_oxide::inflate::decompress_to_vec_zlib(bytes).unwrap_or_else(|_| bytes.to_vec());
+
+    let report: FullAssessmentReport = bson::from_slice(&bson_bytes)
+        .map_err(|_| "Invalid BSON format. Please ensure this is a valid Revisited IPIP-NEO BSON file.")?;
+
+    let old_responses = state.current_responses_snapshot();
+    let old_show_results = state.show_results;
+    let old_focus_idx = state.current_focus_idx;
+
+    let mut applied_count = 0;
+    let response_map: HashMap<String, f32> = report
+        .item_responses
+        .iter()
+        .filter_map(|item| {
+            item.response_score.map(|score| (item.label.clone(), score))
+        })
+        .collect();
+
+    for q in state.questions.iter_mut() {
+        if let Some(&score) = response_map.get(&q.label) {
+            let resp = if (score - 1.0).abs() < 0.1 {
+                Some(Response::StronglyAgree)
+            } else if (score - 0.5).abs() < 0.1 {
+                Some(Response::Agree)
+            } else if (score - 0.0).abs() < 0.1 {
+                Some(Response::Neutral)
+            } else if (score - (-0.5)).abs() < 0.1 {
+                Some(Response::Disagree)
+            } else if (score - (-1.0)).abs() < 0.1 {
+                Some(Response::StronglyDisagree)
+            } else {
+                None
+            };
+
+            if let Some(r) = resp {
+                q.response = Some(r);
+                applied_count += 1;
+            }
+        }
+    }
+
+    if applied_count > 0 {
+        state.rebuild_cache();
+        let new_responses = state.current_responses_snapshot();
+        let new_focus_idx = state.current_focus_idx;
+        state.push_action(crate::questionnaire::HistoryAction::StateSnapshot {
+            old_responses,
+            new_responses,
+            old_show_results,
+            new_show_results: state.show_results,
+            old_focus_idx,
+            new_focus_idx,
+            label: "BSON Import".to_string(),
+        });
+        Ok(applied_count)
+    } else {
+        Err("No matching answered questions found in the imported BSON file.")
     }
 }
