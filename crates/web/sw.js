@@ -1,5 +1,5 @@
 // Service Worker for Revisited IPIP-NEO (TGA) - Immutable Serverless Deployment Caching Strategy
-const CACHE_NAME = 'ipip-neo-tga-cache-v3';
+const CACHE_NAME = 'ipip-neo-tga-cache-v4';
 
 // Static assets to pre-cache on install
 const PRECACHE_ASSETS = [
