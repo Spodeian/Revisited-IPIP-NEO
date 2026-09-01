@@ -419,181 +419,168 @@ impl PersonalityApp {
             ui.add_space(4.0);
 
             let avail_w = ui.available_width();
-            let title_text = if avail_w < 550.0 {
-                "IPIP-NEO (TGA)"
-            } else if avail_w < 850.0 {
+            let title_text = if avail_w < 480.0 {
+                "IPIP-NEO"
+            } else if avail_w < 780.0 {
                 "Revisited IPIP-NEO (TGA)"
             } else {
                 "Revisited IPIP-NEO Personality Assessment"
             };
 
             let is_touch = constraints.is_mobile;
-            let btn_height = if is_touch { 36.0 } else { 28.0 };
+            let btn_height = if is_touch { 34.0 } else { 26.0 };
 
-            ui.horizontal_wrapped(|ui| {
-                ui.spacing_mut().item_spacing = egui::vec2(6.0, 6.0);
+            ui.horizontal(|ui| {
+                ui.set_min_height(btn_height + 4.0);
 
-                // Title Heading
-                let title_size = if avail_w < 550.0 { 17.0 } else if avail_w < 850.0 { 19.0 } else { 21.0 };
-                ui.label(egui::RichText::new(title_text).size(title_size).strong())
-                    .on_hover_text("Revisited IPIP-NEO Personality Assessment based on Taxonomic Graph Analysis (Samo et al., 2026)");
+                // Right-aligned cluster: Quick Results toggle + Dropdown Menu
+                ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
+                    ui.spacing_mut().item_spacing = egui::vec2(6.0, 0.0);
 
-                // Dynamic Status Badges
-                if let Some(save_t) = self.last_save_time
-                    && current_time - save_t < 2.5
-                {
-                    ui.colored_label(egui::Color32::from_rgb(70, 180, 90), "✔ Saved")
-                        .on_hover_text("Your assessment responses are saved automatically to local storage");
-                }
-                if let Some(undo_t) = self.undo_notification_time
-                    && current_time - undo_t < 2.5
-                {
-                    ui.colored_label(egui::Color32::from_rgb(240, 160, 40), "↩ Undone")
-                        .on_hover_text("Previous answer change was undone (Ctrl+Z / Cmd+Z)");
-                }
-                if let Some(redo_t) = self.redo_notification_time
-                    && current_time - redo_t < 2.5
-                {
-                    ui.colored_label(egui::Color32::from_rgb(100, 180, 240), "↪ Redone")
-                        .on_hover_text("Previous answer change was restored (Ctrl+Y / Cmd+Shift+Z)");
-                }
-                if let Some(est) = self.calculate_estimated_time_remaining() {
-                    ui.label(egui::RichText::new(format!("⏱ {}", est)).small().weak())
-                        .on_hover_text("Estimated time to complete remaining questions based on your average answering speed");
-                }
+                    // Dropdown menu button in top right
+                    ui.menu_button("☰ Menu", |ui| {
+                        ui.set_min_width(220.0);
 
-                ui.separator();
+                        ui.label(egui::RichText::new("Assessment Navigation").small().weak());
 
-                // Primary View Toggle: Questions <-> Results
-                let results_btn_text = if self.state.questionnaire.show_results {
-                    "❓ Questions"
-                } else {
-                    "📊 Results"
-                };
-                let mut res_btn = egui::Button::new(egui::RichText::new(results_btn_text).strong());
-                if is_touch {
-                    res_btn = res_btn.min_size(egui::vec2(0.0, btn_height));
-                }
-                if ui.add(res_btn).on_hover_text("Toggle between questionnaire answering view and hierarchical results report").clicked() {
-                    self.state.questionnaire.show_results = !self.state.questionnaire.show_results;
-                }
+                        let results_text = if self.state.questionnaire.show_results {
+                            "❓ Return to Questions"
+                        } else {
+                            "📊 View Assessment Results"
+                        };
+                        if ui.button(results_text).on_hover_text("Toggle between questionnaire answering view and hierarchical results report").clicked() {
+                            self.state.questionnaire.show_results = !self.state.questionnaire.show_results;
+                            ui.close();
+                        }
 
-                // Item Map (Grid)
-                let mut map_btn = egui::Button::new("🗺 Item Map");
-                if is_touch {
-                    map_btn = map_btn.min_size(egui::vec2(0.0, btn_height));
-                }
-                if ui.add(map_btn).on_hover_text("Open interactive 221-item questionnaire matrix map").clicked() {
-                    self.show_grid_dialog = true;
-                }
+                        if ui.button("🗺 Item Matrix Map").on_hover_text("Open interactive 221-item questionnaire matrix map").clicked() {
+                            self.show_grid_dialog = true;
+                            ui.close();
+                        }
 
-                // If viewing shared link: Return to My Saved Answers
-                if self.is_viewing_shared_link {
-                    let mut return_btn = egui::Button::new(egui::RichText::new("↩ My Answers").strong());
-                    if is_touch {
-                        return_btn = return_btn.min_size(egui::vec2(0.0, btn_height));
-                    }
-                    if ui.add(return_btn).on_hover_text("Exit shared link view and restore your local saved answers").clicked() {
-                        self.restore_saved_instance();
-                    }
-                }
+                        if self.is_viewing_shared_link
+                            && ui.button("↩ My Saved Answers").on_hover_text("Exit shared link view and restore your local saved answers").clicked()
+                        {
+                            self.restore_saved_instance();
+                            ui.close();
+                        }
 
-                // Import button
-                let mut import_btn = egui::Button::new("📥 Import");
-                if is_touch {
-                    import_btn = import_btn.min_size(egui::vec2(0.0, btn_height));
-                }
-                if ui.add(import_btn).on_hover_text("Import previously exported CSV, JSON, or BSON backup to resume testing").clicked() {
-                    self.show_import_dialog = true;
-                    self.import_text_buffer.clear();
-                    self.import_result_message = None;
-                }
+                        ui.separator();
+                        ui.label(egui::RichText::new("Data & Management").small().weak());
 
-                // Reset button
-                let mut reset_btn = egui::Button::new("🔄 Reset");
-                if is_touch {
-                    reset_btn = reset_btn.min_size(egui::vec2(0.0, btn_height));
-                }
-                if ui.add(reset_btn).on_hover_text("Clear all recorded responses and restart assessment from item #1").clicked() {
-                    self.show_reset_dialog = true;
-                }
+                        if ui.button("📥 Import Answers (CSV/JSON/BSON)").on_hover_text("Import previously exported CSV, JSON, or BSON backup to resume testing").clicked() {
+                            self.show_import_dialog = true;
+                            self.import_text_buffer.clear();
+                            self.import_result_message = None;
+                            ui.close();
+                        }
 
-                // Storage Diagnostics Button
-                let storage_label = match self.storage_diag.is_persisted {
-                    Some(true) => "💾 Storage (P)",
-                    Some(false) => "💾 Storage (E)",
-                    None => "💾 Storage",
-                };
-                let mut stor_btn = egui::Button::new(storage_label);
-                if is_touch {
-                    stor_btn = stor_btn.min_size(egui::vec2(0.0, btn_height));
-                }
-                if ui.add(stor_btn).on_hover_text("Inspect offline storage durability, persistence status, quota, and backups").clicked() {
-                    self.show_storage_modal = true;
-                }
+                        if ui.button("🔄 Reset Assessment").on_hover_text("Clear all recorded responses and restart assessment from item #1").clicked() {
+                            self.show_reset_dialog = true;
+                            ui.close();
+                        }
 
-                // PWA Install Button (if available and not already installed)
-                if self.storage_diag.pwa_install_available && !self.storage_diag.is_pwa_installed {
-                    let mut install_btn = egui::Button::new("📲 Install App");
-                    if is_touch {
-                        install_btn = install_btn.min_size(egui::vec2(0.0, btn_height));
-                    }
-                    if ui.add(install_btn).on_hover_text("Install assessment as a standalone Progressive Web App for permanent offline durability").clicked() {
-                        trigger_pwa_install();
-                    }
-                }
+                        let storage_label = match self.storage_diag.is_persisted {
+                            Some(true) => "💾 Storage Status: Persistent",
+                            Some(false) => "💾 Storage Status: Ephemeral",
+                            None => "💾 Storage Status",
+                        };
+                        if ui.button(storage_label).on_hover_text("Inspect offline storage durability, persistence status, quota, and backups").clicked() {
+                            self.show_storage_modal = true;
+                            ui.close();
+                        }
 
-                // Help Dialog Button
-                let mut help_btn = egui::Button::new("ℹ Help");
-                if is_touch {
-                    help_btn = help_btn.min_size(egui::vec2(0.0, btn_height));
-                }
-                if ui.add(help_btn).on_hover_text("View instructions, psychometric background, keyboard shortcuts, and data privacy").clicked() {
-                    self.show_help_dialog = true;
-                }
+                        if self.storage_diag.pwa_install_available && !self.storage_diag.is_pwa_installed
+                            && ui.button("📲 Install App (PWA)").on_hover_text("Install assessment as a standalone Progressive Web App for permanent offline durability").clicked()
+                        {
+                            trigger_pwa_install();
+                            ui.close();
+                        }
 
-                // Theme toggle button
-                let theme_label = match self.state.config.theme {
-                    ThemeMode::Light => "🌙 Dark",
-                    ThemeMode::Dark => "☀ Light",
-                };
-                let mut theme_btn = egui::Button::new(theme_label);
-                if is_touch {
-                    theme_btn = theme_btn.min_size(egui::vec2(0.0, btn_height));
-                }
-                if ui.add(theme_btn).on_hover_text("Switch between dark and light visual themes").clicked() {
-                    self.state.config.theme = match self.state.config.theme {
-                        ThemeMode::Light => ThemeMode::Dark,
-                        ThemeMode::Dark => ThemeMode::Light,
+                        ui.separator();
+                        ui.label(egui::RichText::new("Settings & Info").small().weak());
+
+                        let theme_label = match self.state.config.theme {
+                            ThemeMode::Light => "🌙 Dark Mode",
+                            ThemeMode::Dark => "☀ Light Mode",
+                        };
+                        if ui.button(theme_label).on_hover_text("Switch between dark and light visual themes").clicked() {
+                            self.state.config.theme = match self.state.config.theme {
+                                ThemeMode::Light => ThemeMode::Dark,
+                                ThemeMode::Dark => ThemeMode::Light,
+                            };
+                            ui.close();
+                        }
+
+                        if ui.button("ℹ Help & Shortcuts").on_hover_text("View instructions, psychometric background, keyboard shortcuts, and data privacy").clicked() {
+                            self.show_help_dialog = true;
+                            ui.close();
+                        }
+
+                        if ui.button("📄 Research Paper (DOI)").on_hover_text("Read published paper: 'Revisiting the IPIP-NEO personality hierarchy with taxonomic graph analysis' (doi:10.1177/08902070251352590)").clicked() {
+                            ui.ctx().open_url(egui::OpenUrl::new_tab("https://doi.org/10.1177/08902070251352590"));
+                            ui.close();
+                        }
+
+                        if ui.button("🐙 GitHub Repository").on_hover_text("View open-source repository and Rust codebase on GitHub").clicked() {
+                            ui.ctx().open_url(egui::OpenUrl::new_tab("https://github.com/Spodeian/Revisited-IPIP-NEO"));
+                            ui.close();
+                        }
+
+                        ui.separator();
+                        if ui.button("▲ Hide Header Bar").on_hover_text("Collapse top navigation header to maximize questionnaire focus area").clicked() {
+                            self.hide_header = true;
+                            ui.close();
+                        }
+                    });
+
+                    // Quick Results toggle button right beside Menu
+                    let results_btn_text = if self.state.questionnaire.show_results {
+                        "❓ Questions"
+                    } else {
+                        "📊 Results"
                     };
-                }
+                    let mut res_btn = egui::Button::new(egui::RichText::new(results_btn_text).strong());
+                    if is_touch {
+                        res_btn = res_btn.min_size(egui::vec2(0.0, btn_height));
+                    }
+                    if ui.add(res_btn).on_hover_text("Toggle between questionnaire answering view and hierarchical results report").clicked() {
+                        self.state.questionnaire.show_results = !self.state.questionnaire.show_results;
+                    }
 
-                // Research Publication DOI Link
-                let mut doi_btn = egui::Button::new("📄 DOI");
-                if is_touch {
-                    doi_btn = doi_btn.min_size(egui::vec2(0.0, btn_height));
-                }
-                if ui.add(doi_btn).on_hover_text("Read published paper: 'Revisiting the IPIP-NEO personality hierarchy with taxonomic graph analysis' (doi:10.1177/08902070251352590)").clicked() {
-                    ui.ctx().open_url(egui::OpenUrl::new_tab("https://doi.org/10.1177/08902070251352590"));
-                }
+                    // Left side: Title and status indicators in remaining horizontal space
+                    ui.with_layout(egui::Layout::left_to_right(egui::Align::Center), |ui| {
+                        ui.spacing_mut().item_spacing = egui::vec2(6.0, 0.0);
 
-                // GitHub Repo Link
-                let mut gh_btn = egui::Button::new("🐙 GitHub");
-                if is_touch {
-                    gh_btn = gh_btn.min_size(egui::vec2(0.0, btn_height));
-                }
-                if ui.add(gh_btn).on_hover_text("View open-source repository and Rust codebase on GitHub").clicked() {
-                    ui.ctx().open_url(egui::OpenUrl::new_tab("https://github.com/Spodeian/Revisited-IPIP-NEO"));
-                }
+                        let title_size = if avail_w < 480.0 { 16.0 } else if avail_w < 780.0 { 18.0 } else { 20.0 };
+                        ui.label(egui::RichText::new(title_text).size(title_size).strong())
+                            .on_hover_text("Revisited IPIP-NEO Personality Assessment based on Taxonomic Graph Analysis (Samo et al., 2026)");
 
-                // Collapse Header button
-                let mut hide_btn = egui::Button::new("▲ Hide");
-                if is_touch {
-                    hide_btn = hide_btn.min_size(egui::vec2(0.0, btn_height));
-                }
-                if ui.add(hide_btn).on_hover_text("Collapse top navigation header to maximize questionnaire focus area").clicked() {
-                    self.hide_header = true;
-                }
+                        // Dynamic Status Badges
+                        if let Some(save_t) = self.last_save_time
+                            && current_time - save_t < 2.5
+                        {
+                            ui.colored_label(egui::Color32::from_rgb(70, 180, 90), "✔ Saved")
+                                .on_hover_text("Your assessment responses are saved automatically to local storage");
+                        }
+                        if let Some(undo_t) = self.undo_notification_time
+                            && current_time - undo_t < 2.5
+                        {
+                            ui.colored_label(egui::Color32::from_rgb(240, 160, 40), "↩ Undone")
+                                .on_hover_text("Previous answer change was undone (Ctrl+Z / Cmd+Z)");
+                        }
+                        if let Some(redo_t) = self.redo_notification_time
+                            && current_time - redo_t < 2.5
+                        {
+                            ui.colored_label(egui::Color32::from_rgb(100, 180, 240), "↪ Redone")
+                                .on_hover_text("Previous answer change was restored (Ctrl+Y / Cmd+Shift+Z)");
+                        }
+                        if avail_w > 520.0 && let Some(est) = self.calculate_estimated_time_remaining() {
+                            ui.label(egui::RichText::new(format!("⏱ {}", est)).small().weak())
+                                .on_hover_text("Estimated time to complete remaining questions based on your average answering speed");
+                        }
+                    });
+                });
             });
 
             ui.add_space(4.0);
