@@ -21,7 +21,7 @@ fn main() -> eframe::Result<()> {
         viewport: egui::ViewportBuilder::default()
             .with_title("Revisited IPIP-NEO Personality Assessment")
             .with_inner_size([1100.0, 750.0])
-            .with_min_inner_size([700.0, 500.0]),
+            .with_min_inner_size([300.0, 360.0]),
         ..Default::default()
     };
 
