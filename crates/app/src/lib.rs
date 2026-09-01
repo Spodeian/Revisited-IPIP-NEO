@@ -666,7 +666,7 @@ impl PersonalityApp {
                     ui.set_max_width(max_width);
 
                     // Prominent Framing Instruction
-                    let framing_font_size = if is_ultra_tight { 14.0 } else if is_tight_height { 16.0 } else { 19.0 };
+                    let framing_font_size = if is_ultra_tight { 15.0 } else if is_tight_height { 17.0 } else { 19.0 };
                     ui.label(
                         egui::RichText::new("Rate how accurately this statement describes you:")
                             .size(framing_font_size)
@@ -677,7 +677,7 @@ impl PersonalityApp {
 
                     // Question Statement Box (scaled down for small screens)
                     let card_padding = if is_ultra_tight { 6.0 } else if is_tight_height { 12.0 } else if is_mobile_portrait { 16.0 } else { 24.0 };
-                    let font_size = if is_ultra_tight { 14.0 } else if is_tight_height { 17.0 } else if is_mobile_portrait { 20.0 } else { 26.0 };
+                    let font_size = if is_ultra_tight { 16.0 } else if is_tight_height { 18.0 } else if is_mobile_portrait { 21.0 } else { 26.0 };
 
                     let card_frame = egui::Frame::group(ui.style())
                         .inner_margin(card_padding)
@@ -722,7 +722,7 @@ impl PersonalityApp {
 
                     // Clean vertical stack for Likert buttons across all orientations
                     let button_height = if is_ultra_tight { 26.0 } else if is_tight_height { 32.0 } else if is_mobile_portrait { 36.0 } else { 42.0 };
-                    let button_text_size = if is_ultra_tight { 12.0 } else if is_tight_height { 13.0 } else if is_mobile_portrait { 14.0 } else { 16.0 };
+                    let button_text_size = if is_ultra_tight { 13.5 } else if is_tight_height { 14.5 } else if is_mobile_portrait { 15.5 } else { 16.0 };
                     let btn_width = (ui.available_width() - 8.0).min(340.0);
 
                     for (resp, text, shortcut, tooltip_desc) in responses {
@@ -788,18 +788,18 @@ impl PersonalityApp {
                             ui.spacing_mut().item_spacing.x = if is_ultra_tight { 4.0 } else { 6.0 };
                             ui.spacing_mut().item_spacing.y = 8.0;
 
-                            let btn_prev = if is_ultra_tight { "◀" } else { "◀ Prev" };
+                            let btn_prev = "◀ Prev";
                             if ui.button(btn_prev).on_hover_text("Previous item in sequence (Left Arrow / Mouse Scroll Up)").clicked() {
                                 self.state.questionnaire.navigate_previous();
                             }
 
-                            let btn_prev_un = if is_ultra_tight { "⏪" } else { "⏪ Unanswered" };
+                            let btn_prev_un = "⏪ Unanswered";
                             if ui.button(btn_prev_un).on_hover_text("Jump backward to nearest unanswered question (Shift + Left Arrow)").clicked() {
                                 self.state.questionnaire.navigate_previous_unanswered();
                             }
 
                             if self.state.questionnaire.can_undo() {
-                                let btn_undo = if is_ultra_tight { "↩" } else { "↩ Undo" };
+                                let btn_undo = "↩ Undo";
                                 if ui.button(btn_undo).on_hover_text("Undo previous response change (Ctrl+Z / Cmd+Z)").clicked()
                                     && self.state.questionnaire.undo()
                                 {
@@ -810,7 +810,7 @@ impl PersonalityApp {
                             }
 
                             if self.state.questionnaire.can_redo() {
-                                let btn_redo = if is_ultra_tight { "↪" } else { "↪ Redo" };
+                                let btn_redo = "↪ Redo";
                                 if ui.button(btn_redo).on_hover_text("Redo reverted response change (Ctrl+Y / Cmd+Shift+Z)").clicked()
                                     && self.state.questionnaire.redo()
                                 {
@@ -821,7 +821,7 @@ impl PersonalityApp {
                             }
 
                             if q_response.is_some() {
-                                let btn_clear = if is_ultra_tight { "❌" } else { "❌ Clear" };
+                                let btn_clear = "❌ Clear";
                                 if ui.button(btn_clear).on_hover_text("Clear recorded answer for this question and mark it unanswered").clicked() {
                                     self.is_viewing_shared_link = false;
                                     self.state.questionnaire.clear_response(curr_idx);
@@ -830,12 +830,12 @@ impl PersonalityApp {
                                 }
                             }
 
-                            let btn_next_un = if is_ultra_tight { "⏩" } else { "Next Unanswered ⏩" };
+                            let btn_next_un = "Next Unanswered ⏩";
                             if ui.button(btn_next_un).on_hover_text("Jump forward to nearest unanswered question (Shift + Right Arrow)").clicked() {
                                 self.state.questionnaire.navigate_next_unanswered();
                             }
 
-                            let btn_skip = if is_ultra_tight { "⏭" } else { "Skip ⏭" };
+                            let btn_skip = "Skip ⏭";
                             if ui.button(btn_skip).on_hover_text("Skip question and defer to end of pending queue (Right Arrow / Mouse Scroll Down)").clicked() {
                                 self.state.questionnaire.skip_current();
                             }
@@ -846,18 +846,18 @@ impl PersonalityApp {
                             ui.spacing_mut().item_spacing.x = if is_ultra_tight { 4.0 } else { 6.0 };
 
                             // Left Action Cluster
-                            let btn_prev = if is_ultra_tight { "◀" } else { "◀ Prev" };
+                            let btn_prev = "◀ Prev";
                             if ui.button(btn_prev).on_hover_text("Previous item in sequence (Left Arrow / Mouse Scroll Up)").clicked() {
                                 self.state.questionnaire.navigate_previous();
                             }
 
-                            let btn_prev_un = if is_ultra_tight { "⏪" } else { "⏪ Unanswered" };
+                            let btn_prev_un = "⏪ Unanswered";
                             if ui.button(btn_prev_un).on_hover_text("Jump backward to nearest unanswered question (Shift + Left Arrow)").clicked() {
                                 self.state.questionnaire.navigate_previous_unanswered();
                             }
 
                             if self.state.questionnaire.can_undo() {
-                                let btn_undo = if is_ultra_tight { "↩" } else { "↩ Undo" };
+                                let btn_undo = "↩ Undo";
                                 if ui.button(btn_undo).on_hover_text("Undo previous response change (Ctrl+Z / Cmd+Z)").clicked()
                                     && self.state.questionnaire.undo()
                                 {
@@ -868,7 +868,7 @@ impl PersonalityApp {
                             }
 
                             if self.state.questionnaire.can_redo() {
-                                let btn_redo = if is_ultra_tight { "↪" } else { "↪ Redo" };
+                                let btn_redo = "↪ Redo";
                                 if ui.button(btn_redo).on_hover_text("Redo reverted response change (Ctrl+Y / Cmd+Shift+Z)").clicked()
                                     && self.state.questionnaire.redo()
                                 {
@@ -880,18 +880,18 @@ impl PersonalityApp {
 
                             // Right Action Cluster + Center Expanding Progress Bar
                             ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
-                                let btn_skip = if is_ultra_tight { "⏭" } else { "Skip ⏭" };
+                                let btn_skip = "Skip ⏭";
                                 if ui.button(btn_skip).on_hover_text("Skip question and defer to end of pending queue (Right Arrow / Mouse Scroll Down)").clicked() {
                                     self.state.questionnaire.skip_current();
                                 }
 
-                                let btn_next_un = if is_ultra_tight { "⏩" } else { "Next Unanswered ⏩" };
+                                let btn_next_un = "Next Unanswered ⏩";
                                 if ui.button(btn_next_un).on_hover_text("Jump forward to nearest unanswered question (Shift + Right Arrow)").clicked() {
                                     self.state.questionnaire.navigate_next_unanswered();
                                 }
 
                                 if q_response.is_some() {
-                                    let btn_clear = if is_ultra_tight { "❌" } else { "❌ Clear" };
+                                    let btn_clear = "❌ Clear";
                                     if ui.button(btn_clear).on_hover_text("Clear recorded answer for this question and mark it unanswered").clicked() {
                                         self.is_viewing_shared_link = false;
                                         self.state.questionnaire.clear_response(curr_idx);
