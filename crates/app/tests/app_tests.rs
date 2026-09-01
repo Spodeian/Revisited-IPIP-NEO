@@ -169,3 +169,47 @@ fn test_app_grid_matrix_navigation() {
     assert_eq!(app.state.questionnaire.current_focus_idx, 42);
 }
 
+#[test]
+fn test_import_from_bytes_all_formats() {
+    let mut source_app = PersonalityApp::default();
+    source_app.state.questionnaire.answer_question(0, Response::StronglyAgree);
+    source_app.state.questionnaire.answer_question(1, Response::Disagree);
+
+    // 1. Test CSV format bytes
+    let csv_str = shared::export_to_csv(&source_app.state.questionnaire);
+    let mut app_csv = PersonalityApp::default();
+    let res = app_csv.import_from_bytes(csv_str.as_bytes(), "backup.csv");
+    assert!(res.is_ok());
+    assert_eq!(res.unwrap(), 2);
+    assert_eq!(app_csv.state.questionnaire.questions[0].response, Some(Response::StronglyAgree));
+    assert_eq!(app_csv.state.questionnaire.questions[1].response, Some(Response::Disagree));
+
+    // 2. Test JSON format bytes
+    let json_str = shared::export_to_json(&source_app.state.questionnaire);
+    let mut app_json = PersonalityApp::default();
+    let res = app_json.import_from_bytes(json_str.as_bytes(), "backup.json");
+    assert!(res.is_ok());
+    assert_eq!(res.unwrap(), 2);
+    assert_eq!(app_json.state.questionnaire.questions[0].response, Some(Response::StronglyAgree));
+    assert_eq!(app_json.state.questionnaire.questions[1].response, Some(Response::Disagree));
+
+    // 3. Test raw BSON binary bytes
+    let bson_bytes = shared::export_to_compressed_bson(&source_app.state.questionnaire).unwrap();
+    let mut app_bson = PersonalityApp::default();
+    let res = app_bson.import_from_bytes(&bson_bytes, "backup.bson");
+    assert!(res.is_ok());
+    assert_eq!(res.unwrap(), 2);
+    assert_eq!(app_bson.state.questionnaire.questions[0].response, Some(Response::StronglyAgree));
+    assert_eq!(app_bson.state.questionnaire.questions[1].response, Some(Response::Disagree));
+
+    // 4. Test Base64-encoded BSON string bytes
+    use base64::{engine::general_purpose, Engine as _};
+    let b64_str = general_purpose::STANDARD.encode(&bson_bytes);
+    let mut app_b64 = PersonalityApp::default();
+    let res = app_b64.import_from_bytes(b64_str.as_bytes(), "pasted_b64");
+    assert!(res.is_ok());
+    assert_eq!(res.unwrap(), 2);
+    assert_eq!(app_b64.state.questionnaire.questions[0].response, Some(Response::StronglyAgree));
+    assert_eq!(app_b64.state.questionnaire.questions[1].response, Some(Response::Disagree));
+}
+

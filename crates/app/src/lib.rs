@@ -241,6 +241,45 @@ impl PersonalityApp {
         self.export_copied_notification = None;
     }
 
+    pub fn import_from_bytes(&mut self, bytes: &[u8], filename: &str) -> Result<usize, String> {
+        // 1. Try BSON binary directly (e.g. from .bson file)
+        if let Ok(count) = import_responses_from_bson(&mut self.state.questionnaire, bytes) {
+            self.is_viewing_shared_link = false;
+            self.state.questionnaire.rebuild_cache();
+            return Ok(count);
+        }
+
+        // 2. Try UTF-8 string parse (JSON, CSV, or Base64 BSON)
+        if let Ok(text) = std::str::from_utf8(bytes) {
+            let trimmed = text.trim();
+            if trimmed.starts_with('{') {
+                if let Ok(count) = import_responses_from_json(&mut self.state.questionnaire, trimmed) {
+                    self.is_viewing_shared_link = false;
+                    self.state.questionnaire.rebuild_cache();
+                    return Ok(count);
+                }
+            } else if trimmed.contains('#') || trimmed.contains(',') || trimmed.to_lowercase().contains("item_id") {
+                if let Ok(count) = import_responses_from_csv(&mut self.state.questionnaire, trimmed) {
+                    self.is_viewing_shared_link = false;
+                    self.state.questionnaire.rebuild_cache();
+                    return Ok(count);
+                }
+            } else {
+                // Attempt Base64 BSON decode
+                use base64::{engine::general_purpose, Engine as _};
+                if let Ok(decoded_bytes) = general_purpose::STANDARD.decode(trimmed) {
+                    if let Ok(count) = import_responses_from_bson(&mut self.state.questionnaire, &decoded_bytes) {
+                        self.is_viewing_shared_link = false;
+                        self.state.questionnaire.rebuild_cache();
+                        return Ok(count);
+                    }
+                }
+            }
+        }
+
+        Err(format!("Could not parse '{}'. Supported formats: .bson, .json, .csv", filename))
+    }
+
     fn apply_theme(&mut self, ctx: &egui::Context) {
         if self.current_theme == Some(self.state.config.theme) {
             return;
@@ -740,62 +779,67 @@ impl PersonalityApp {
 
                     ui.add_space(8.0);
 
-                    // Navigation Action Buttons (Cleanly wrapped across all screen sizes)
-                    ui.horizontal_wrapped(|ui| {
-                        ui.spacing_mut().item_spacing = egui::vec2(if is_ultra_tight { 4.0 } else { 6.0 }, 6.0);
+                    // Navigation Action Buttons (Horizontally centered and cleanly wrapped across all screen sizes)
+                    ui.with_layout(
+                        egui::Layout::left_to_right(egui::Align::Center)
+                            .with_main_wrap(true)
+                            .with_main_align(egui::Align::Center),
+                        |ui| {
+                            ui.spacing_mut().item_spacing = egui::vec2(if is_ultra_tight { 4.0 } else { 6.0 }, 6.0);
 
-                        let btn_prev = "◀ Prev";
-                        if ui.button(btn_prev).on_hover_text("Previous item in sequence (Left Arrow / Mouse Scroll Up)").clicked() {
-                            self.state.questionnaire.navigate_previous();
-                        }
-
-                        let btn_prev_un = "⏪ Unanswered";
-                        if ui.button(btn_prev_un).on_hover_text("Jump backward to nearest unanswered question (Shift + Left Arrow)").clicked() {
-                            self.state.questionnaire.navigate_previous_unanswered();
-                        }
-
-                        if self.state.questionnaire.can_undo() {
-                            let btn_undo = "↩ Undo";
-                            if ui.button(btn_undo).on_hover_text("Undo previous response change (Ctrl+Z / Cmd+Z)").clicked()
-                                && self.state.questionnaire.undo()
-                            {
-                                let current_t = ui.input(|i| i.time);
-                                self.undo_notification_time = Some(current_t);
-                                self.last_save_time = Some(current_t);
+                            let btn_prev = "◀ Prev";
+                            if ui.button(btn_prev).on_hover_text("Previous item in sequence (Left Arrow / Mouse Scroll Up)").clicked() {
+                                self.state.questionnaire.navigate_previous();
                             }
-                        }
 
-                        if self.state.questionnaire.can_redo() {
-                            let btn_redo = "↪ Redo";
-                            if ui.button(btn_redo).on_hover_text("Redo reverted response change (Ctrl+Y / Cmd+Shift+Z)").clicked()
-                                && self.state.questionnaire.redo()
-                            {
-                                let current_t = ui.input(|i| i.time);
-                                self.redo_notification_time = Some(current_t);
-                                self.last_save_time = Some(current_t);
+                            let btn_prev_un = "⏪ Unanswered";
+                            if ui.button(btn_prev_un).on_hover_text("Jump backward to nearest unanswered question (Shift + Left Arrow)").clicked() {
+                                self.state.questionnaire.navigate_previous_unanswered();
                             }
-                        }
 
-                        if q_response.is_some() {
-                            let btn_clear = "❌ Clear";
-                            if ui.button(btn_clear).on_hover_text("Clear recorded answer for this question and mark it unanswered").clicked() {
-                                self.is_viewing_shared_link = false;
-                                self.state.questionnaire.clear_response(curr_idx);
-                                let current_t = ui.input(|i| i.time);
-                                self.last_save_time = Some(current_t);
+                            if self.state.questionnaire.can_undo() {
+                                let btn_undo = "↩ Undo";
+                                if ui.button(btn_undo).on_hover_text("Undo previous response change (Ctrl+Z / Cmd+Z)").clicked()
+                                    && self.state.questionnaire.undo()
+                                {
+                                    let current_t = ui.input(|i| i.time);
+                                    self.undo_notification_time = Some(current_t);
+                                    self.last_save_time = Some(current_t);
+                                }
                             }
-                        }
 
-                        let btn_next_un = "Next Unanswered ⏩";
-                        if ui.button(btn_next_un).on_hover_text("Jump forward to nearest unanswered question (Shift + Right Arrow)").clicked() {
-                            self.state.questionnaire.navigate_next_unanswered();
-                        }
+                            if self.state.questionnaire.can_redo() {
+                                let btn_redo = "↪ Redo";
+                                if ui.button(btn_redo).on_hover_text("Redo reverted response change (Ctrl+Y / Cmd+Shift+Z)").clicked()
+                                    && self.state.questionnaire.redo()
+                                {
+                                    let current_t = ui.input(|i| i.time);
+                                    self.redo_notification_time = Some(current_t);
+                                    self.last_save_time = Some(current_t);
+                                }
+                            }
 
-                        let btn_skip = "Skip ⏭";
-                        if ui.button(btn_skip).on_hover_text("Skip question and defer to end of pending queue (Right Arrow / Mouse Scroll Down)").clicked() {
-                            self.state.questionnaire.skip_current();
-                        }
-                    });
+                            if q_response.is_some() {
+                                let btn_clear = "❌ Clear";
+                                if ui.button(btn_clear).on_hover_text("Clear recorded answer for this question and mark it unanswered").clicked() {
+                                    self.is_viewing_shared_link = false;
+                                    self.state.questionnaire.clear_response(curr_idx);
+                                    let current_t = ui.input(|i| i.time);
+                                    self.last_save_time = Some(current_t);
+                                }
+                            }
+
+                            let btn_next_un = "Next Unanswered ⏩";
+                            if ui.button(btn_next_un).on_hover_text("Jump forward to nearest unanswered question (Shift + Right Arrow)").clicked() {
+                                self.state.questionnaire.navigate_next_unanswered();
+                            }
+
+                            let btn_skip = "Skip ⏭";
+                            if ui.button(btn_skip).on_hover_text("Skip question and defer to end of pending queue (Right Arrow / Mouse Scroll Down)").clicked() {
+                                self.state.questionnaire.skip_current();
+                            }
+                        },
+                    );
                 });
             });
 
@@ -1781,80 +1825,88 @@ impl PersonalityApp {
 
     fn render_import_dialog(&mut self, ui: &mut egui::Ui) {
         let mut open = true;
-        egui::Window::new("Import Saved Progress")
+        egui::Window::new("📥 Import Assessment Backup")
             .open(&mut open)
             .default_size(egui::vec2(520.0, 420.0))
             .anchor(egui::Align2::CENTER_CENTER, egui::vec2(0.0, 0.0))
             .show(ui.ctx(), |ui| {
-                ui.label("Paste the contents of your exported CSV, JSON, or Compressed BSON (Base64) file below to restore your answers:");
+                ui.label("Restore your assessment progress from a previously exported backup file (.bson, .json, .csv):");
                 ui.add_space(8.0);
 
-                egui::ScrollArea::both()
-                    .max_height(240.0)
-                    .show(ui, |ui| {
-                        ui.add(
-                            egui::TextEdit::multiline(&mut self.import_text_buffer)
-                                .font(egui::TextStyle::Monospace)
-                                .hint_text("Paste CSV, JSON, or Base64 BSON content here...")
-                                .desired_width(f32::INFINITY)
-                                .desired_rows(12),
-                        );
-                    });
+                // Option 1: Native File Picker Button
+                ui.group(|ui| {
+                    ui.vertical_centered(|ui| {
+                        ui.add_space(4.0);
+                        let file_btn = egui::Button::new(
+                            egui::RichText::new("📁 Browse & Open Backup File...")
+                                .size(14.0)
+                                .strong(),
+                        ).min_size(egui::vec2(280.0, 34.0));
 
-                ui.add_space(12.0);
-                ui.horizontal(|ui| {
-                    if ui.button("Apply and Resume").on_hover_text("Parse pasted data and restore your assessment answers").clicked() {
-                        let input = self.import_text_buffer.trim();
-                        if input.is_empty() {
-                            self.import_result_message = Some(Err("Input is empty.".to_string()));
-                        } else if input.starts_with('{') {
-                            // Attempt JSON parse
-                            match import_responses_from_json(&mut self.state.questionnaire, input) {
-                                Ok(count) => {
-                                    self.is_viewing_shared_link = false;
-                                    self.import_result_message = Some(Ok(format!("Successfully imported {} answers from JSON!", count)));
-                                }
-                                Err(e) => {
-                                    self.import_result_message = Some(Err(e.to_string()));
-                                }
-                            }
-                        } else if input.contains('#') || input.contains(',') {
-                            // Attempt CSV parse
-                            match import_responses_from_csv(&mut self.state.questionnaire, input) {
-                                Ok(count) => {
-                                    self.is_viewing_shared_link = false;
-                                    self.import_result_message = Some(Ok(format!("Successfully imported {} answers from CSV!", count)));
-                                }
-                                Err(e) => {
-                                    self.import_result_message = Some(Err(e.to_string()));
-                                }
-                            }
-                        } else {
-                            // Attempt Base64 BSON decode
-                            use base64::{engine::general_purpose, Engine as _};
-                            match general_purpose::STANDARD.decode(input) {
-                                Ok(bytes) => {
-                                    match import_responses_from_bson(&mut self.state.questionnaire, &bytes) {
-                                        Ok(count) => {
-                                            self.is_viewing_shared_link = false;
-                                            self.import_result_message = Some(Ok(format!("Successfully imported {} answers from BSON!", count)));
-                                        }
-                                        Err(e) => {
-                                            self.import_result_message = Some(Err(e.to_string()));
+                        if ui.add(file_btn).on_hover_text("Open file chooser to select your .bson, .json, or .csv backup").clicked() {
+                            #[cfg(not(target_arch = "wasm32"))]
+                            {
+                                if let Some(path) = rfd::FileDialog::new()
+                                    .add_filter("Assessment Backup (.bson, .json, .csv)", &["bson", "json", "csv"])
+                                    .pick_file()
+                                {
+                                    if let Ok(bytes) = std::fs::read(&path) {
+                                        let filename = path.file_name().and_then(|n| n.to_str()).unwrap_or("file");
+                                        match self.import_from_bytes(&bytes, filename) {
+                                            Ok(count) => {
+                                                let current_t = ui.input(|i| i.time);
+                                                self.last_save_time = Some(current_t);
+                                                self.import_result_message = Some(Ok(format!("Successfully imported {} answers from '{}'!", count, filename)));
+                                            }
+                                            Err(e) => {
+                                                self.import_result_message = Some(Err(e));
+                                            }
                                         }
                                     }
                                 }
-                                Err(_) => {
-                                    self.import_result_message = Some(Err("Unrecognized format. Please provide valid JSON, CSV, or BSON.".to_string()));
+                            }
+                        }
+
+                        ui.add_space(4.0);
+                        ui.label(egui::RichText::new("💡 Tip: You can also drag and drop your .bson or .json file directly onto the app window!").small().weak());
+                        ui.add_space(4.0);
+                    });
+                });
+
+                ui.add_space(8.0);
+
+                // Option 2: Paste Raw Text / Base64 Content
+                ui.collapsing("Or Paste Raw CSV, JSON, or Base64 BSON Text", |ui| {
+                    ui.add_space(4.0);
+                    egui::ScrollArea::both()
+                        .max_height(160.0)
+                        .show(ui, |ui| {
+                            ui.add(
+                                egui::TextEdit::multiline(&mut self.import_text_buffer)
+                                    .font(egui::TextStyle::Monospace)
+                                    .hint_text("Paste CSV text, JSON text, or Base64 BSON string here...")
+                                    .desired_width(f32::INFINITY)
+                                    .desired_rows(6),
+                            );
+                        });
+
+                    ui.add_space(6.0);
+                    if ui.button("Apply Pasted Text").on_hover_text("Parse pasted data and restore answers").clicked() {
+                        let input = self.import_text_buffer.trim().as_bytes().to_vec();
+                        if input.is_empty() {
+                            self.import_result_message = Some(Err("Pasted text is empty.".to_string()));
+                        } else {
+                            match self.import_from_bytes(&input, "pasted text") {
+                                Ok(count) => {
+                                    let current_t = ui.input(|i| i.time);
+                                    self.last_save_time = Some(current_t);
+                                    self.import_result_message = Some(Ok(format!("Successfully imported {} answers from pasted text!", count)));
+                                }
+                                Err(e) => {
+                                    self.import_result_message = Some(Err(e));
                                 }
                             }
                         }
-                    }
-
-                    if ui.button("Cancel").on_hover_text("Close import dialog without making changes").clicked() {
-                        self.show_import_dialog = false;
-                        self.import_text_buffer.clear();
-                        self.import_result_message = None;
                     }
                 });
 
@@ -1869,6 +1921,15 @@ impl PersonalityApp {
                         }
                     }
                 }
+
+                ui.add_space(6.0);
+                ui.horizontal(|ui| {
+                    if ui.button("Close").clicked() {
+                        self.show_import_dialog = false;
+                        self.import_text_buffer.clear();
+                        self.import_result_message = None;
+                    }
+                });
             });
 
         if !open {
@@ -1922,6 +1983,50 @@ impl eframe::App for PersonalityApp {
 
         self.apply_theme(ui.ctx());
         self.handle_keyboard_and_scroll(ui);
+
+        // Handle drag & drop files anywhere onto the window
+        let dropped_files = ui.ctx().input(|i| i.raw.dropped_files.clone());
+        if !dropped_files.is_empty() {
+            for file in dropped_files {
+                let mut loaded_bytes = None;
+                let mut name = String::new();
+
+                if let Ok(bytes) = file.bytes() {
+                    loaded_bytes = Some(bytes);
+                }
+
+                let path = file.path();
+                if !path.as_os_str().is_empty() {
+                    if let Some(n) = path.file_name().and_then(|n| n.to_str()) {
+                        name = n.to_string();
+                    }
+                    if loaded_bytes.is_none() {
+                        #[cfg(not(target_arch = "wasm32"))]
+                        if let Ok(b) = std::fs::read(path) {
+                            loaded_bytes = Some(b);
+                        }
+                    }
+                }
+
+                if name.is_empty() {
+                    name = "backup_file".to_string();
+                }
+
+                if let Some(bytes) = loaded_bytes {
+                    self.show_import_dialog = true;
+                    match self.import_from_bytes(&bytes, &name) {
+                        Ok(count) => {
+                            let current_t = ui.input(|i| i.time);
+                            self.last_save_time = Some(current_t);
+                            self.import_result_message = Some(Ok(format!("Successfully imported {} answers from '{}'!", count, name)));
+                        }
+                        Err(e) => {
+                            self.import_result_message = Some(Err(e));
+                        }
+                    }
+                }
+            }
+        }
 
         let constraints = ScreenConstraints::compute(ui);
 
