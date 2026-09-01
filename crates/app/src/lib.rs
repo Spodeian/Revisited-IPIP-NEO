@@ -420,103 +420,125 @@ impl PersonalityApp {
             let title_text = if constraints.is_mobile { "IPIP-NEO (TGA)" } else { "Revisited IPIP-NEO Personality Assessment" };
             let header_row_height = if constraints.is_mobile { 44.0 } else { 32.0 };
 
-            ui.horizontal(|ui| {
-                ui.set_height(header_row_height);
+            if constraints.is_mobile {
+                ui.horizontal_wrapped(|ui| {
+                    ui.set_min_height(header_row_height);
 
-                let title_label = if constraints.is_mobile {
                     ui.label(egui::RichText::new(title_text).size(18.0).strong())
-                } else {
+                        .on_hover_text("Revisited IPIP-NEO Personality Assessment based on Taxonomic Graph Analysis (Samo et al., 2026)");
+
+                    // Dynamic Status & Time indicators
+                    if let Some(save_t) = self.last_save_time
+                        && current_time - save_t < 2.0
+                    {
+                        ui.colored_label(egui::Color32::from_rgb(70, 180, 90), "Saved")
+                            .on_hover_text("Your assessment responses are saved automatically to local storage");
+                    }
+                    if let Some(undo_t) = self.undo_notification_time
+                        && current_time - undo_t < 2.0
+                    {
+                        ui.colored_label(egui::Color32::from_rgb(240, 160, 40), "↩ Undone")
+                            .on_hover_text("Previous answer change was undone (Ctrl+Z / Cmd+Z)");
+                    }
+                    if let Some(redo_t) = self.redo_notification_time
+                        && current_time - redo_t < 2.0
+                    {
+                        ui.colored_label(egui::Color32::from_rgb(100, 180, 240), "↪ Redone")
+                            .on_hover_text("Previous answer change was restored (Ctrl+Y / Cmd+Shift+Z)");
+                    }
+
+                    ui.spacing_mut().item_spacing.x = 8.0;
+                    ui.spacing_mut().item_spacing.y = 8.0;
+
+                    // Return to saved instance button on mobile
+                    if self.is_viewing_shared_link {
+                        let return_btn = egui::Button::new(egui::RichText::new("My Answers").size(13.0).strong())
+                            .min_size(egui::vec2(68.0, 44.0));
+                        if ui.add(return_btn).on_hover_text("Exit shared link view and restore your local saved answers").clicked() {
+                            self.restore_saved_instance();
+                        }
+                    }
+
+                    // Mobile larger touch-target buttons (min 44x44px standard for easy thumb tapping)
+                    let results_btn_text = if self.state.questionnaire.show_results { "Questions" } else { "Results" };
+                    let res_btn = egui::Button::new(egui::RichText::new(results_btn_text).size(14.0).strong())
+                        .min_size(egui::vec2(96.0, 44.0));
+                    if ui.add(res_btn).on_hover_text("Toggle between questionnaire answering view and hierarchical results report").clicked() {
+                        self.state.questionnaire.show_results = !self.state.questionnaire.show_results;
+                    }
+
+                    // Matrix / Grid button
+                    let grid_btn = egui::Button::new(egui::RichText::new("Map").size(14.0).strong())
+                        .min_size(egui::vec2(44.0, 44.0));
+                    if ui.add(grid_btn).on_hover_text("Open interactive 221-item questionnaire matrix map").clicked() {
+                        self.show_grid_dialog = true;
+                    }
+
+                    // Storage Diagnostics Button (Mobile)
+                    let storage_icon = match self.storage_diag.is_persisted {
+                        Some(true) => "Storage (P)",
+                        Some(false) => "Storage (E)",
+                        None => "Storage",
+                    };
+                    let stor_btn = egui::Button::new(egui::RichText::new(storage_icon).size(13.0))
+                        .min_size(egui::vec2(44.0, 44.0));
+                    if ui.add(stor_btn).on_hover_text("View storage persistence status, offline durability, and backups").clicked() {
+                        self.show_storage_modal = true;
+                    }
+
+                    // Theme toggle button
+                    let theme_icon = match self.state.config.theme {
+                        ThemeMode::Light => "Dark",
+                        ThemeMode::Dark => "Light",
+                    };
+                    let theme_btn = egui::Button::new(egui::RichText::new(theme_icon).size(14.0))
+                        .min_size(egui::vec2(44.0, 44.0));
+                    if ui.add(theme_btn).on_hover_text("Switch between dark and light color themes").clicked() {
+                        self.state.config.theme = match self.state.config.theme {
+                            ThemeMode::Light => ThemeMode::Dark,
+                            ThemeMode::Dark => ThemeMode::Light,
+                        };
+                    }
+
+                    // Collapse Header button
+                    let hide_btn = egui::Button::new(egui::RichText::new("Hide").size(13.0))
+                        .min_size(egui::vec2(44.0, 44.0));
+                    if ui.add(hide_btn).on_hover_text("Collapse top navigation header to maximize questionnaire focus area").clicked() {
+                        self.hide_header = true;
+                    }
+                });
+            } else {
+                ui.horizontal(|ui| {
+                    ui.set_height(header_row_height);
+
                     ui.heading(title_text)
-                };
-                title_label.on_hover_text("Revisited IPIP-NEO Personality Assessment based on Taxonomic Graph Analysis (Samo et al., 2026)");
+                        .on_hover_text("Revisited IPIP-NEO Personality Assessment based on Taxonomic Graph Analysis (Samo et al., 2026)");
 
-                // Dynamic Status & Time indicators
-                if let Some(save_t) = self.last_save_time
-                    && current_time - save_t < 2.0
-                {
-                    ui.colored_label(egui::Color32::from_rgb(70, 180, 90), "Saved")
-                        .on_hover_text("Your assessment responses are saved automatically to local storage");
-                }
-                if let Some(undo_t) = self.undo_notification_time
-                    && current_time - undo_t < 2.0
-                {
-                    ui.colored_label(egui::Color32::from_rgb(240, 160, 40), "↩ Undone")
-                        .on_hover_text("Previous answer change was undone (Ctrl+Z / Cmd+Z)");
-                }
-                if let Some(redo_t) = self.redo_notification_time
-                    && current_time - redo_t < 2.0
-                {
-                    ui.colored_label(egui::Color32::from_rgb(100, 180, 240), "↪ Redone")
-                        .on_hover_text("Previous answer change was restored (Ctrl+Y / Cmd+Shift+Z)");
-                }
-                if !constraints.is_mobile
-                    && let Some(est) = self.calculate_estimated_time_remaining()
-                {
-                    ui.label(egui::RichText::new(est).small().weak())
-                        .on_hover_text("Estimated time to complete remaining questions based on your average answering speed");
-                }
+                    // Dynamic Status & Time indicators
+                    if let Some(save_t) = self.last_save_time
+                        && current_time - save_t < 2.0
+                    {
+                        ui.colored_label(egui::Color32::from_rgb(70, 180, 90), "Saved")
+                            .on_hover_text("Your assessment responses are saved automatically to local storage");
+                    }
+                    if let Some(undo_t) = self.undo_notification_time
+                        && current_time - undo_t < 2.0
+                    {
+                        ui.colored_label(egui::Color32::from_rgb(240, 160, 40), "↩ Undone")
+                            .on_hover_text("Previous answer change was undone (Ctrl+Z / Cmd+Z)");
+                    }
+                    if let Some(redo_t) = self.redo_notification_time
+                        && current_time - redo_t < 2.0
+                    {
+                        ui.colored_label(egui::Color32::from_rgb(100, 180, 240), "↪ Redone")
+                            .on_hover_text("Previous answer change was restored (Ctrl+Y / Cmd+Shift+Z)");
+                    }
+                    if let Some(est) = self.calculate_estimated_time_remaining() {
+                        ui.label(egui::RichText::new(est).small().weak())
+                            .on_hover_text("Estimated time to complete remaining questions based on your average answering speed");
+                    }
 
-                ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
-                    if constraints.is_mobile {
-                        ui.spacing_mut().item_spacing.x = 8.0;
-
-                        // Return to saved instance button on mobile
-                        if self.is_viewing_shared_link {
-                            let return_btn = egui::Button::new(egui::RichText::new("My Answers").size(13.0).strong())
-                                .min_size(egui::vec2(68.0, 44.0));
-                            if ui.add(return_btn).on_hover_text("Exit shared link view and restore your local saved answers").clicked() {
-                                self.restore_saved_instance();
-                            }
-                        }
-
-                        // Mobile larger touch-target buttons (min 44x44px standard for easy thumb tapping)
-                        let results_btn_text = if self.state.questionnaire.show_results { "Questions" } else { "Results" };
-                        let res_btn = egui::Button::new(egui::RichText::new(results_btn_text).size(14.0).strong())
-                            .min_size(egui::vec2(96.0, 44.0));
-                        if ui.add(res_btn).on_hover_text("Toggle between questionnaire answering view and hierarchical results report").clicked() {
-                            self.state.questionnaire.show_results = !self.state.questionnaire.show_results;
-                        }
-
-                        // Matrix / Grid button
-                        let grid_btn = egui::Button::new(egui::RichText::new("Map").size(14.0).strong())
-                            .min_size(egui::vec2(44.0, 44.0));
-                        if ui.add(grid_btn).on_hover_text("Open interactive 221-item questionnaire matrix map").clicked() {
-                            self.show_grid_dialog = true;
-                        }
-
-                        // Storage Diagnostics Button (Mobile)
-                        let storage_icon = match self.storage_diag.is_persisted {
-                            Some(true) => "Storage (P)",
-                            Some(false) => "Storage (E)",
-                            None => "Storage",
-                        };
-                        let stor_btn = egui::Button::new(egui::RichText::new(storage_icon).size(13.0))
-                            .min_size(egui::vec2(44.0, 44.0));
-                        if ui.add(stor_btn).on_hover_text("View storage persistence status, offline durability, and backups").clicked() {
-                            self.show_storage_modal = true;
-                        }
-
-                        // Theme toggle button
-                        let theme_icon = match self.state.config.theme {
-                            ThemeMode::Light => "Dark",
-                            ThemeMode::Dark => "Light",
-                        };
-                        let theme_btn = egui::Button::new(egui::RichText::new(theme_icon).size(14.0))
-                            .min_size(egui::vec2(44.0, 44.0));
-                        if ui.add(theme_btn).on_hover_text("Switch between dark and light color themes").clicked() {
-                            self.state.config.theme = match self.state.config.theme {
-                                ThemeMode::Light => ThemeMode::Dark,
-                                ThemeMode::Dark => ThemeMode::Light,
-                            };
-                        }
-
-                        // Collapse Header button
-                        let hide_btn = egui::Button::new(egui::RichText::new("Hide").size(13.0))
-                            .min_size(egui::vec2(44.0, 44.0));
-                        if ui.add(hide_btn).on_hover_text("Collapse top navigation header to maximize questionnaire focus area").clicked() {
-                            self.hide_header = true;
-                        }
-                    } else {
+                    ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
                         // Desktop layout: Right-to-Left (processed reverse-order for on-screen alignment)
                         let theme_icon = match self.state.config.theme {
                             ThemeMode::Light => "Dark Mode",
@@ -600,9 +622,9 @@ impl PersonalityApp {
                         if ui.button("Hide Header").on_hover_text("Collapse top navigation bar to maximize focus area").clicked() {
                             self.hide_header = true;
                         }
-                    }
+                    });
                 });
-            });
+            }
             ui.add_space(4.0);
         });
     }
@@ -706,8 +728,8 @@ impl PersonalityApp {
                     for (resp, text, shortcut, tooltip_desc) in responses {
                         let is_selected = q_response == Some(resp);
 
-                        // Remove keyboard shortcut hints on ultra-tight touchscreens to save space
-                        let button_text = if is_ultra_tight {
+                        // Remove keyboard shortcut hints on mobile touchscreens to save space
+                        let button_text = if constraints.is_mobile {
                             text.to_string()
                         } else {
                             format!("[{}]  {}", shortcut, text)
@@ -740,57 +762,62 @@ impl PersonalityApp {
                     ui.separator();
                     ui.add_space(if is_ultra_tight { 2.0 } else if is_tight_height { 4.0 } else { 10.0 });
 
-                    // Navigation and Progress Row: Left buttons, Center Progress Bar (Item #x of 221), Right buttons
+                    // Navigation and Progress Row
                     let curr_focus = curr_idx + 1;
                     let progress = self.state.questionnaire.completion_rate();
                     let progress_text = format!("Item #{} of {} ({:.0}%)", curr_focus, total, progress * 100.0);
+                    let answered = self.state.questionnaire.answered_count();
+                    let remaining = total.saturating_sub(answered);
+                    let progress_hover_text = format!(
+                        "Assessment Progress: {}/{} answered ({:.1}%)\n{} remaining question{}",
+                        answered, total, progress * 100.0, remaining, if remaining == 1 { "" } else { "s" }
+                    );
 
-                    ui.horizontal(|ui| {
-                        ui.spacing_mut().item_spacing.x = if is_ultra_tight { 4.0 } else { 6.0 };
+                    if constraints.is_mobile {
+                        // Mobile layout: Progress bar on its own full-width row to prevent squeezing
+                        ui.add(
+                            egui::ProgressBar::new(progress)
+                                .text(progress_text.clone())
+                                .desired_width(ui.available_width() - 8.0),
+                        ).on_hover_text(&progress_hover_text);
 
-                        // Left Action Cluster
-                        let btn_prev = if is_ultra_tight { "◀" } else { "◀ Prev" };
-                        if ui.button(btn_prev).on_hover_text("Previous item in sequence (Left Arrow / Mouse Scroll Up)").clicked() {
-                            self.state.questionnaire.navigate_previous();
-                        }
+                        ui.add_space(8.0);
 
-                        let btn_prev_un = if is_ultra_tight { "⏪" } else { "⏪ Unanswered" };
-                        if ui.button(btn_prev_un).on_hover_text("Jump backward to nearest unanswered question (Shift + Left Arrow)").clicked() {
-                            self.state.questionnaire.navigate_previous_unanswered();
-                        }
+                        // Buttons wrapped to next line(s)
+                        ui.horizontal_wrapped(|ui| {
+                            ui.spacing_mut().item_spacing.x = if is_ultra_tight { 4.0 } else { 6.0 };
+                            ui.spacing_mut().item_spacing.y = 8.0;
 
-                        if self.state.questionnaire.can_undo() {
-                            let btn_undo = if is_ultra_tight { "↩" } else { "↩ Undo" };
-                            if ui.button(btn_undo).on_hover_text("Undo previous response change (Ctrl+Z / Cmd+Z)").clicked()
-                                && self.state.questionnaire.undo()
-                            {
-                                let current_t = ui.input(|i| i.time);
-                                self.undo_notification_time = Some(current_t);
-                                self.last_save_time = Some(current_t);
-                            }
-                        }
-
-                        if self.state.questionnaire.can_redo() {
-                            let btn_redo = if is_ultra_tight { "↪" } else { "↪ Redo" };
-                            if ui.button(btn_redo).on_hover_text("Redo reverted response change (Ctrl+Y / Cmd+Shift+Z)").clicked()
-                                && self.state.questionnaire.redo()
-                            {
-                                let current_t = ui.input(|i| i.time);
-                                self.redo_notification_time = Some(current_t);
-                                self.last_save_time = Some(current_t);
-                            }
-                        }
-
-                        // Right Action Cluster + Center Expanding Progress Bar
-                        ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
-                            let btn_skip = if is_ultra_tight { "⏭" } else { "Skip ⏭" };
-                            if ui.button(btn_skip).on_hover_text("Skip question and defer to end of pending queue (Right Arrow / Mouse Scroll Down)").clicked() {
-                                self.state.questionnaire.skip_current();
+                            let btn_prev = if is_ultra_tight { "◀" } else { "◀ Prev" };
+                            if ui.button(btn_prev).on_hover_text("Previous item in sequence (Left Arrow / Mouse Scroll Up)").clicked() {
+                                self.state.questionnaire.navigate_previous();
                             }
 
-                            let btn_next_un = if is_ultra_tight { "⏩" } else { "Next Unanswered ⏩" };
-                            if ui.button(btn_next_un).on_hover_text("Jump forward to nearest unanswered question (Shift + Right Arrow)").clicked() {
-                                self.state.questionnaire.navigate_next_unanswered();
+                            let btn_prev_un = if is_ultra_tight { "⏪" } else { "⏪ Unanswered" };
+                            if ui.button(btn_prev_un).on_hover_text("Jump backward to nearest unanswered question (Shift + Left Arrow)").clicked() {
+                                self.state.questionnaire.navigate_previous_unanswered();
+                            }
+
+                            if self.state.questionnaire.can_undo() {
+                                let btn_undo = if is_ultra_tight { "↩" } else { "↩ Undo" };
+                                if ui.button(btn_undo).on_hover_text("Undo previous response change (Ctrl+Z / Cmd+Z)").clicked()
+                                    && self.state.questionnaire.undo()
+                                {
+                                    let current_t = ui.input(|i| i.time);
+                                    self.undo_notification_time = Some(current_t);
+                                    self.last_save_time = Some(current_t);
+                                }
+                            }
+
+                            if self.state.questionnaire.can_redo() {
+                                let btn_redo = if is_ultra_tight { "↪" } else { "↪ Redo" };
+                                if ui.button(btn_redo).on_hover_text("Redo reverted response change (Ctrl+Y / Cmd+Shift+Z)").clicked()
+                                    && self.state.questionnaire.redo()
+                                {
+                                    let current_t = ui.input(|i| i.time);
+                                    self.redo_notification_time = Some(current_t);
+                                    self.last_save_time = Some(current_t);
+                                }
                             }
 
                             if q_response.is_some() {
@@ -803,22 +830,88 @@ impl PersonalityApp {
                                 }
                             }
 
-                            // Center Progress Bar filling remaining horizontal space
-                            let remaining_width = ui.available_width() - 8.0;
-                            if remaining_width > 40.0 {
-                                let answered = self.state.questionnaire.answered_count();
-                                let remaining = total.saturating_sub(answered);
-                                ui.add(
-                                    egui::ProgressBar::new(progress)
-                                        .text(progress_text)
-                                        .desired_width(remaining_width),
-                                ).on_hover_text(format!(
-                                    "Assessment Progress: {}/{} answered ({:.1}%)\n{} remaining question{}",
-                                    answered, total, progress * 100.0, remaining, if remaining == 1 { "" } else { "s" }
-                                ));
+                            let btn_next_un = if is_ultra_tight { "⏩" } else { "Next Unanswered ⏩" };
+                            if ui.button(btn_next_un).on_hover_text("Jump forward to nearest unanswered question (Shift + Right Arrow)").clicked() {
+                                self.state.questionnaire.navigate_next_unanswered();
+                            }
+
+                            let btn_skip = if is_ultra_tight { "⏭" } else { "Skip ⏭" };
+                            if ui.button(btn_skip).on_hover_text("Skip question and defer to end of pending queue (Right Arrow / Mouse Scroll Down)").clicked() {
+                                self.state.questionnaire.skip_current();
                             }
                         });
-                    });
+                    } else {
+                        // Desktop layout: left actions, center progress, right actions
+                        ui.horizontal(|ui| {
+                            ui.spacing_mut().item_spacing.x = if is_ultra_tight { 4.0 } else { 6.0 };
+
+                            // Left Action Cluster
+                            let btn_prev = if is_ultra_tight { "◀" } else { "◀ Prev" };
+                            if ui.button(btn_prev).on_hover_text("Previous item in sequence (Left Arrow / Mouse Scroll Up)").clicked() {
+                                self.state.questionnaire.navigate_previous();
+                            }
+
+                            let btn_prev_un = if is_ultra_tight { "⏪" } else { "⏪ Unanswered" };
+                            if ui.button(btn_prev_un).on_hover_text("Jump backward to nearest unanswered question (Shift + Left Arrow)").clicked() {
+                                self.state.questionnaire.navigate_previous_unanswered();
+                            }
+
+                            if self.state.questionnaire.can_undo() {
+                                let btn_undo = if is_ultra_tight { "↩" } else { "↩ Undo" };
+                                if ui.button(btn_undo).on_hover_text("Undo previous response change (Ctrl+Z / Cmd+Z)").clicked()
+                                    && self.state.questionnaire.undo()
+                                {
+                                    let current_t = ui.input(|i| i.time);
+                                    self.undo_notification_time = Some(current_t);
+                                    self.last_save_time = Some(current_t);
+                                }
+                            }
+
+                            if self.state.questionnaire.can_redo() {
+                                let btn_redo = if is_ultra_tight { "↪" } else { "↪ Redo" };
+                                if ui.button(btn_redo).on_hover_text("Redo reverted response change (Ctrl+Y / Cmd+Shift+Z)").clicked()
+                                    && self.state.questionnaire.redo()
+                                {
+                                    let current_t = ui.input(|i| i.time);
+                                    self.redo_notification_time = Some(current_t);
+                                    self.last_save_time = Some(current_t);
+                                }
+                            }
+
+                            // Right Action Cluster + Center Expanding Progress Bar
+                            ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
+                                let btn_skip = if is_ultra_tight { "⏭" } else { "Skip ⏭" };
+                                if ui.button(btn_skip).on_hover_text("Skip question and defer to end of pending queue (Right Arrow / Mouse Scroll Down)").clicked() {
+                                    self.state.questionnaire.skip_current();
+                                }
+
+                                let btn_next_un = if is_ultra_tight { "⏩" } else { "Next Unanswered ⏩" };
+                                if ui.button(btn_next_un).on_hover_text("Jump forward to nearest unanswered question (Shift + Right Arrow)").clicked() {
+                                    self.state.questionnaire.navigate_next_unanswered();
+                                }
+
+                                if q_response.is_some() {
+                                    let btn_clear = if is_ultra_tight { "❌" } else { "❌ Clear" };
+                                    if ui.button(btn_clear).on_hover_text("Clear recorded answer for this question and mark it unanswered").clicked() {
+                                        self.is_viewing_shared_link = false;
+                                        self.state.questionnaire.clear_response(curr_idx);
+                                        let current_t = ui.input(|i| i.time);
+                                        self.last_save_time = Some(current_t);
+                                    }
+                                }
+
+                                // Center Progress Bar filling remaining horizontal space
+                                let remaining_width = ui.available_width() - 8.0;
+                                if remaining_width > 40.0 {
+                                    ui.add(
+                                        egui::ProgressBar::new(progress)
+                                            .text(progress_text.clone())
+                                            .desired_width(remaining_width),
+                                    ).on_hover_text(&progress_hover_text);
+                                }
+                            });
+                        });
+                    }
                 });
             });
 
