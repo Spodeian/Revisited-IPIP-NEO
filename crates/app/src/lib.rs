@@ -475,9 +475,10 @@ impl PersonalityApp {
                 // Right-aligned cluster: Quick Results toggle + Dropdown Menu
                 ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
                     ui.spacing_mut().item_spacing = egui::vec2(6.0, 0.0);
+                    ui.spacing_mut().interact_size.y = btn_height;
 
-                    // Dropdown menu button in top right
-                    ui.menu_button("☰ Menu", |ui| {
+                    // Dropdown menu button in top right (styled with matching bold typography and height)
+                    ui.menu_button(egui::RichText::new("☰ Menu").strong(), |ui| {
                         ui.set_min_width(220.0);
 
                         ui.label(egui::RichText::new("Assessment Navigation").small().weak());
@@ -759,7 +760,7 @@ impl PersonalityApp {
                     ui.separator();
                     ui.add_space(if is_ultra_tight { 2.0 } else if is_tight_height { 4.0 } else { 10.0 });
 
-                    // Navigation and Progress Row
+                    // Navigation and Progress Row (Progress bar in between Left and Right button clusters)
                     let curr_focus = curr_idx + 1;
                     let progress = self.state.questionnaire.completion_rate();
                     let progress_text = format!("Item #{} of {} ({:.0}%)", curr_focus, total, progress * 100.0);
@@ -770,57 +771,56 @@ impl PersonalityApp {
                         answered, total, progress * 100.0, remaining, if remaining == 1 { "" } else { "s" }
                     );
 
-                    // Full-width Progress Bar
-                    ui.add(
-                        egui::ProgressBar::new(progress)
-                            .text(progress_text.clone())
-                            .desired_width(ui.available_width() - 8.0),
-                    ).on_hover_text(&progress_hover_text);
+                    ui.horizontal(|ui| {
+                        ui.spacing_mut().item_spacing = egui::vec2(if is_ultra_tight { 4.0 } else { 6.0 }, 6.0);
 
-                    ui.add_space(8.0);
+                        // Left Action Cluster
+                        let btn_prev = if is_ultra_tight { "◀" } else { "◀ Prev" };
+                        if ui.button(btn_prev).on_hover_text("Previous item in sequence (Left Arrow / Mouse Scroll Up)").clicked() {
+                            self.state.questionnaire.navigate_previous();
+                        }
 
-                    // Navigation Action Buttons (Horizontally centered and cleanly wrapped across all screen sizes)
-                    ui.with_layout(
-                        egui::Layout::left_to_right(egui::Align::Center)
-                            .with_main_wrap(true)
-                            .with_main_align(egui::Align::Center),
-                        |ui| {
-                            ui.spacing_mut().item_spacing = egui::vec2(if is_ultra_tight { 4.0 } else { 6.0 }, 6.0);
+                        let btn_prev_un = if is_ultra_tight { "⏪" } else { "⏪ Unanswered" };
+                        if ui.button(btn_prev_un).on_hover_text("Jump backward to nearest unanswered question (Shift + Left Arrow)").clicked() {
+                            self.state.questionnaire.navigate_previous_unanswered();
+                        }
 
-                            let btn_prev = "◀ Prev";
-                            if ui.button(btn_prev).on_hover_text("Previous item in sequence (Left Arrow / Mouse Scroll Up)").clicked() {
-                                self.state.questionnaire.navigate_previous();
+                        if self.state.questionnaire.can_undo() {
+                            let btn_undo = if is_ultra_tight { "↩" } else { "↩ Undo" };
+                            if ui.button(btn_undo).on_hover_text("Undo previous response change (Ctrl+Z / Cmd+Z)").clicked()
+                                && self.state.questionnaire.undo()
+                            {
+                                let current_t = ui.input(|i| i.time);
+                                self.undo_notification_time = Some(current_t);
+                                self.last_save_time = Some(current_t);
+                            }
+                        }
+
+                        if self.state.questionnaire.can_redo() {
+                            let btn_redo = if is_ultra_tight { "↪" } else { "↪ Redo" };
+                            if ui.button(btn_redo).on_hover_text("Redo reverted response change (Ctrl+Y / Cmd+Shift+Z)").clicked()
+                                && self.state.questionnaire.redo()
+                            {
+                                let current_t = ui.input(|i| i.time);
+                                self.redo_notification_time = Some(current_t);
+                                self.last_save_time = Some(current_t);
+                            }
+                        }
+
+                        // Right Action Cluster + Center Expanding Progress Bar
+                        ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
+                            let btn_skip = if is_ultra_tight { "⏭" } else { "Skip ⏭" };
+                            if ui.button(btn_skip).on_hover_text("Skip question and defer to end of pending queue (Right Arrow / Mouse Scroll Down)").clicked() {
+                                self.state.questionnaire.skip_current();
                             }
 
-                            let btn_prev_un = "⏪ Unanswered";
-                            if ui.button(btn_prev_un).on_hover_text("Jump backward to nearest unanswered question (Shift + Left Arrow)").clicked() {
-                                self.state.questionnaire.navigate_previous_unanswered();
-                            }
-
-                            if self.state.questionnaire.can_undo() {
-                                let btn_undo = "↩ Undo";
-                                if ui.button(btn_undo).on_hover_text("Undo previous response change (Ctrl+Z / Cmd+Z)").clicked()
-                                    && self.state.questionnaire.undo()
-                                {
-                                    let current_t = ui.input(|i| i.time);
-                                    self.undo_notification_time = Some(current_t);
-                                    self.last_save_time = Some(current_t);
-                                }
-                            }
-
-                            if self.state.questionnaire.can_redo() {
-                                let btn_redo = "↪ Redo";
-                                if ui.button(btn_redo).on_hover_text("Redo reverted response change (Ctrl+Y / Cmd+Shift+Z)").clicked()
-                                    && self.state.questionnaire.redo()
-                                {
-                                    let current_t = ui.input(|i| i.time);
-                                    self.redo_notification_time = Some(current_t);
-                                    self.last_save_time = Some(current_t);
-                                }
+                            let btn_next_un = if is_ultra_tight { "⏩" } else { "Next Unanswered ⏩" };
+                            if ui.button(btn_next_un).on_hover_text("Jump forward to nearest unanswered question (Shift + Right Arrow)").clicked() {
+                                self.state.questionnaire.navigate_next_unanswered();
                             }
 
                             if q_response.is_some() {
-                                let btn_clear = "❌ Clear";
+                                let btn_clear = if is_ultra_tight { "❌" } else { "❌ Clear" };
                                 if ui.button(btn_clear).on_hover_text("Clear recorded answer for this question and mark it unanswered").clicked() {
                                     self.is_viewing_shared_link = false;
                                     self.state.questionnaire.clear_response(curr_idx);
@@ -829,17 +829,17 @@ impl PersonalityApp {
                                 }
                             }
 
-                            let btn_next_un = "Next Unanswered ⏩";
-                            if ui.button(btn_next_un).on_hover_text("Jump forward to nearest unanswered question (Shift + Right Arrow)").clicked() {
-                                self.state.questionnaire.navigate_next_unanswered();
+                            // Center Progress Bar filling remaining horizontal space in between
+                            let remaining_width = (ui.available_width() - 8.0).max(0.0);
+                            if remaining_width > 20.0 {
+                                ui.add(
+                                    egui::ProgressBar::new(progress)
+                                        .text(progress_text.clone())
+                                        .desired_width(remaining_width),
+                                ).on_hover_text(&progress_hover_text);
                             }
-
-                            let btn_skip = "Skip ⏭";
-                            if ui.button(btn_skip).on_hover_text("Skip question and defer to end of pending queue (Right Arrow / Mouse Scroll Down)").clicked() {
-                                self.state.questionnaire.skip_current();
-                            }
-                        },
-                    );
+                        });
+                    });
                 });
             });
 
