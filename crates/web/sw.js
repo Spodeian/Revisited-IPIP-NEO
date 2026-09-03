@@ -1,22 +1,22 @@
-// Service Worker for Revisited IPIP-NEO (TGA) - Immutable Serverless Deployment Caching Strategy
-const CACHE_NAME = 'ipip-neo-tga-cache-v6';
+// Service Worker for Revisited IPIP-NEO - Atomic Cache-First with Background Network Revalidation
+const CACHE_NAME = 'ipip-neo-cache-v20260904';
 
 // Static assets to pre-cache on install
 const PRECACHE_ASSETS = [
   './',
   './index.html',
-  './manifest.json'
+  './manifest.json',
+  './favicon.ico'
 ];
 
-// Pre-cache on install and activate immediately
+// 1. Pre-cache on install and activate immediately
 self.addEventListener('install', (event) => {
   event.waitUntil(
-    caches.open(CACHE_NAME).then((cache) => cache.addAll(PRECACHE_ASSETS))
+    caches.open(CACHE_NAME).then((cache) => cache.addAll(PRECACHE_ASSETS)).then(() => self.skipWaiting())
   );
-  self.skipWaiting();
 });
 
-// Purge all legacy caches on activation
+// 2. Purge all legacy caches on activation
 self.addEventListener('activate', (event) => {
   event.waitUntil(
     caches.keys().then((keys) =>
@@ -27,7 +27,7 @@ self.addEventListener('activate', (event) => {
   );
 });
 
-// Fetch router tailored for atomic immutable serverless deployments
+// 3. Fetch router tailored for atomic immutable serverless deployments
 self.addEventListener('fetch', (event) => {
   // Only handle local same-origin GET requests
   if (event.request.method !== 'GET' || !event.request.url.startsWith(self.location.origin)) {
@@ -41,41 +41,32 @@ self.addEventListener('fetch', (event) => {
     return;
   }
 
+  // Never cache the service worker script itself so browser can check for updates in background
+  if (url.pathname.endsWith('/sw.js')) {
+    event.respondWith(fetch(event.request));
+    return;
+  }
+
   const isNavigation = event.request.mode === 'navigate' || event.request.destination === 'document' || url.pathname.endsWith('.html') || url.pathname === '/';
 
-  if (isNavigation) {
-    // Network-First for HTML: Always fetch newest deployment entrypoint from edge CDN when online; fallback to cached shell when offline
-    event.respondWith(
-      fetch(event.request)
-        .then((networkResponse) => {
-          if (networkResponse && networkResponse.status === 200) {
-            const copy = networkResponse.clone();
-            caches.open(CACHE_NAME).then((cache) => cache.put(event.request, copy));
-          }
-          return networkResponse;
-        })
-        .catch(() => caches.match(event.request).then((cached) => cached || caches.match('./index.html') || caches.match('./')))
-    );
-  } else {
-    // Cache-First for immutable content-hashed assets (.wasm, .js, .css, images)
-    event.respondWith(
-      caches.match(event.request).then((cachedResponse) => {
+  event.respondWith(
+    caches.open(CACHE_NAME).then((cache) => {
+      return cache.match(event.request).then((cachedResponse) => {
         if (cachedResponse) {
           return cachedResponse;
         }
-        return fetch(event.request)
-          .then((networkResponse) => {
-            if (networkResponse && networkResponse.status === 200) {
-              const copy = networkResponse.clone();
-              caches.open(CACHE_NAME).then((cache) => cache.put(event.request, copy));
-            }
-            return networkResponse;
-          })
-          .catch((err) => {
-            console.warn('SW fetch failed for asset:', event.request.url, err);
-            throw err;
-          });
-      })
-    );
-  }
+        return fetch(event.request).then((networkResponse) => {
+          if (networkResponse && networkResponse.status === 200) {
+            cache.put(event.request, networkResponse.clone());
+          }
+          return networkResponse;
+        }).catch((err) => {
+          if (isNavigation) {
+            return cache.match('./index.html') || cache.match('./');
+          }
+          throw err;
+        });
+      });
+    })
+  );
 });
