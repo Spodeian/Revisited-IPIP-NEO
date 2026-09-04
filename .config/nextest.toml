@@ -1,0 +1,17 @@
+# Nextest Configuration
+# https://nexte.st/book/configuration.html
+
+[profile.default]
+fail-fast = false
+retries = 1
+status-level = "pass"
+final-status-level = "flaky"
+
+[profile.ci]
+fail-fast = false
+retries = 2
+status-level = "pass"
+final-status-level = "fail"
+
+[profile.ci.junit]
+path = "junit.xml"

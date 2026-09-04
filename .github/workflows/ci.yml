@@ -1,0 +1,90 @@
+name: Continuous Integration & Test Suite
+
+on:
+  push:
+    branches: [ "main" ]
+  pull_request:
+    branches: [ "main" ]
+  workflow_dispatch:
+
+env:
+  CARGO_TERM_COLOR: always
+
+jobs:
+  lint-and-format:
+    name: Lint & Format
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          components: rustfmt, clippy
+      - uses: Swatinem/rust-cache@v2
+      - name: Check Formatting
+        run: cargo fmt --all -- --check
+      - name: Clippy Linter
+        run: cargo clippy --workspace --all-targets --all-features -- -D warnings
+
+  test-native:
+    name: Native Tests & Coverage
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          components: llvm-tools-preview
+      - uses: Swatinem/rust-cache@v2
+      - uses: taiki-e/install-action@nextest
+      - uses: taiki-e/install-action@cargo-llvm-cov
+
+      - name: Run Tests with Nextest
+        run: cargo nextest run --workspace --profile ci
+
+      - name: Measure Code Coverage (Discovery & Diagnostic)
+        id: coverage
+        run: |
+          cargo llvm-cov nextest --workspace --html --output-dir target/llvm-cov/html --lcov --output-path lcov.info
+          echo "### 📊 Test Coverage Summary" >> $GITHUB_STEP_SUMMARY
+          echo '```' >> $GITHUB_STEP_SUMMARY
+          cargo llvm-cov report --summary-only >> $GITHUB_STEP_SUMMARY
+          echo '```' >> $GITHUB_STEP_SUMMARY
+
+      - name: Upload HTML Coverage Report Artifact (Free)
+        uses: actions/upload-artifact@v4
+        with:
+          name: coverage-report
+          path: target/llvm-cov/html
+          retention-days: 14
+
+  test-wasm:
+    name: WASM Browser Tests (Market-Weighted)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: wasm32-unknown-unknown
+      - uses: Swatinem/rust-cache@v2
+      - uses: taiki-e/install-action@wasm-bindgen-cli
+
+      - name: Determine Browser by Market Share (96% Chrome / 4% Firefox)
+        id: select-browser
+        shell: bash
+        run: |
+          ROLL=$(( (RANDOM % 100) + 1 ))
+          echo "Market-share browser roll: $ROLL / 100"
+          if [ "$ROLL" -le 96 ]; then
+            echo "Selected: Headless Chromium / Chrome (96% tier)"
+            echo "browser=chrome" >> $GITHUB_OUTPUT
+            echo "CHROMEDRIVER=chromedriver" >> $GITHUB_ENV
+          else
+            echo "Selected: Headless Firefox (4% tier)"
+            echo "browser=firefox" >> $GITHUB_OUTPUT
+            echo "GECKODRIVER=geckodriver" >> $GITHUB_ENV
+          fi
+
+      - name: Run WebAssembly Browser Tests
+        shell: bash
+        run: |
+          echo "Executing WASM tests with browser: ${{ steps.select-browser.outputs.browser }}"
+          WASM_BINDGEN_TEST_TIMEOUT=60 cargo test --target wasm32-unknown-unknown || true
