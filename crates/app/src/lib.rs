@@ -125,21 +125,14 @@ impl PersonalityApp {
     pub fn new(cc: &eframe::CreationContext<'_>) -> Self {
         info!("Initializing Revisited IPIP-NEO Personality Assessment...");
 
-        let mut state = if let Some(storage) = cc.storage {
-            match eframe::get_value::<AppState>(storage, eframe::APP_KEY) {
-                Some(s) => {
-                    info!("Loaded personality assessment state from storage.");
-                    s
-                }
-                None => {
-                    warn!("No existing saved assessment found, initializing fresh.");
-                    AppState::default()
-                }
-            }
-        } else {
+        let mut state = load_state_multi_tier(cc.storage).unwrap_or_else(|| {
+            warn!("No existing saved assessment found, initializing fresh.");
             AppState::default()
-        };
+        });
 
+        if state.questionnaire.unanswered_count() == 0 && !state.questionnaire.questions.is_empty() {
+            state.questionnaire.show_results = true;
+        }
         state.questionnaire.rebuild_cache();
         let saved_local_state = Some(state.clone());
 
@@ -223,6 +216,36 @@ impl PersonalityApp {
         }
     }
 
+    /// Immediately persist current state to storage (defensive active persistence).
+    /// Does not overwrite saved state if currently viewing a shared link.
+    pub fn persist_state(&mut self) {
+        if self.is_viewing_shared_link {
+            return;
+        }
+
+        if let Ok(json_str) = serde_json::to_string(&self.state) {
+            match save_state_multi_tier(DEDICATED_STORAGE_KEY, &json_str) {
+                Ok(backend) => {
+                    self.storage_diag.backend = backend;
+                    self.storage_diag.quota_exceeded = false;
+                }
+                Err(_) => {
+                    // Space ran out: compact undo history and retry saving
+                    self.state.questionnaire.compact_history(30);
+                    if let Ok(compacted_json) = serde_json::to_string(&self.state) {
+                        if let Ok(backend) = save_state_multi_tier(DEDICATED_STORAGE_KEY, &compacted_json) {
+                            self.storage_diag.backend = backend;
+                            self.storage_diag.quota_exceeded = false;
+                        } else {
+                            self.storage_diag.quota_exceeded = true;
+                            self.storage_diag.backend = StorageBackend::MemoryOnly;
+                        }
+                    }
+                }
+            }
+        }
+    }
+
     pub fn open_export_dialog(&mut self, format: ExportFormat) {
         if format == ExportFormat::Bson {
             if let Ok(bytes) = export_to_compressed_bson(&self.state.questionnaire) {
@@ -248,6 +271,7 @@ impl PersonalityApp {
         if let Ok(count) = import_responses_from_bson(&mut self.state.questionnaire, bytes) {
             self.is_viewing_shared_link = false;
             self.state.questionnaire.rebuild_cache();
+            self.persist_state();
             return Ok(count);
         }
 
@@ -258,12 +282,14 @@ impl PersonalityApp {
                 if let Ok(count) = import_responses_from_json(&mut self.state.questionnaire, trimmed) {
                     self.is_viewing_shared_link = false;
                     self.state.questionnaire.rebuild_cache();
+                    self.persist_state();
                     return Ok(count);
                 }
             } else if trimmed.contains('#') || trimmed.contains(',') || trimmed.to_lowercase().contains("item_id") {
                 if let Ok(count) = import_responses_from_csv(&mut self.state.questionnaire, trimmed) {
                     self.is_viewing_shared_link = false;
                     self.state.questionnaire.rebuild_cache();
+                    self.persist_state();
                     return Ok(count);
                 }
             } else {
@@ -273,6 +299,7 @@ impl PersonalityApp {
                     if let Ok(count) = import_responses_from_bson(&mut self.state.questionnaire, &decoded_bytes) {
                         self.is_viewing_shared_link = false;
                         self.state.questionnaire.rebuild_cache();
+                        self.persist_state();
                         return Ok(count);
                     }
                 }
@@ -342,30 +369,35 @@ impl PersonalityApp {
                 .questionnaire
                 .answer_question(self.state.questionnaire.current_focus_idx, Response::StronglyDisagree);
             record_answer_timestamp(&mut self.answer_timestamps, &mut self.last_save_time);
+            self.persist_state();
         } else if input.key_pressed(egui::Key::Num2) {
             self.is_viewing_shared_link = false;
             self.state
                 .questionnaire
                 .answer_question(self.state.questionnaire.current_focus_idx, Response::Disagree);
             record_answer_timestamp(&mut self.answer_timestamps, &mut self.last_save_time);
+            self.persist_state();
         } else if input.key_pressed(egui::Key::Num3) {
             self.is_viewing_shared_link = false;
             self.state
                 .questionnaire
                 .answer_question(self.state.questionnaire.current_focus_idx, Response::Neutral);
             record_answer_timestamp(&mut self.answer_timestamps, &mut self.last_save_time);
+            self.persist_state();
         } else if input.key_pressed(egui::Key::Num4) {
             self.is_viewing_shared_link = false;
             self.state
                 .questionnaire
                 .answer_question(self.state.questionnaire.current_focus_idx, Response::Agree);
             record_answer_timestamp(&mut self.answer_timestamps, &mut self.last_save_time);
+            self.persist_state();
         } else if input.key_pressed(egui::Key::Num5) {
             self.is_viewing_shared_link = false;
             self.state
                 .questionnaire
                 .answer_question(self.state.questionnaire.current_focus_idx, Response::StronglyAgree);
             record_answer_timestamp(&mut self.answer_timestamps, &mut self.last_save_time);
+            self.persist_state();
         }
 
         // Undo shortcut: Ctrl+Z / Cmd+Z (without Shift)
@@ -376,6 +408,7 @@ impl PersonalityApp {
         {
             self.undo_notification_time = Some(current_time);
             self.last_save_time = Some(current_time);
+            self.persist_state();
         }
 
         // Redo shortcut: Ctrl+Y / Cmd+Y OR Ctrl+Shift+Z / Cmd+Shift+Z
@@ -385,6 +418,17 @@ impl PersonalityApp {
         {
             self.redo_notification_time = Some(current_time);
             self.last_save_time = Some(current_time);
+            self.persist_state();
+        }
+
+        // Delete / Backspace shortcut: Clear recorded answer
+        if input.key_pressed(egui::Key::Delete) || input.key_pressed(egui::Key::Backspace) {
+            self.is_viewing_shared_link = false;
+            self.state
+                .questionnaire
+                .clear_response(self.state.questionnaire.current_focus_idx);
+            self.last_save_time = Some(current_time);
+            self.persist_state();
         }
 
         // Navigation shortcuts:
@@ -407,6 +451,7 @@ impl PersonalityApp {
                 self.export_text_buffer.clear();
             } else if self.state.questionnaire.show_results {
                 self.state.questionnaire.show_results = false;
+                self.persist_state();
             }
         }
 
@@ -492,6 +537,7 @@ impl PersonalityApp {
                         };
                         if ui.button(results_text).on_hover_text("Toggle between questionnaire answering view and hierarchical results report").clicked() {
                             self.state.questionnaire.show_results = !self.state.questionnaire.show_results;
+                            self.persist_state();
                             ui.close();
                         }
 
@@ -551,6 +597,7 @@ impl PersonalityApp {
                                 ThemeMode::Light => ThemeMode::Dark,
                                 ThemeMode::Dark => ThemeMode::Light,
                             };
+                            self.persist_state();
                             ui.close();
                         }
 
@@ -588,6 +635,7 @@ impl PersonalityApp {
                     }
                     if ui.add(res_btn).on_hover_text("Toggle between questionnaire answering view and hierarchical results report").clicked() {
                         self.state.questionnaire.show_results = !self.state.questionnaire.show_results;
+                        self.persist_state();
                     }
 
                     // Left side: Title and status indicators in remaining horizontal space
@@ -753,6 +801,7 @@ impl PersonalityApp {
                                 self.answer_timestamps.pop_front();
                             }
                             self.last_save_time = Some(current_t);
+                            self.persist_state();
                         }
                         ui.add_space(if is_ultra_tight { 2.0 } else if is_tight_height { 4.0 } else { 6.0 });
                     }
@@ -795,6 +844,7 @@ impl PersonalityApp {
                                 let current_t = ui.input(|i| i.time);
                                 self.undo_notification_time = Some(current_t);
                                 self.last_save_time = Some(current_t);
+                                self.persist_state();
                             }
                         }
 
@@ -806,6 +856,7 @@ impl PersonalityApp {
                                 let current_t = ui.input(|i| i.time);
                                 self.redo_notification_time = Some(current_t);
                                 self.last_save_time = Some(current_t);
+                                self.persist_state();
                             }
                         }
 
@@ -828,6 +879,7 @@ impl PersonalityApp {
                                     self.state.questionnaire.clear_response(curr_idx);
                                     let current_t = ui.input(|i| i.time);
                                     self.last_save_time = Some(current_t);
+                                    self.persist_state();
                                 }
                             }
 
@@ -892,6 +944,7 @@ impl PersonalityApp {
                 ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
                     if ui.button("❌").on_hover_text("Close results panel and return to questions (Escape)").clicked() {
                         self.state.questionnaire.show_results = false;
+                        self.persist_state();
                     }
                 });
             });
@@ -917,8 +970,12 @@ impl PersonalityApp {
             }
 
             ui.add_space(4.0);
-            ui.checkbox(&mut self.state.questionnaire.show_detailed_stats, "Show Detailed Metrics & SE")
-                .on_hover_text("Toggle raw score sums, absolute item weights, sample counts, and Standard Error (SE) values");
+            if ui.checkbox(&mut self.state.questionnaire.show_detailed_stats, "Show Detailed Metrics & SE")
+                .on_hover_text("Toggle raw score sums, absolute item weights, sample counts, and Standard Error (SE) values")
+                .changed()
+            {
+                self.persist_state();
+            }
 
             ui.add_space(6.0);
             ui.horizontal_wrapped(|ui| {
@@ -1743,6 +1800,7 @@ impl PersonalityApp {
                         self.is_viewing_shared_link = false;
                         self.state.reset_questionnaire();
                         self.show_reset_dialog = false;
+                        self.persist_state();
                     }
                     if ui.button("Cancel").on_hover_text("Keep existing answers and return to questionnaire").clicked() {
                         self.show_reset_dialog = false;
@@ -1966,28 +2024,17 @@ impl eframe::App for PersonalityApp {
     fn save(&mut self, storage: &mut dyn eframe::Storage) {
         // Do not overwrite user's saved local answers if they are only viewing a shared link
         if !self.is_viewing_shared_link {
+            // 1. Write standard RON state to eframe::APP_KEY
             eframe::set_value(storage, eframe::APP_KEY, &self.state);
+
+            // 2. Also write JSON to dedicated key in storage
             if let Ok(json_str) = serde_json::to_string(&self.state) {
-                match save_state_multi_tier(eframe::APP_KEY, &json_str) {
-                    Ok(backend) => {
-                        self.storage_diag.backend = backend;
-                        self.storage_diag.quota_exceeded = false;
-                    }
-                    Err(_) => {
-                        // Space ran out: compact undo history and retry saving
-                        self.state.questionnaire.compact_history(30);
-                        if let Ok(compacted_json) = serde_json::to_string(&self.state) {
-                            if let Ok(backend) = save_state_multi_tier(eframe::APP_KEY, &compacted_json) {
-                                self.storage_diag.backend = backend;
-                                self.storage_diag.quota_exceeded = false;
-                            } else {
-                                self.storage_diag.quota_exceeded = true;
-                                self.storage_diag.backend = StorageBackend::MemoryOnly;
-                            }
-                        }
-                    }
-                }
+                storage.set_string(DEDICATED_STORAGE_KEY, json_str);
             }
+            storage.flush();
+
+            // 3. Persist to multi-tier engine (localStorage on web)
+            self.persist_state();
         }
     }
 
@@ -2127,6 +2174,7 @@ impl eframe::App for PersonalityApp {
                     ui.add_space(8.0);
                     if ui.button("◀ Return to Questions").clicked() {
                         self.state.questionnaire.show_results = false;
+                        self.persist_state();
                     }
                     ui.add_space(8.0);
                     ui.separator();

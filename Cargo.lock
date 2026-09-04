@@ -93,6 +93,7 @@ dependencies = [
  "js-sys",
  "miniz_oxide",
  "rfd",
+ "ron",
  "serde",
  "serde_json",
  "shared",

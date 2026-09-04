@@ -91,6 +91,126 @@ pub fn trigger_pwa_install() {
     }
 }
 
+pub const DEDICATED_STORAGE_KEY: &str = "revisited_ipip_neo_state";
+
+/// Robust dual-format deserializer for AppState, attempting JSON first and falling back to RON.
+pub fn deserialize_app_state(content: &str) -> Result<shared::AppState, String> {
+    let trimmed = content.trim();
+    if trimmed.is_empty() {
+        return Err("Storage content is empty".to_string());
+    }
+
+    // 1. Attempt JSON deserialization
+    match serde_json::from_str::<shared::AppState>(trimmed) {
+        Ok(state) => Ok(state),
+        Err(json_err) => {
+            // 2. Attempt RON deserialization
+            match ron::from_str::<shared::AppState>(trimmed) {
+                Ok(state) => Ok(state),
+                Err(ron_err) => Err(format!(
+                    "Failed to deserialize AppState: JSON error: {}; RON error: {}",
+                    json_err, ron_err
+                )),
+            }
+        }
+    }
+}
+
+/// Multi-tiered loader for AppState.
+/// Checks window.localStorage (on wasm32) and eframe::Storage across both dedicated and legacy keys,
+/// supporting both JSON and RON formats seamlessly with automatic cache rebuild.
+pub fn load_state_multi_tier(storage: Option<&dyn eframe::Storage>) -> Option<shared::AppState> {
+    #[cfg(target_arch = "wasm32")]
+    {
+        if let Some(window) = web_sys::window() {
+            if let Ok(Some(local_storage)) = window.local_storage() {
+                // Tier 1: Check dedicated key in browser localStorage
+                if let Ok(Some(content)) = local_storage.get_item(DEDICATED_STORAGE_KEY) {
+                    match deserialize_app_state(&content) {
+                        Ok(mut state) => {
+                            info!("Successfully restored AppState from localStorage [{}]", DEDICATED_STORAGE_KEY);
+                            if state.questionnaire.unanswered_count() == 0 && !state.questionnaire.questions.is_empty() {
+                                state.questionnaire.show_results = true;
+                            }
+                            state.questionnaire.rebuild_cache();
+                            return Some(state);
+                        }
+                        Err(e) => {
+                            warn!("Failed to parse AppState from localStorage [{}]: {}", DEDICATED_STORAGE_KEY, e);
+                        }
+                    }
+                }
+
+                // Tier 2: Check standard 'app' key in browser localStorage (fallback/legacy)
+                if let Ok(Some(content)) = local_storage.get_item(eframe::APP_KEY) {
+                    match deserialize_app_state(&content) {
+                        Ok(mut state) => {
+                            info!("Successfully restored AppState from localStorage [{}]", eframe::APP_KEY);
+                            if state.questionnaire.unanswered_count() == 0 && !state.questionnaire.questions.is_empty() {
+                                state.questionnaire.show_results = true;
+                            }
+                            state.questionnaire.rebuild_cache();
+                            return Some(state);
+                        }
+                        Err(e) => {
+                            warn!("Failed to parse AppState from localStorage [{}]: {}", eframe::APP_KEY, e);
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    // Tier 3: Check eframe::Storage
+    if let Some(storage) = storage {
+        // Check dedicated key in eframe storage
+        if let Some(raw) = storage.get_string(DEDICATED_STORAGE_KEY) {
+            match deserialize_app_state(&raw) {
+                Ok(mut state) => {
+                    info!("Successfully restored AppState from eframe::Storage [{}]", DEDICATED_STORAGE_KEY);
+                    if state.questionnaire.unanswered_count() == 0 && !state.questionnaire.questions.is_empty() {
+                        state.questionnaire.show_results = true;
+                    }
+                    state.questionnaire.rebuild_cache();
+                    return Some(state);
+                }
+                Err(e) => {
+                    warn!("Failed to parse AppState from eframe::Storage [{}]: {}", DEDICATED_STORAGE_KEY, e);
+                }
+            }
+        }
+
+        // Check 'app' key string in eframe storage
+        if let Some(raw) = storage.get_string(eframe::APP_KEY) {
+            match deserialize_app_state(&raw) {
+                Ok(mut state) => {
+                    info!("Successfully restored AppState from eframe::Storage [{}]", eframe::APP_KEY);
+                    if state.questionnaire.unanswered_count() == 0 && !state.questionnaire.questions.is_empty() {
+                        state.questionnaire.show_results = true;
+                    }
+                    state.questionnaire.rebuild_cache();
+                    return Some(state);
+                }
+                Err(e) => {
+                    warn!("Failed to parse AppState from eframe::Storage [{}]: {}", eframe::APP_KEY, e);
+                }
+            }
+        }
+
+        // Check native eframe::get_value (RON deserializer)
+        if let Some(mut state) = eframe::get_value::<shared::AppState>(storage, eframe::APP_KEY) {
+            info!("Successfully restored AppState from eframe::get_value (RON).");
+            if state.questionnaire.unanswered_count() == 0 && !state.questionnaire.questions.is_empty() {
+                state.questionnaire.show_results = true;
+            }
+            state.questionnaire.rebuild_cache();
+            return Some(state);
+        }
+    }
+
+    None
+}
+
 /// Save state using localStorage with fallback to in-memory ephemeral tier
 pub fn save_state_multi_tier(key: &str, json_str: &str) -> Result<StorageBackend, String> {
     #[cfg(target_arch = "wasm32")]

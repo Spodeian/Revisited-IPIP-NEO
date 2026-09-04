@@ -213,3 +213,80 @@ fn test_import_from_bytes_all_formats() {
     assert_eq!(app_b64.state.questionnaire.questions[1].response, Some(Response::Disagree));
 }
 
+#[test]
+fn test_load_state_multi_tier_json_and_ron() {
+    use app::storage_manager::{deserialize_app_state, load_state_multi_tier, DEDICATED_STORAGE_KEY};
+
+    let mut original_state = AppState::default();
+    original_state.questionnaire.answer_question(0, Response::StronglyAgree);
+    original_state.questionnaire.answer_question(1, Response::Neutral);
+
+    // 1. Verify JSON serialization roundtrip
+    let json_str = serde_json::to_string(&original_state).unwrap();
+    let from_json = deserialize_app_state(&json_str).expect("Should deserialize JSON");
+    assert_eq!(from_json.questionnaire.questions[0].response, Some(Response::StronglyAgree));
+
+    // 2. Verify RON serialization roundtrip
+    let ron_str = ron::to_string(&original_state).unwrap();
+    let from_ron = deserialize_app_state(&ron_str).expect("Should deserialize RON");
+    assert_eq!(from_ron.questionnaire.questions[0].response, Some(Response::StronglyAgree));
+
+    // 3. Verify load_state_multi_tier from dedicated storage key containing JSON
+    let mut storage_dedicated = MockStorage::default();
+    storage_dedicated.set_string(DEDICATED_STORAGE_KEY, json_str.clone());
+    let loaded_dedicated = load_state_multi_tier(Some(&storage_dedicated)).expect("Should load from dedicated key");
+    assert_eq!(loaded_dedicated.questionnaire.questions[0].response, Some(Response::StronglyAgree));
+
+    // 4. Verify load_state_multi_tier from app key containing JSON (backward compatibility)
+    let mut storage_json_app = MockStorage::default();
+    storage_json_app.set_string(eframe::APP_KEY, json_str);
+    let loaded_json_app = load_state_multi_tier(Some(&storage_json_app)).expect("Should load from app key JSON");
+    assert_eq!(loaded_json_app.questionnaire.questions[0].response, Some(Response::StronglyAgree));
+
+    // 5. Verify load_state_multi_tier from app key containing RON
+    let mut storage_ron_app = MockStorage::default();
+    storage_ron_app.set_string(eframe::APP_KEY, ron_str);
+    let loaded_ron_app = load_state_multi_tier(Some(&storage_ron_app)).expect("Should load from app key RON");
+    assert_eq!(loaded_ron_app.questionnaire.questions[0].response, Some(Response::StronglyAgree));
+}
+
+#[test]
+fn test_results_persistence_and_completion_restoration() {
+    use app::storage_manager::{load_state_multi_tier, DEDICATED_STORAGE_KEY};
+
+    let mut storage = MockStorage::default();
+    let mut app = PersonalityApp::default();
+
+    // Answer questions and explicitly toggle show_results
+    app.state.questionnaire.answer_question(0, Response::Agree);
+    app.state.questionnaire.show_results = true;
+
+    // Save app
+    app.save(&mut storage);
+
+    // Verify storage has DEDICATED_STORAGE_KEY
+    assert!(storage.get_string(DEDICATED_STORAGE_KEY).is_some());
+
+    // Load state
+    let loaded = load_state_multi_tier(Some(&storage)).expect("Should load state");
+    assert!(loaded.questionnaire.show_results, "show_results state should be preserved on load");
+    assert_eq!(loaded.questionnaire.questions[0].response, Some(Response::Agree));
+
+    // Also test 100% completion auto-reveals results
+    let mut complete_state = AppState::default();
+    for i in 0..complete_state.questionnaire.questions.len() {
+        complete_state.questionnaire.questions[i].response = Some(Response::Neutral);
+    }
+    complete_state.questionnaire.show_results = false; // explicitly false
+    let complete_json = serde_json::to_string(&complete_state).unwrap();
+
+    let mut storage_complete = MockStorage::default();
+    storage_complete.set_string(DEDICATED_STORAGE_KEY, complete_json);
+
+    let loaded_complete = load_state_multi_tier(Some(&storage_complete)).expect("Should load complete state");
+    assert!(
+        loaded_complete.questionnaire.show_results,
+        "show_results should be auto-set to true when 100% completed"
+    );
+}
+

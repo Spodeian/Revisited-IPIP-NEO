@@ -662,6 +662,11 @@ impl QuestionnaireState {
         }
         self.pending_queue = new_queue;
 
+        // If all questions are answered, auto-enable show_results
+        if self.pending_queue.is_empty() && !self.questions.is_empty() {
+            self.show_results = true;
+        }
+
         if let Some(&first_pending) = self.pending_queue.front()
             && (self.questions.get(self.current_focus_idx).is_none() || self.questions[self.current_focus_idx].response.is_some())
         {

@@ -39,6 +39,7 @@ miniz_oxide = "0.8"
 base64 = "0.22"
 num = "0.4"
 rfd = "0.15"
+ron = "0.12"
 
 [profile.release]
 opt-level = "z"
