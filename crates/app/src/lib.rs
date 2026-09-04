@@ -85,6 +85,7 @@ pub struct PersonalityApp {
     pub dismissed_quota_warning: bool,
     pub dismissed_combined_warning: bool,
     pub last_diag_poll_time: f64,
+    pub pending_dropped_file: std::sync::Arc<std::sync::Mutex<Option<(Vec<u8>, String)>>>,
 }
 
 fn trigger_file_download(filename: &str, content: &str, _mime_type: &str) {
@@ -201,6 +202,7 @@ impl PersonalityApp {
             dismissed_quota_warning: false,
             dismissed_combined_warning: false,
             last_diag_poll_time: 0.0,
+            pending_dropped_file: Default::default(),
         }
     }
 
@@ -1865,6 +1867,25 @@ impl PersonalityApp {
                                     }
                                 }
                             }
+                            #[cfg(target_arch = "wasm32")]
+                            {
+                                let pending = self.pending_dropped_file.clone();
+                                let ctx = ui.ctx().clone();
+                                wasm_bindgen_futures::spawn_local(async move {
+                                    if let Some(file_handle) = rfd::AsyncFileDialog::new()
+                                        .add_filter("Assessment Backup (.bson, .json, .csv)", &["bson", "json", "csv"])
+                                        .pick_file()
+                                        .await
+                                    {
+                                        let bytes = file_handle.read().await;
+                                        let filename = file_handle.file_name();
+                                        if let Ok(mut guard) = pending.lock() {
+                                            *guard = Some((bytes, filename));
+                                        }
+                                        ctx.request_repaint();
+                                    }
+                                });
+                            }
                         }
 
                         ui.add_space(4.0);
@@ -1984,46 +2005,78 @@ impl eframe::App for PersonalityApp {
         self.apply_theme(ui.ctx());
         self.handle_keyboard_and_scroll(ui);
 
+        // Process any async dropped or picked files that finished loading on WASM
+        let pending_file = if let Ok(mut guard) = self.pending_dropped_file.lock() {
+            guard.take()
+        } else {
+            None
+        };
+
+        if let Some((bytes, name)) = pending_file {
+            self.show_import_dialog = true;
+            match self.import_from_bytes(&bytes, &name) {
+                Ok(count) => {
+                    let current_t = ui.input(|i| i.time);
+                    self.last_save_time = Some(current_t);
+                    self.import_result_message = Some(Ok(format!("Successfully imported {} answers from '{}'!", count, name)));
+                }
+                Err(e) => {
+                    self.import_result_message = Some(Err(e));
+                }
+            }
+        }
+
         // Handle drag & drop files anywhere onto the window
         let dropped_files = ui.ctx().input(|i| i.raw.dropped_files.clone());
         if !dropped_files.is_empty() {
             for file in dropped_files {
-                let mut loaded_bytes = None;
-                let mut name = String::new();
-
-                if let Ok(bytes) = file.bytes() {
-                    loaded_bytes = Some(bytes);
-                }
-
                 let path = file.path();
-                if !path.as_os_str().is_empty() {
-                    if let Some(n) = path.file_name().and_then(|n| n.to_str()) {
-                        name = n.to_string();
-                    }
-                    if loaded_bytes.is_none() {
-                        #[cfg(not(target_arch = "wasm32"))]
+                let name = if !path.as_os_str().is_empty() {
+                    path.file_name().and_then(|n| n.to_str()).unwrap_or("backup_file").to_string()
+                } else {
+                    "backup_file".to_string()
+                };
+
+                #[cfg(not(target_arch = "wasm32"))]
+                {
+                    let mut loaded_bytes: Option<Vec<u8>> = None;
+                    if let Ok(bytes) = file.bytes() {
+                        loaded_bytes = Some(bytes);
+                    } else if !path.as_os_str().is_empty() {
                         if let Ok(b) = std::fs::read(path) {
                             loaded_bytes = Some(b);
                         }
                     }
-                }
 
-                if name.is_empty() {
-                    name = "backup_file".to_string();
-                }
-
-                if let Some(bytes) = loaded_bytes {
-                    self.show_import_dialog = true;
-                    match self.import_from_bytes(&bytes, &name) {
-                        Ok(count) => {
-                            let current_t = ui.input(|i| i.time);
-                            self.last_save_time = Some(current_t);
-                            self.import_result_message = Some(Ok(format!("Successfully imported {} answers from '{}'!", count, name)));
-                        }
-                        Err(e) => {
-                            self.import_result_message = Some(Err(e));
+                    if let Some(bytes) = loaded_bytes {
+                        self.show_import_dialog = true;
+                        match self.import_from_bytes(&bytes, &name) {
+                            Ok(count) => {
+                                let current_t = ui.input(|i| i.time);
+                                self.last_save_time = Some(current_t);
+                                self.import_result_message = Some(Ok(format!("Successfully imported {} answers from '{}'!", count, name)));
+                            }
+                            Err(e) => {
+                                self.import_result_message = Some(Err(e));
+                            }
                         }
                     }
+                }
+
+                #[cfg(target_arch = "wasm32")]
+                {
+                    let pending = self.pending_dropped_file.clone();
+                    let file_clone = file.clone();
+                    let name_clone = name.clone();
+                    let ctx = ui.ctx().clone();
+                    wasm_bindgen_futures::spawn_local(async move {
+                        if let Ok(bytes) = file_clone.bytes_async().await {
+                            if let Ok(mut guard) = pending.lock() {
+                                *guard = Some((bytes, name_clone));
+                            }
+                            ctx.request_repaint();
+                        }
+                    });
                 }
             }
         }
