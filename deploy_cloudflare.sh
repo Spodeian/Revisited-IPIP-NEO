@@ -5,4 +5,5 @@
 set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-exec "$SCRIPT_DIR/deploy.sh" "$@"
+chmod +x "$SCRIPT_DIR/deploy.sh" 2>/dev/null || true
+exec bash "$SCRIPT_DIR/deploy.sh" "$@"
