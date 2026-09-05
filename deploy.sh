@@ -8,6 +8,7 @@ echo "=== Initializing Cloudflare Serverless Build Pipeline ==="
 
 # 1. Persistent Environment & PATH Setup
 export NODE_ENV="production"
+export NODE_VERSION="${NODE_VERSION:-24}"
 
 if [ -d "/opt/buildhome" ]; then
     export CARGO_HOME="/opt/buildhome/.cargo"
@@ -143,7 +144,7 @@ if [ -d "$DIST_DIR" ]; then
     echo "=== Running Production Asset Minification (HTML, CSS, JS) for '$DIST_DIR' ==="
 
     if command -v npx &> /dev/null; then
-        echo "Minifying JavaScript and CSS assets using esbuild..."
+        echo "Minifying JavaScript and CSS assets using esbuild (Node $(node -v 2>/dev/null || echo 'unknown'))..."
         for js_file in "$DIST_DIR"/*.js; do
             if [ -f "$js_file" ]; then
                 echo "  Minifying JS: $js_file"

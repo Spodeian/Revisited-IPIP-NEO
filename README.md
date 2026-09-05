@@ -67,6 +67,10 @@ graph TD
   ```bash
   cargo install trunk
   ```
+- **Node.js 24 LTS**: (Required for asset minification pipelines, Wrangler edge previews, and Cloudflare Pages compatibility; managed via [`.node-version`](.node-version) / [`.nvmrc`](.nvmrc)):
+  ```bash
+  nvm use # or fnm use
+  ```
 - *(Optional)* **wasm-opt** (Binaryen v122+) for release binary size optimization.
 
 ---
@@ -122,6 +126,7 @@ bash deploy.sh
 - **Build Command**: `bash deploy.sh`
 - **Build Output Directory**: `crates/web/dist`
 - **Environment Variables**:
+  - `NODE_VERSION`: `24`
   - `RUST_VERSION`: `stable` (Optional if `rust-toolchain.toml` is present)
   - `CARGO_HOME`: `/opt/buildhome/.cargo`
 

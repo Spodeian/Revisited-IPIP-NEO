@@ -77,6 +77,11 @@ jobs:
           echo "Active wasm-opt version: $(wasm-opt --version)"
           trunk build --release --public-url "/Revisited-IPIP-NEO/"
 
+      - name: Setup Node.js 24 LTS
+        uses: actions/setup-node@v4
+        with:
+          node-version-file: '.node-version'
+
       - name: Minify Production Assets (HTML, CSS, JS)
         run: |
           echo "=== Minifying Production Distribution Assets in crates/web/dist ==="
