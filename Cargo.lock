@@ -84,7 +84,7 @@ dependencies = [
 
 [[package]]
 name = "app"
-version = "1.5.3"
+version = "1.5.4"
 dependencies = [
  "base64",
  "bson",
@@ -678,7 +678,7 @@ checksum = "7cd812cc2bc1d69d4764bd80df88b4317eaef9e773c75226407d9bc0876b211c"
 
 [[package]]
 name = "desktop"
-version = "1.5.3"
+version = "1.5.4"
 dependencies = [
  "app",
  "eframe",
@@ -2897,7 +2897,7 @@ dependencies = [
 
 [[package]]
 name = "shared"
-version = "1.5.3"
+version = "1.5.4"
 dependencies = [
  "bson",
  "miniz_oxide",
@@ -3661,7 +3661,7 @@ dependencies = [
 
 [[package]]
 name = "web"
-version = "1.5.3"
+version = "1.5.4"
 dependencies = [
  "app",
  "console_error_panic_hook",

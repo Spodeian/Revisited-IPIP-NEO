@@ -9,7 +9,7 @@ members = [
 
 # Shared metadata for all workspace packages
 [workspace.package]
-version = "1.5.3"
+version = "1.5.4"
 authors = ["Liam <spodeian@proton.me>"]
 edition = "2024"
 license = "CC-BY-NC-SA-4.0"
