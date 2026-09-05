@@ -1,4 +1,7 @@
 //! Native desktop application runner for the Revisited IPIP-NEO Personality Assessment.
+#[global_allocator]
+static GLOBAL: mimalloc::MiMalloc = mimalloc::MiMalloc;
+
 
 use app::PersonalityApp;
 use eframe::egui;
@@ -31,3 +34,4 @@ fn main() -> eframe::Result<()> {
         Box::new(|cc| Ok(Box::new(PersonalityApp::new(cc)))),
     )
 }
+

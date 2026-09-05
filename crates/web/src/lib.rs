@@ -10,7 +10,7 @@ use wasm_bindgen::{prelude::*, JsCast};
 pub fn main() {
     // Redirect panic logs to browser developer console
     console_error_panic_hook::set_once();
-    tracing_wasm::set_as_global_default();
+    tracing_subscriber::fmt().with_writer(tracing_web::MakeConsoleWriter).init();
 
     // Spawn the async eframe WebRunner natively
     wasm_bindgen_futures::spawn_local(async {
