@@ -154,4 +154,4 @@ This project is dual-licensed to fully respect academic research rights and soft
 
 - **Standard Non-Commercial License**: [Creative Commons Attribution-NonCommercial-ShareAlike 4.0 International (CC-BY-NC-SA 4.0)](LICENSE).
   - Allows copying, modifying, and redistributing the codebase for non-commercial purposes, provided downstream edits are shared under the same license.
-- **Commercial Use**: Any commercial use requires separate licensing for the [software library](https://github.com/Spodeian/Revisited-IPIP-NEO) and the underlying research ([Data](Distilled%20Key.csv) / [Research](https://doi.org/10.1177/08902070251352590)).
+- **Commercial Use**: Any commercial use requires separate commercial licensing for the [software library](https://github.com/Spodeian/Revisited-IPIP-NEO) and the underlying research ([Data](Distilled%20Key.csv) / [Research](https://doi.org/10.1177/08902070251352590)). For all commercial licensing inquiries and enterprise terms, please contact the author and maintainer directly at **spodeian@proton.me**.
