@@ -73,6 +73,8 @@ jobs:
         run: echo "$HOME/.cargo/bin" >> $GITHUB_PATH
 
       - name: Build Web Application
+        env:
+          RUSTFLAGS: "-C target-feature=+simd128"
         run: |
           echo "Active wasm-opt version: $(wasm-opt --version)"
           trunk build --release --public-url "/Revisited-IPIP-NEO/"
