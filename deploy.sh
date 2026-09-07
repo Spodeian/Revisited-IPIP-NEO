@@ -96,7 +96,7 @@ fi
 echo "Purging previous build distribution caches..."
 rm -rf crates/web/dist dist
 
-export RUSTFLAGS="-C target-feature=+bulk-memory,+mutable-globals,+nontrapping-fptoint,+sign-ext,+reference-types,+multivalue -C link-arg=-zstack-size=2097152 -C target-cpu=generic ${RUSTFLAGS:-}"
+export RUSTFLAGS="-C target-feature=+bulk-memory,+mutable-globals,+nontrapping-fptoint,+sign-ext -C link-arg=-zstack-size=2097152 ${RUSTFLAGS:-}"
 
 echo "Compiling and bundling web application for release..."
 "$TRUNK_BIN" clean
@@ -115,8 +115,6 @@ WASM_OPT_FLAGS=(
     "--enable-mutable-globals"
     "--enable-sign-ext"
     "--enable-nontrapping-float-to-int"
-    "--enable-reference-types"
-    "--enable-multivalue"
 )
 
 if [ -x "$WASM_OPT_BIN" ] || command -v wasm-opt &> /dev/null; then

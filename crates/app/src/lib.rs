@@ -1,3 +1,6 @@
+#![allow(clippy::type_complexity)]
+#![allow(clippy::collapsible_if)]
+
 pub mod storage_manager;
 pub use storage_manager::*;
 
