@@ -1,14 +1,16 @@
 use shared::{
-    decode_responses_from_url_code, encode_responses_to_url_code, export_to_csv, export_to_json,
-    export_to_printable_html, import_responses_from_csv, import_responses_from_json, AppState,
-    QuestionnaireState, Response,
+    AppState, QuestionnaireState, Response, decode_responses_from_url_code,
+    encode_responses_to_url_code, export_to_csv, export_to_json, export_to_printable_html,
+    import_responses_from_csv, import_responses_from_json,
 };
 
 #[test]
 fn test_state_serialization_roundtrip() {
     let mut state = AppState::default();
     state.questionnaire.answer_question(0, Response::Agree);
-    state.questionnaire.answer_question(5, Response::StronglyDisagree);
+    state
+        .questionnaire
+        .answer_question(5, Response::StronglyDisagree);
     state.questionnaire.skip_current();
 
     let json = serde_json::to_string(&state).expect("Serialize AppState");
@@ -16,8 +18,14 @@ fn test_state_serialization_roundtrip() {
     loaded.questionnaire.rebuild_cache();
 
     assert_eq!(loaded.questionnaire.answered_count(), 2);
-    assert_eq!(loaded.questionnaire.questions[0].response, Some(Response::Agree));
-    assert_eq!(loaded.questionnaire.questions[5].response, Some(Response::StronglyDisagree));
+    assert_eq!(
+        loaded.questionnaire.questions[0].response,
+        Some(Response::Agree)
+    );
+    assert_eq!(
+        loaded.questionnaire.questions[5].response,
+        Some(Response::StronglyDisagree)
+    );
     assert_eq!(loaded.questionnaire.pending_queue.len(), 219);
 }
 
@@ -70,10 +78,14 @@ fn test_import_responses_from_json_roundtrip() {
     let mut new_state = QuestionnaireState::from_embedded_data();
     assert_eq!(new_state.answered_count(), 0);
 
-    let imported_count = import_responses_from_json(&mut new_state, &json_data).expect("Import JSON successfully");
+    let imported_count =
+        import_responses_from_json(&mut new_state, &json_data).expect("Import JSON successfully");
     assert_eq!(imported_count, 3);
     assert_eq!(new_state.answered_count(), 3);
-    assert_eq!(new_state.questions[0].response, Some(Response::StronglyAgree));
+    assert_eq!(
+        new_state.questions[0].response,
+        Some(Response::StronglyAgree)
+    );
     assert_eq!(new_state.questions[10].response, Some(Response::Disagree));
     assert_eq!(new_state.questions[50].response, Some(Response::Neutral));
 }
@@ -90,11 +102,15 @@ fn test_import_responses_from_csv_roundtrip() {
     let mut new_state = QuestionnaireState::from_embedded_data();
     assert_eq!(new_state.answered_count(), 0);
 
-    let imported_count = import_responses_from_csv(&mut new_state, &csv_data).expect("Import CSV successfully");
+    let imported_count =
+        import_responses_from_csv(&mut new_state, &csv_data).expect("Import CSV successfully");
     assert_eq!(imported_count, 2);
     assert_eq!(new_state.answered_count(), 2);
     assert_eq!(new_state.questions[0].response, Some(Response::Agree));
-    assert_eq!(new_state.questions[20].response, Some(Response::StronglyDisagree));
+    assert_eq!(
+        new_state.questions[20].response,
+        Some(Response::StronglyDisagree)
+    );
 }
 
 #[test]
@@ -108,16 +124,26 @@ fn test_encode_decode_url_code_roundtrip() {
 
     let url_code = encode_responses_to_url_code(&state);
     assert!(!url_code.is_empty());
-    assert!(url_code.len() < 200, "Compact URL code must be under 200 characters");
+    assert!(
+        url_code.len() < 200,
+        "Compact URL code must be under 200 characters"
+    );
 
     let mut new_state = QuestionnaireState::from_embedded_data();
     assert_eq!(new_state.answered_count(), 0);
 
-    let decoded_count = decode_responses_from_url_code(&mut new_state, &url_code).expect("Decode URL code successfully");
+    let decoded_count = decode_responses_from_url_code(&mut new_state, &url_code)
+        .expect("Decode URL code successfully");
     assert_eq!(decoded_count, 5);
     assert_eq!(new_state.answered_count(), 5);
-    assert_eq!(new_state.questions[0].response, Some(Response::StronglyAgree));
-    assert_eq!(new_state.questions[1].response, Some(Response::StronglyDisagree));
+    assert_eq!(
+        new_state.questions[0].response,
+        Some(Response::StronglyAgree)
+    );
+    assert_eq!(
+        new_state.questions[1].response,
+        Some(Response::StronglyDisagree)
+    );
     assert_eq!(new_state.questions[15].response, Some(Response::Agree));
     assert_eq!(new_state.questions[100].response, Some(Response::Neutral));
     assert_eq!(new_state.questions[220].response, Some(Response::Disagree));

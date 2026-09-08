@@ -6,10 +6,10 @@ pub use storage_manager::*;
 
 use eframe::egui;
 use shared::{
+    AppState, Aspect, Facet, MetaTrait, Response, ScoreTier, ThemeMode, Trait,
     encode_responses_to_url_code, export_to_compressed_bson, export_to_csv, export_to_json,
     export_to_printable_html, export_to_svg, import_responses_from_bson, import_responses_from_csv,
-    import_responses_from_json, AppState, Aspect, Facet, MetaTrait, Response, ScoreTier, ThemeMode,
-    Trait,
+    import_responses_from_json,
 };
 use tracing::{info, warn};
 #[cfg(target_arch = "wasm32")]
@@ -100,7 +100,9 @@ fn trigger_file_download(filename: &str, content: &str, _mime_type: &str) {
                 blob_parts.push(&wasm_bindgen::JsValue::from_str(content));
                 let blob_props = web_sys::BlobPropertyBag::new();
                 blob_props.set_type(_mime_type);
-                if let Ok(blob) = web_sys::Blob::new_with_str_sequence_and_options(&blob_parts, &blob_props) {
+                if let Ok(blob) =
+                    web_sys::Blob::new_with_str_sequence_and_options(&blob_parts, &blob_props)
+                {
                     if let Ok(url) = web_sys::Url::create_object_url_with_blob(&blob) {
                         if let Ok(element) = document.create_element("a") {
                             if let Ok(anchor) = element.dyn_into::<web_sys::HtmlAnchorElement>() {
@@ -133,7 +135,8 @@ impl PersonalityApp {
             AppState::default()
         });
 
-        if state.questionnaire.unanswered_count() == 0 && !state.questionnaire.questions.is_empty() {
+        if state.questionnaire.unanswered_count() == 0 && !state.questionnaire.questions.is_empty()
+        {
             state.questionnaire.show_results = true;
         }
         state.questionnaire.rebuild_cache();
@@ -158,10 +161,19 @@ impl PersonalityApp {
 
                     if let Some(c) = code {
                         let mut shared_state = shared::QuestionnaireState::from_embedded_data();
-                        if let Ok(_count) = shared::decode_responses_from_url_code(&mut shared_state, c) {
-                            info!("Loaded shared results from URL hash with {} answers", _count);
+                        if let Ok(_count) =
+                            shared::decode_responses_from_url_code(&mut shared_state, c)
+                        {
+                            info!(
+                                "Loaded shared results from URL hash with {} answers",
+                                _count
+                            );
                             let shared_responses = shared_state.current_responses_snapshot();
-                            state.questionnaire.load_snapshot_with_undo(shared_responses, true, "Friend's Shared Link Loaded");
+                            state.questionnaire.load_snapshot_with_undo(
+                                shared_responses,
+                                true,
+                                "Friend's Shared Link Loaded",
+                            );
                             is_viewing_shared_link = true;
                         }
                     }
@@ -236,7 +248,9 @@ impl PersonalityApp {
                     // Space ran out: compact undo history and retry saving
                     self.state.questionnaire.compact_history(30);
                     if let Ok(compacted_json) = serde_json::to_string(&self.state) {
-                        if let Ok(backend) = save_state_multi_tier(DEDICATED_STORAGE_KEY, &compacted_json) {
+                        if let Ok(backend) =
+                            save_state_multi_tier(DEDICATED_STORAGE_KEY, &compacted_json)
+                        {
                             self.storage_diag.backend = backend;
                             self.storage_diag.quota_exceeded = false;
                         } else {
@@ -252,9 +266,13 @@ impl PersonalityApp {
     pub fn open_export_dialog(&mut self, format: ExportFormat) {
         if format == ExportFormat::Bson {
             if let Ok(bytes) = export_to_compressed_bson(&self.state.questionnaire) {
-                use base64::{engine::general_purpose, Engine as _};
+                use base64::{Engine as _, engine::general_purpose};
                 self.export_text_buffer = general_purpose::STANDARD.encode(&bytes);
-                trigger_binary_download("ipip_neo_assessment_backup.bson", &bytes, "application/octet-stream");
+                trigger_binary_download(
+                    "ipip_neo_assessment_backup.bson",
+                    &bytes,
+                    "application/octet-stream",
+                );
             }
         } else {
             self.export_text_buffer = match format {
@@ -282,14 +300,20 @@ impl PersonalityApp {
         if let Ok(text) = std::str::from_utf8(bytes) {
             let trimmed = text.trim();
             if trimmed.starts_with('{') {
-                if let Ok(count) = import_responses_from_json(&mut self.state.questionnaire, trimmed) {
+                if let Ok(count) =
+                    import_responses_from_json(&mut self.state.questionnaire, trimmed)
+                {
                     self.is_viewing_shared_link = false;
                     self.state.questionnaire.rebuild_cache();
                     self.persist_state();
                     return Ok(count);
                 }
-            } else if trimmed.contains('#') || trimmed.contains(',') || trimmed.to_lowercase().contains("item_id") {
-                if let Ok(count) = import_responses_from_csv(&mut self.state.questionnaire, trimmed) {
+            } else if trimmed.contains('#')
+                || trimmed.contains(',')
+                || trimmed.to_lowercase().contains("item_id")
+            {
+                if let Ok(count) = import_responses_from_csv(&mut self.state.questionnaire, trimmed)
+                {
                     self.is_viewing_shared_link = false;
                     self.state.questionnaire.rebuild_cache();
                     self.persist_state();
@@ -297,9 +321,11 @@ impl PersonalityApp {
                 }
             } else {
                 // Attempt Base64 BSON decode
-                use base64::{engine::general_purpose, Engine as _};
+                use base64::{Engine as _, engine::general_purpose};
                 if let Ok(decoded_bytes) = general_purpose::STANDARD.decode(trimmed) {
-                    if let Ok(count) = import_responses_from_bson(&mut self.state.questionnaire, &decoded_bytes) {
+                    if let Ok(count) =
+                        import_responses_from_bson(&mut self.state.questionnaire, &decoded_bytes)
+                    {
                         self.is_viewing_shared_link = false;
                         self.state.questionnaire.rebuild_cache();
                         self.persist_state();
@@ -309,7 +335,10 @@ impl PersonalityApp {
             }
         }
 
-        Err(format!("Could not parse '{}'. Supported formats: .bson, .json, .csv", filename))
+        Err(format!(
+            "Could not parse '{}'. Supported formats: .bson, .json, .csv",
+            filename
+        ))
     }
 
     fn apply_theme(&mut self, ctx: &egui::Context) {
@@ -334,7 +363,8 @@ impl PersonalityApp {
                 light.widgets.active.fg_stroke.color = egui::Color32::from_rgb(0, 0, 0);
 
                 // Muted border strokes to reduce visual clutter
-                light.widgets.noninteractive.bg_stroke.color = egui::Color32::from_rgb(222, 220, 215);
+                light.widgets.noninteractive.bg_stroke.color =
+                    egui::Color32::from_rgb(222, 220, 215);
                 light.widgets.inactive.bg_stroke.color = egui::Color32::from_rgb(212, 210, 205);
 
                 // Subtle buttons background
@@ -357,34 +387,38 @@ impl PersonalityApp {
         let input = ui.input(|i| i.clone());
         let current_time = input.time;
 
-        let record_answer_timestamp = |timestamps: &mut std::collections::VecDeque<f64>, save_time: &mut Option<f64>| {
-            timestamps.push_back(current_time);
-            if timestamps.len() > 25 {
-                timestamps.pop_front();
-            }
-            *save_time = Some(current_time);
-        };
+        let record_answer_timestamp =
+            |timestamps: &mut std::collections::VecDeque<f64>, save_time: &mut Option<f64>| {
+                timestamps.push_back(current_time);
+                if timestamps.len() > 25 {
+                    timestamps.pop_front();
+                }
+                *save_time = Some(current_time);
+            };
 
         // Keyboard shortcuts for responses: 1-5
         if input.key_pressed(egui::Key::Num1) {
             self.is_viewing_shared_link = false;
-            self.state
-                .questionnaire
-                .answer_question(self.state.questionnaire.current_focus_idx, Response::StronglyDisagree);
+            self.state.questionnaire.answer_question(
+                self.state.questionnaire.current_focus_idx,
+                Response::StronglyDisagree,
+            );
             record_answer_timestamp(&mut self.answer_timestamps, &mut self.last_save_time);
             self.persist_state();
         } else if input.key_pressed(egui::Key::Num2) {
             self.is_viewing_shared_link = false;
-            self.state
-                .questionnaire
-                .answer_question(self.state.questionnaire.current_focus_idx, Response::Disagree);
+            self.state.questionnaire.answer_question(
+                self.state.questionnaire.current_focus_idx,
+                Response::Disagree,
+            );
             record_answer_timestamp(&mut self.answer_timestamps, &mut self.last_save_time);
             self.persist_state();
         } else if input.key_pressed(egui::Key::Num3) {
             self.is_viewing_shared_link = false;
-            self.state
-                .questionnaire
-                .answer_question(self.state.questionnaire.current_focus_idx, Response::Neutral);
+            self.state.questionnaire.answer_question(
+                self.state.questionnaire.current_focus_idx,
+                Response::Neutral,
+            );
             record_answer_timestamp(&mut self.answer_timestamps, &mut self.last_save_time);
             self.persist_state();
         } else if input.key_pressed(egui::Key::Num4) {
@@ -396,9 +430,10 @@ impl PersonalityApp {
             self.persist_state();
         } else if input.key_pressed(egui::Key::Num5) {
             self.is_viewing_shared_link = false;
-            self.state
-                .questionnaire
-                .answer_question(self.state.questionnaire.current_focus_idx, Response::StronglyAgree);
+            self.state.questionnaire.answer_question(
+                self.state.questionnaire.current_focus_idx,
+                Response::StronglyAgree,
+            );
             record_answer_timestamp(&mut self.answer_timestamps, &mut self.last_save_time);
             self.persist_state();
         }
@@ -416,7 +451,9 @@ impl PersonalityApp {
 
         // Redo shortcut: Ctrl+Y / Cmd+Y OR Ctrl+Shift+Z / Cmd+Shift+Z
         if (((input.modifiers.command || input.modifiers.ctrl) && input.key_pressed(egui::Key::Y))
-            || ((input.modifiers.command || input.modifiers.ctrl) && input.modifiers.shift && input.key_pressed(egui::Key::Z)))
+            || ((input.modifiers.command || input.modifiers.ctrl)
+                && input.modifiers.shift
+                && input.key_pressed(egui::Key::Z)))
             && self.state.questionnaire.redo()
         {
             self.redo_notification_time = Some(current_time);
@@ -904,7 +941,11 @@ impl PersonalityApp {
         let current_time = ui.input(|i| i.time);
         let scroll_y = ui.input(|i| i.smooth_scroll_delta.y);
 
-        if !is_tight_height && !is_mobile_portrait && !is_ultra_tight && ui.rect_contains_pointer(ui.max_rect()) {
+        if !is_tight_height
+            && !is_mobile_portrait
+            && !is_ultra_tight
+            && ui.rect_contains_pointer(ui.max_rect())
+        {
             if scroll_y.abs() > 1.0 {
                 self.scroll_accumulator += scroll_y;
             }
@@ -1068,21 +1109,41 @@ impl PersonalityApp {
     }
 
     fn render_meta_trait_node(&self, ui: &mut egui::Ui, meta: MetaTrait) {
-        let acc = self.state.questionnaire.meta_trait_acc.get(&meta).copied().unwrap_or_default();
+        let acc = self
+            .state
+            .questionnaire
+            .meta_trait_acc
+            .get(&meta)
+            .copied()
+            .unwrap_or_default();
         let show_detailed = self.state.questionnaire.show_detailed_stats;
         let id = ui.make_persistent_id(meta.display_name());
-        let collapsing = egui::collapsing_header::CollapsingState::load_with_default_open(ui.ctx(), id, true);
+        let collapsing =
+            egui::collapsing_header::CollapsingState::load_with_default_open(ui.ctx(), id, true);
 
         collapsing
             .show_header(ui, |ui| {
-                let label_resp = ui.label(egui::RichText::new(meta.display_name()).strong().size(15.0));
+                let label_resp =
+                    ui.label(egui::RichText::new(meta.display_name()).strong().size(15.0));
                 label_resp.on_hover_ui(|ui| {
-                    ui.label(egui::RichText::new(format!("Meta-Trait: {}", meta.display_name())).strong());
+                    ui.label(
+                        egui::RichText::new(format!("Meta-Trait: {}", meta.display_name()))
+                            .strong(),
+                    );
                     ui.add_space(2.0);
                     ui.label(meta.description());
                     ui.add_space(4.0);
-                    let children = meta.child_traits().iter().map(|t| t.display_name()).collect::<Vec<_>>().join(", ");
-                    ui.label(egui::RichText::new(format!("Subordinate Traits: {}", children)).small().weak());
+                    let children = meta
+                        .child_traits()
+                        .iter()
+                        .map(|t| t.display_name())
+                        .collect::<Vec<_>>()
+                        .join(", ");
+                    ui.label(
+                        egui::RichText::new(format!("Subordinate Traits: {}", children))
+                            .small()
+                            .weak(),
+                    );
                 });
 
                 ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
@@ -1103,22 +1164,49 @@ impl PersonalityApp {
     }
 
     fn render_trait_node(&self, ui: &mut egui::Ui, trait_item: Trait) {
-        let acc = self.state.questionnaire.trait_acc.get(&trait_item).copied().unwrap_or_default();
+        let acc = self
+            .state
+            .questionnaire
+            .trait_acc
+            .get(&trait_item)
+            .copied()
+            .unwrap_or_default();
         let show_detailed = self.state.questionnaire.show_detailed_stats;
         let id = ui.make_persistent_id(trait_item.display_name());
-        let collapsing = egui::collapsing_header::CollapsingState::load_with_default_open(ui.ctx(), id, true);
+        let collapsing =
+            egui::collapsing_header::CollapsingState::load_with_default_open(ui.ctx(), id, true);
 
         collapsing
             .show_header(ui, |ui| {
-                let label_resp = ui.label(egui::RichText::new(trait_item.display_name()).size(14.0));
+                let label_resp =
+                    ui.label(egui::RichText::new(trait_item.display_name()).size(14.0));
                 label_resp.on_hover_ui(|ui| {
-                    ui.label(egui::RichText::new(format!("Trait: {}", trait_item.display_name())).strong());
+                    ui.label(
+                        egui::RichText::new(format!("Trait: {}", trait_item.display_name()))
+                            .strong(),
+                    );
                     ui.add_space(2.0);
                     ui.label(trait_item.description());
                     ui.add_space(4.0);
-                    ui.label(egui::RichText::new(format!("Parent Meta-Trait: {}", trait_item.parent_meta_trait().display_name())).small().weak());
-                    let children = trait_item.child_facets().iter().map(|f| f.display_name()).collect::<Vec<_>>().join(", ");
-                    ui.label(egui::RichText::new(format!("Subordinate Facets: {}", children)).small().weak());
+                    ui.label(
+                        egui::RichText::new(format!(
+                            "Parent Meta-Trait: {}",
+                            trait_item.parent_meta_trait().display_name()
+                        ))
+                        .small()
+                        .weak(),
+                    );
+                    let children = trait_item
+                        .child_facets()
+                        .iter()
+                        .map(|f| f.display_name())
+                        .collect::<Vec<_>>()
+                        .join(", ");
+                    ui.label(
+                        egui::RichText::new(format!("Subordinate Facets: {}", children))
+                            .small()
+                            .weak(),
+                    );
                 });
 
                 ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
@@ -1139,7 +1227,13 @@ impl PersonalityApp {
     }
 
     fn render_facet_row(&self, ui: &mut egui::Ui, facet: Facet) {
-        let acc = self.state.questionnaire.facet_acc.get(&facet).copied().unwrap_or_default();
+        let acc = self
+            .state
+            .questionnaire
+            .facet_acc
+            .get(&facet)
+            .copied()
+            .unwrap_or_default();
         let show_detailed = self.state.questionnaire.show_detailed_stats;
 
         ui.horizontal(|ui| {
@@ -1149,7 +1243,15 @@ impl PersonalityApp {
                 ui.add_space(2.0);
                 ui.label(facet.description());
                 ui.add_space(4.0);
-                ui.label(egui::RichText::new(format!("Parent Trait: {} (under {})", facet.parent_trait().display_name(), facet.parent_trait().parent_meta_trait().display_name())).small().weak());
+                ui.label(
+                    egui::RichText::new(format!(
+                        "Parent Trait: {} (under {})",
+                        facet.parent_trait().display_name(),
+                        facet.parent_trait().parent_meta_trait().display_name()
+                    ))
+                    .small()
+                    .weak(),
+                );
             });
 
             ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
@@ -1173,7 +1275,8 @@ impl PersonalityApp {
         ci_mult: f32,
         ci_label: &str,
     ) {
-        let (rect, response) = ui.allocate_exact_size(egui::vec2(width, 14.0), egui::Sense::hover());
+        let (rect, response) =
+            ui.allocate_exact_size(egui::vec2(width, 14.0), egui::Sense::hover());
         if ui.is_rect_visible(rect) {
             let painter = ui.painter();
             let is_dark = ui.visuals().dark_mode;
@@ -1194,7 +1297,10 @@ impl PersonalityApp {
                 egui::Color32::from_rgba_unmultiplied(0, 0, 0, 60)
             };
             painter.line_segment(
-                [egui::pos2(center_x, rect.top() + 1.0), egui::pos2(center_x, rect.bottom() - 1.0)],
+                [
+                    egui::pos2(center_x, rect.top() + 1.0),
+                    egui::pos2(center_x, rect.bottom() - 1.0),
+                ],
                 egui::Stroke::new(1.0, tick_color),
             );
 
@@ -1229,11 +1335,17 @@ impl PersonalityApp {
 
             // Error bar caps / strokes
             painter.line_segment(
-                [egui::pos2(left_ci_x, center_y - 4.0), egui::pos2(left_ci_x, center_y + 4.0)],
+                [
+                    egui::pos2(left_ci_x, center_y - 4.0),
+                    egui::pos2(left_ci_x, center_y + 4.0),
+                ],
                 egui::Stroke::new(1.0, tier_color),
             );
             painter.line_segment(
-                [egui::pos2(right_ci_x, center_y - 4.0), egui::pos2(right_ci_x, center_y + 4.0)],
+                [
+                    egui::pos2(right_ci_x, center_y - 4.0),
+                    egui::pos2(right_ci_x, center_y + 4.0),
+                ],
                 egui::Stroke::new(1.0, tier_color),
             );
 
@@ -1251,7 +1363,10 @@ impl PersonalityApp {
         response.on_hover_ui(|ui| {
             ui.label(egui::RichText::new(format!("Normalized Score: {:+.2}", norm_score)).strong());
             ui.label(format!("Standard Error (SE): {:.2}", se));
-            ui.label(format!("Confidence Interval (±{}×SE): [{:+.2}, {:+.2}]", ci_label, ci_min, ci_max));
+            ui.label(format!(
+                "Confidence Interval (±{}×SE): [{:+.2}, {:+.2}]",
+                ci_label, ci_min, ci_max
+            ));
         });
     }
 
@@ -1276,14 +1391,21 @@ impl PersonalityApp {
             let se = acc.standard_error().unwrap_or(0.0);
             Self::render_score_gauge(ui, norm_score, se, tier_color, 80.0, ci_mult, ci_label);
 
-            let tier_badge_resp = ui.colored_label(tier_color, egui::RichText::new(tier.label()).strong());
+            let tier_badge_resp =
+                ui.colored_label(tier_color, egui::RichText::new(tier.label()).strong());
             tier_badge_resp.on_hover_ui(|ui| {
                 ui.label(egui::RichText::new(format!("Classification: {}", tier.label())).strong());
-                ui.label(format!("Normalized Score: {:+.2} (scale: -1.0 to +1.0)", norm_score));
+                ui.label(format!(
+                    "Normalized Score: {:+.2} (scale: -1.0 to +1.0)",
+                    norm_score
+                ));
                 if let Some(se_val) = acc.standard_error() {
                     ui.label(format!("Standard Error (SE): {:.3}", se_val));
                 }
-                ui.label(format!("Progress: {}/{} items answered", acc.answered_count, acc.total_items));
+                ui.label(format!(
+                    "Progress: {}/{} items answered",
+                    acc.answered_count, acc.total_items
+                ));
             });
 
             if show_detailed {
@@ -1496,20 +1618,44 @@ impl PersonalityApp {
         } else if quota_exceeded && !self.dismissed_quota_warning {
             // Quota Exceeded Warning Banner
             egui::Frame::group(ui.style())
-                .fill(if ui.visuals().dark_mode { egui::Color32::from_rgb(45, 35, 15) } else { egui::Color32::from_rgb(255, 248, 225) })
-                .stroke(egui::Stroke::new(1.0, egui::Color32::from_rgb(230, 140, 50)))
+                .fill(if ui.visuals().dark_mode {
+                    egui::Color32::from_rgb(45, 35, 15)
+                } else {
+                    egui::Color32::from_rgb(255, 248, 225)
+                })
+                .stroke(egui::Stroke::new(
+                    1.0,
+                    egui::Color32::from_rgb(230, 140, 50),
+                ))
                 .inner_margin(8.0)
                 .corner_radius(6.0)
                 .show(ui, |ui| {
                     ui.horizontal_wrapped(|ui| {
-                        ui.label(egui::RichText::new("Quota Warning:").strong().color(egui::Color32::from_rgb(230, 140, 50)));
-                        ui.label("LocalStorage limit reached; undo history compacted to conserve space.");
-                        if ui.button("Save .bson Backup").on_hover_text("Download compressed binary backup of your assessment").clicked()
+                        ui.label(
+                            egui::RichText::new("Quota Warning:")
+                                .strong()
+                                .color(egui::Color32::from_rgb(230, 140, 50)),
+                        );
+                        ui.label(
+                            "LocalStorage limit reached; undo history compacted to conserve space.",
+                        );
+                        if ui
+                            .button("Save .bson Backup")
+                            .on_hover_text("Download compressed binary backup of your assessment")
+                            .clicked()
                             && let Ok(bytes) = export_to_compressed_bson(&self.state.questionnaire)
                         {
-                            trigger_binary_download("ipip_neo_assessment_backup.bson", &bytes, "application/octet-stream");
+                            trigger_binary_download(
+                                "ipip_neo_assessment_backup.bson",
+                                &bytes,
+                                "application/octet-stream",
+                            );
                         }
-                        if ui.small_button("Dismiss").on_hover_text("Dismiss this warning banner").clicked() {
+                        if ui
+                            .small_button("Dismiss")
+                            .on_hover_text("Dismiss this warning banner")
+                            .clicked()
+                        {
                             self.dismissed_quota_warning = true;
                         }
                     });
@@ -1533,12 +1679,19 @@ impl PersonalityApp {
             .anchor(egui::Align2::CENTER_CENTER, egui::vec2(0.0, 0.0))
             .show(ui.ctx(), |ui| {
                 ui.horizontal(|ui| {
-                    ui.label(egui::RichText::new("Click any item to jump directly to that question.").small().weak());
+                    ui.label(
+                        egui::RichText::new("Click any item to jump directly to that question.")
+                            .small()
+                            .weak(),
+                    );
                     ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
                         let answered = self.state.questionnaire.answered_count();
                         let total = self.state.questionnaire.total_questions();
-                        ui.label(egui::RichText::new(format!("{}/{} Answered", answered, total)).strong())
-                            .on_hover_text("Total questions answered out of 221");
+                        ui.label(
+                            egui::RichText::new(format!("{}/{} Answered", answered, total))
+                                .strong(),
+                        )
+                        .on_hover_text("Total questions answered out of 221");
                     });
                 });
                 ui.separator();
@@ -1578,14 +1731,24 @@ impl PersonalityApp {
                                 ),
                                 None => {
                                     if ui.visuals().dark_mode {
-                                        (egui::Color32::from_rgb(50, 50, 55), egui::Color32::LIGHT_GRAY, "Unanswered")
+                                        (
+                                            egui::Color32::from_rgb(50, 50, 55),
+                                            egui::Color32::LIGHT_GRAY,
+                                            "Unanswered",
+                                        )
                                     } else {
-                                        (egui::Color32::from_rgb(220, 220, 225), egui::Color32::DARK_GRAY, "Unanswered")
+                                        (
+                                            egui::Color32::from_rgb(220, 220, 225),
+                                            egui::Color32::DARK_GRAY,
+                                            "Unanswered",
+                                        )
                                     }
                                 }
                             };
 
-                            let mut btn_text = egui::RichText::new(format!("{}", q.id)).size(11.0).color(text_color);
+                            let mut btn_text = egui::RichText::new(format!("{}", q.id))
+                                .size(11.0)
+                                .color(text_color);
                             if is_curr {
                                 btn_text = btn_text.strong();
                             }
@@ -1595,7 +1758,10 @@ impl PersonalityApp {
                                 .min_size(egui::vec2(28.0, 24.0));
 
                             if is_curr {
-                                btn = btn.stroke(egui::Stroke::new(2.0, egui::Color32::from_rgb(30, 140, 240)));
+                                btn = btn.stroke(egui::Stroke::new(
+                                    2.0,
+                                    egui::Color32::from_rgb(30, 140, 240),
+                                ));
                             }
 
                             let tooltip = format!(
@@ -1604,7 +1770,11 @@ impl PersonalityApp {
                                 q.text,
                                 q.facet.category.display_name(),
                                 q.facet.category.parent_trait().display_name(),
-                                q.facet.category.parent_trait().parent_meta_trait().display_name(),
+                                q.facet
+                                    .category
+                                    .parent_trait()
+                                    .parent_meta_trait()
+                                    .display_name(),
                                 status_text
                             );
 
@@ -1616,7 +1786,11 @@ impl PersonalityApp {
                     });
                 });
                 ui.add_space(8.0);
-                if ui.button("Close").on_hover_text("Close item matrix map (Escape)").clicked() {
+                if ui
+                    .button("Close")
+                    .on_hover_text("Close item matrix map (Escape)")
+                    .clicked()
+                {
                     self.show_grid_dialog = false;
                 }
             });
@@ -1799,13 +1973,23 @@ impl PersonalityApp {
                 ui.label("Are you sure you want to clear all responses and start over?");
                 ui.add_space(12.0);
                 ui.horizontal(|ui| {
-                    if ui.button("Yes, Reset").on_hover_text("Clear all answers, reset queue, and restart the questionnaire").clicked() {
+                    if ui
+                        .button("Yes, Reset")
+                        .on_hover_text(
+                            "Clear all answers, reset queue, and restart the questionnaire",
+                        )
+                        .clicked()
+                    {
                         self.is_viewing_shared_link = false;
                         self.state.reset_questionnaire();
                         self.show_reset_dialog = false;
                         self.persist_state();
                     }
-                    if ui.button("Cancel").on_hover_text("Keep existing answers and return to questionnaire").clicked() {
+                    if ui
+                        .button("Cancel")
+                        .on_hover_text("Keep existing answers and return to questionnaire")
+                        .clicked()
+                    {
                         self.show_reset_dialog = false;
                     }
                 });
@@ -1822,7 +2006,7 @@ impl PersonalityApp {
         if self.export_text_buffer.is_empty() {
             if export_format == ExportFormat::Bson {
                 if let Ok(bytes) = export_to_compressed_bson(&self.state.questionnaire) {
-                    use base64::{engine::general_purpose, Engine as _};
+                    use base64::{Engine as _, engine::general_purpose};
                     self.export_text_buffer = general_purpose::STANDARD.encode(&bytes);
                 }
             } else {
@@ -1852,19 +2036,32 @@ impl PersonalityApp {
             .show(ui.ctx(), |ui| {
                 ui.horizontal(|ui| {
                     if export_format == ExportFormat::Bson
-                        && ui.button("Download .bson File").on_hover_text("Download compressed binary backup to your device").clicked()
+                        && ui
+                            .button("Download .bson File")
+                            .on_hover_text("Download compressed binary backup to your device")
+                            .clicked()
                         && let Ok(bytes) = export_to_compressed_bson(&self.state.questionnaire)
                     {
-                        trigger_binary_download("ipip_neo_assessment_backup.bson", &bytes, "application/octet-stream");
+                        trigger_binary_download(
+                            "ipip_neo_assessment_backup.bson",
+                            &bytes,
+                            "application/octet-stream",
+                        );
                     }
-                    if ui.button("Copy to Clipboard").on_hover_text("Copy formatted export data directly to clipboard").clicked() {
+                    if ui
+                        .button("Copy to Clipboard")
+                        .on_hover_text("Copy formatted export data directly to clipboard")
+                        .clicked()
+                    {
                         ui.ctx().copy_text(self.export_text_buffer.clone());
                         self.export_copied_notification = Some(ui.input(|i| i.time));
                     }
                     if let Some(t) = self.export_copied_notification
                         && ui.input(|i| i.time) - t < 3.0
                     {
-                        ui.label(egui::RichText::new("Copied to clipboard!").color(egui::Color32::GREEN));
+                        ui.label(
+                            egui::RichText::new("Copied to clipboard!").color(egui::Color32::GREEN),
+                        );
                     }
                 });
 
@@ -2022,7 +2219,6 @@ impl PersonalityApp {
     }
 }
 
-
 impl eframe::App for PersonalityApp {
     fn save(&mut self, storage: &mut dyn eframe::Storage) {
         // Do not overwrite user's saved local answers if they are only viewing a shared link
@@ -2068,7 +2264,10 @@ impl eframe::App for PersonalityApp {
                 Ok(count) => {
                     let current_t = ui.input(|i| i.time);
                     self.last_save_time = Some(current_t);
-                    self.import_result_message = Some(Ok(format!("Successfully imported {} answers from '{}'!", count, name)));
+                    self.import_result_message = Some(Ok(format!(
+                        "Successfully imported {} answers from '{}'!",
+                        count, name
+                    )));
                 }
                 Err(e) => {
                     self.import_result_message = Some(Err(e));
@@ -2082,7 +2281,10 @@ impl eframe::App for PersonalityApp {
             for file in dropped_files {
                 let path = file.path();
                 let name = if !path.as_os_str().is_empty() {
-                    path.file_name().and_then(|n| n.to_str()).unwrap_or("backup_file").to_string()
+                    path.file_name()
+                        .and_then(|n| n.to_str())
+                        .unwrap_or("backup_file")
+                        .to_string()
                 } else {
                     "backup_file".to_string()
                 };
@@ -2104,7 +2306,10 @@ impl eframe::App for PersonalityApp {
                             Ok(count) => {
                                 let current_t = ui.input(|i| i.time);
                                 self.last_save_time = Some(current_t);
-                                self.import_result_message = Some(Ok(format!("Successfully imported {} answers from '{}'!", count, name)));
+                                self.import_result_message = Some(Ok(format!(
+                                    "Successfully imported {} answers from '{}'!",
+                                    count, name
+                                )));
                             }
                             Err(e) => {
                                 self.import_result_message = Some(Err(e));
@@ -2155,40 +2360,47 @@ impl eframe::App for PersonalityApp {
             central_frame.inner_margin = egui::Margin::same(4);
         }
 
-        egui::CentralPanel::default().frame(central_frame).show(ui, |ui| {
-            if self.hide_header {
-                // Render subtle unhide button floating at top center when header is collapsed
-                ui.vertical_centered(|ui| {
-                    let expand_btn = egui::Button::new(egui::RichText::new("Show Header").size(11.0).weak())
-                        .min_size(egui::vec2(120.0, 22.0));
-                    if ui.add(expand_btn).on_hover_text("Show top navigation header").clicked() {
-                        self.hide_header = false;
-                    }
-                });
-                ui.add_space(6.0);
-            }
+        egui::CentralPanel::default()
+            .frame(central_frame)
+            .show(ui, |ui| {
+                if self.hide_header {
+                    // Render subtle unhide button floating at top center when header is collapsed
+                    ui.vertical_centered(|ui| {
+                        let expand_btn =
+                            egui::Button::new(egui::RichText::new("Show Header").size(11.0).weak())
+                                .min_size(egui::vec2(120.0, 22.0));
+                        if ui
+                            .add(expand_btn)
+                            .on_hover_text("Show top navigation header")
+                            .clicked()
+                        {
+                            self.hide_header = false;
+                        }
+                    });
+                    ui.add_space(6.0);
+                }
 
-            // Render warning banners (persistence / quota / combined)
-            self.render_warning_banners(ui);
+                // Render warning banners (persistence / quota / combined)
+                self.render_warning_banners(ui);
 
-            if self.state.questionnaire.show_results && !show_results_side_panel {
-                // Viewport is under 900px: render results full-screen inside CentralPanel
-                egui::ScrollArea::vertical().show(ui, |ui| {
-                    ui.add_space(8.0);
-                    if ui.button("◀ Return to Questions").clicked() {
-                        self.state.questionnaire.show_results = false;
-                        self.persist_state();
-                    }
-                    ui.add_space(8.0);
-                    ui.separator();
-                    ui.add_space(8.0);
-                    self.render_results_panel(ui);
-                });
-            } else {
-                // Render Question Focus Card
-                self.render_question_focus(ui, &constraints);
-            }
-        });
+                if self.state.questionnaire.show_results && !show_results_side_panel {
+                    // Viewport is under 900px: render results full-screen inside CentralPanel
+                    egui::ScrollArea::vertical().show(ui, |ui| {
+                        ui.add_space(8.0);
+                        if ui.button("◀ Return to Questions").clicked() {
+                            self.state.questionnaire.show_results = false;
+                            self.persist_state();
+                        }
+                        ui.add_space(8.0);
+                        ui.separator();
+                        ui.add_space(8.0);
+                        self.render_results_panel(ui);
+                    });
+                } else {
+                    // Render Question Focus Card
+                    self.render_question_focus(ui, &constraints);
+                }
+            });
 
         self.render_dialogs(ui);
     }

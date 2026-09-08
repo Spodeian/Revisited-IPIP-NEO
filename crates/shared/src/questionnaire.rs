@@ -123,33 +123,85 @@ impl Aspect for Facet {
 
     fn description(&self) -> &'static str {
         match self {
-            Self::Anxiety => "Tendency to feel nervous, fearful, or overwhelmed under pressure (merged Anxiety & Vulnerability).",
-            Self::Gregariousness => "Enthusiasm for making friends, socializing, and welcoming company (merged with Friendliness).",
-            Self::Trust => "Belief in human goodness, sincerity, and the positive intentions of others.",
-            Self::SelfEfficacy => "Confidence in one's competence and ability to accomplish tasks successfully.",
+            Self::Anxiety => {
+                "Tendency to feel nervous, fearful, or overwhelmed under pressure (merged Anxiety & Vulnerability)."
+            }
+            Self::Gregariousness => {
+                "Enthusiasm for making friends, socializing, and welcoming company (merged with Friendliness)."
+            }
+            Self::Trust => {
+                "Belief in human goodness, sincerity, and the positive intentions of others."
+            }
+            Self::SelfEfficacy => {
+                "Confidence in one's competence and ability to accomplish tasks successfully."
+            }
             Self::Anger => "Tendency to experience irritation, quick temper, and anger.",
-            Self::Fairness => "Adherence to ethical rules, honesty in civic duty, and avoiding cheating.",
-            Self::Orderliness => "Preference for neatness, organization, structure, and avoiding mistakes.",
-            Self::Dominance => "Assertive, confrontational social orientation and willingness to take charge or challenge others.",
-            Self::Emotionality => "Tendency to experience emotions intensely and deeply (migrated from Openness to Neuroticism).",
-            Self::Adventurousness => "Eagerness for variety, new experiences, and diverse interests over routine.",
-            Self::Determination => "Focused goal pursuit, resolve, and turning ambitious plans into decisive action.",
-            Self::ExcitementSeeking => "Craving high stimulation, fast-paced thrills, and novel adventures.",
-            Self::Intellect => "Enjoyment of solving complex intellectual problems and expanding vocabulary.",
-            Self::AttentionSeeking => "Preference regarding being the center of attention and discussing oneself (keyed toward modesty/reserve).",
-            Self::Cheerfulness => "Disposition toward positive affect, joy, good spirits, and having fun.",
-            Self::Liberalism => "Openness to non-traditional values, political open-mindedness, and philosophical flexibility.",
-            Self::ArtisticInterests => "Appreciation and sensitivity for music, aesthetics, art, and natural beauty.",
-            Self::Empathy => "Compassionate concern for others' needs, feelings, and social causes.",
-            Self::WorkEthic => "Dedication to hard work, energetic diligence, and wholehearted commitment to tasks.",
-            Self::Cautiousness => "Careful forethought and deliberation before speaking or acting (reverse-keyed for impulsivity).",
-            Self::Manipulativeness => "Tendency to use flattery, deception, or others for personal advantage (reverse-keyed for integrity).",
-            Self::Humility => "Viewing oneself as an average person and avoiding looking down on others.",
-            Self::Introspection => "Tendency to reflect on internal thoughts, personal feelings, and fantasies.",
-            Self::Honesty => "Commitment to keeping promises, listening to conscience, and truthfulness.",
-            Self::Immoderation => "Difficulty resisting urges, temptations, or excessive indulgence.",
-            Self::SelfDiscipline => "Capacity to begin tasks promptly and persevere to completion without procrastination.",
-            Self::Recklessness => "Propensity for thrill-seeking, rash behavior, and acting wild or crazy.",
+            Self::Fairness => {
+                "Adherence to ethical rules, honesty in civic duty, and avoiding cheating."
+            }
+            Self::Orderliness => {
+                "Preference for neatness, organization, structure, and avoiding mistakes."
+            }
+            Self::Dominance => {
+                "Assertive, confrontational social orientation and willingness to take charge or challenge others."
+            }
+            Self::Emotionality => {
+                "Tendency to experience emotions intensely and deeply (migrated from Openness to Neuroticism)."
+            }
+            Self::Adventurousness => {
+                "Eagerness for variety, new experiences, and diverse interests over routine."
+            }
+            Self::Determination => {
+                "Focused goal pursuit, resolve, and turning ambitious plans into decisive action."
+            }
+            Self::ExcitementSeeking => {
+                "Craving high stimulation, fast-paced thrills, and novel adventures."
+            }
+            Self::Intellect => {
+                "Enjoyment of solving complex intellectual problems and expanding vocabulary."
+            }
+            Self::AttentionSeeking => {
+                "Preference regarding being the center of attention and discussing oneself (keyed toward modesty/reserve)."
+            }
+            Self::Cheerfulness => {
+                "Disposition toward positive affect, joy, good spirits, and having fun."
+            }
+            Self::Liberalism => {
+                "Openness to non-traditional values, political open-mindedness, and philosophical flexibility."
+            }
+            Self::ArtisticInterests => {
+                "Appreciation and sensitivity for music, aesthetics, art, and natural beauty."
+            }
+            Self::Empathy => {
+                "Compassionate concern for others' needs, feelings, and social causes."
+            }
+            Self::WorkEthic => {
+                "Dedication to hard work, energetic diligence, and wholehearted commitment to tasks."
+            }
+            Self::Cautiousness => {
+                "Careful forethought and deliberation before speaking or acting (reverse-keyed for impulsivity)."
+            }
+            Self::Manipulativeness => {
+                "Tendency to use flattery, deception, or others for personal advantage (reverse-keyed for integrity)."
+            }
+            Self::Humility => {
+                "Viewing oneself as an average person and avoiding looking down on others."
+            }
+            Self::Introspection => {
+                "Tendency to reflect on internal thoughts, personal feelings, and fantasies."
+            }
+            Self::Honesty => {
+                "Commitment to keeping promises, listening to conscience, and truthfulness."
+            }
+            Self::Immoderation => {
+                "Difficulty resisting urges, temptations, or excessive indulgence."
+            }
+            Self::SelfDiscipline => {
+                "Capacity to begin tasks promptly and persevere to completion without procrastination."
+            }
+            Self::Recklessness => {
+                "Propensity for thrill-seeking, rash behavior, and acting wild or crazy."
+            }
             Self::Calmness => "Preference for an unhurried, easygoing, and steady pace of life.",
         }
     }
@@ -163,7 +215,10 @@ fn matches_ci(input: &str, pattern: &str) -> bool {
         return false;
     }
     input_bytes.windows(pattern_bytes.len()).any(|window| {
-        window.iter().zip(pattern_bytes).all(|(a, b)| a.eq_ignore_ascii_case(b))
+        window
+            .iter()
+            .zip(pattern_bytes)
+            .all(|(a, b)| a.eq_ignore_ascii_case(b))
     })
 }
 
@@ -207,7 +262,10 @@ impl Facet {
             Some(Self::Gregariousness)
         } else if matches_ci(trimmed, "trust") {
             Some(Self::Trust)
-        } else if matches_ci(trimmed, "self-efficacy") || matches_ci(trimmed, "self.efficacy") || matches_ci(trimmed, "selfefficacy") {
+        } else if matches_ci(trimmed, "self-efficacy")
+            || matches_ci(trimmed, "self.efficacy")
+            || matches_ci(trimmed, "selfefficacy")
+        {
             Some(Self::SelfEfficacy)
         } else if matches_ci(trimmed, "anger") {
             Some(Self::Anger)
@@ -223,21 +281,33 @@ impl Facet {
             Some(Self::Adventurousness)
         } else if matches_ci(trimmed, "determination") {
             Some(Self::Determination)
-        } else if matches_ci(trimmed, "excitement-seeking") || matches_ci(trimmed, "excitement.seeking") || matches_ci(trimmed, "excitementseeking") {
+        } else if matches_ci(trimmed, "excitement-seeking")
+            || matches_ci(trimmed, "excitement.seeking")
+            || matches_ci(trimmed, "excitementseeking")
+        {
             Some(Self::ExcitementSeeking)
         } else if matches_ci(trimmed, "intellect") {
             Some(Self::Intellect)
-        } else if matches_ci(trimmed, "attention-seeking") || matches_ci(trimmed, "attention.seeking") || matches_ci(trimmed, "attentionseeking") {
+        } else if matches_ci(trimmed, "attention-seeking")
+            || matches_ci(trimmed, "attention.seeking")
+            || matches_ci(trimmed, "attentionseeking")
+        {
             Some(Self::AttentionSeeking)
         } else if matches_ci(trimmed, "cheerfulness") {
             Some(Self::Cheerfulness)
         } else if matches_ci(trimmed, "liberalism") {
             Some(Self::Liberalism)
-        } else if matches_ci(trimmed, "artistic interests") || matches_ci(trimmed, "artistic.interests") || matches_ci(trimmed, "artisticinterests") {
+        } else if matches_ci(trimmed, "artistic interests")
+            || matches_ci(trimmed, "artistic.interests")
+            || matches_ci(trimmed, "artisticinterests")
+        {
             Some(Self::ArtisticInterests)
         } else if matches_ci(trimmed, "empathy") {
             Some(Self::Empathy)
-        } else if matches_ci(trimmed, "work ethic") || matches_ci(trimmed, "work.ethic") || matches_ci(trimmed, "workethic") {
+        } else if matches_ci(trimmed, "work ethic")
+            || matches_ci(trimmed, "work.ethic")
+            || matches_ci(trimmed, "workethic")
+        {
             Some(Self::WorkEthic)
         } else if matches_ci(trimmed, "cautiousness") {
             Some(Self::Cautiousness)
@@ -251,7 +321,10 @@ impl Facet {
             Some(Self::Honesty)
         } else if matches_ci(trimmed, "immoderation") {
             Some(Self::Immoderation)
-        } else if matches_ci(trimmed, "self-discipline") || matches_ci(trimmed, "self.discipline") || matches_ci(trimmed, "selfdiscipline") {
+        } else if matches_ci(trimmed, "self-discipline")
+            || matches_ci(trimmed, "self.discipline")
+            || matches_ci(trimmed, "selfdiscipline")
+        {
             Some(Self::SelfDiscipline)
         } else if matches_ci(trimmed, "recklessness") {
             Some(Self::Recklessness)
@@ -264,12 +337,31 @@ impl Facet {
 
     pub fn parent_trait(&self) -> Trait {
         match self {
-            Self::Anxiety | Self::Anger | Self::Dominance | Self::Emotionality => Trait::Neuroticism,
-            Self::Determination | Self::WorkEthic | Self::SelfDiscipline | Self::Calmness | Self::SelfEfficacy | Self::Orderliness => Trait::Conscientiousness,
-            Self::AttentionSeeking | Self::Cheerfulness | Self::Empathy | Self::Gregariousness | Self::Humility | Self::Trust => Trait::Sociability,
-            Self::Adventurousness | Self::Intellect | Self::Liberalism | Self::ArtisticInterests | Self::Introspection => Trait::OpennessToExperience,
+            Self::Anxiety | Self::Anger | Self::Dominance | Self::Emotionality => {
+                Trait::Neuroticism
+            }
+            Self::Determination
+            | Self::WorkEthic
+            | Self::SelfDiscipline
+            | Self::Calmness
+            | Self::SelfEfficacy
+            | Self::Orderliness => Trait::Conscientiousness,
+            Self::AttentionSeeking
+            | Self::Cheerfulness
+            | Self::Empathy
+            | Self::Gregariousness
+            | Self::Humility
+            | Self::Trust => Trait::Sociability,
+            Self::Adventurousness
+            | Self::Intellect
+            | Self::Liberalism
+            | Self::ArtisticInterests
+            | Self::Introspection => Trait::OpennessToExperience,
             Self::Manipulativeness | Self::Honesty | Self::Fairness => Trait::Integrity,
-            Self::ExcitementSeeking | Self::Cautiousness | Self::Immoderation | Self::Recklessness => Trait::Impulsivity,
+            Self::ExcitementSeeking
+            | Self::Cautiousness
+            | Self::Immoderation
+            | Self::Recklessness => Trait::Impulsivity,
         }
     }
 }
@@ -298,12 +390,24 @@ impl Aspect for Trait {
 
     fn description(&self) -> &'static str {
         match self {
-            Self::Neuroticism => "Tendency to experience negative emotions, stress, and interpersonal friction (Anger, Anxiety, Emotionality, Dominance).",
-            Self::Sociability => "Broad social engagement blending extraverted affiliation with prosocial warmth (Gregariousness, Cheerfulness, Empathy, Trust, Attention-Seeking, Humility).",
-            Self::Conscientiousness => "Self-discipline, diligence, organization, and deliberate goal pursuit (Self-Discipline, Work Ethic, Determination, Self-Efficacy, Orderliness, Calmness).",
-            Self::Integrity => "Moral identity, adherence to ethical principles, and rejection of deceitful behavior (Fairness, Manipulativeness, Honesty).",
-            Self::OpennessToExperience => "Cognitive exploration, intellectual curiosity, creativity, and aesthetic sensitivity (Intellect, Introspection, Artistic Interests, Adventurousness, Liberalism).",
-            Self::Impulsivity => "Multifaceted behavioral regulation capturing thrill-seeking, rash action, and difficulty resisting impulses (Recklessness, Cautiousness, Excitement-Seeking, Immoderation).",
+            Self::Neuroticism => {
+                "Tendency to experience negative emotions, stress, and interpersonal friction (Anger, Anxiety, Emotionality, Dominance)."
+            }
+            Self::Sociability => {
+                "Broad social engagement blending extraverted affiliation with prosocial warmth (Gregariousness, Cheerfulness, Empathy, Trust, Attention-Seeking, Humility)."
+            }
+            Self::Conscientiousness => {
+                "Self-discipline, diligence, organization, and deliberate goal pursuit (Self-Discipline, Work Ethic, Determination, Self-Efficacy, Orderliness, Calmness)."
+            }
+            Self::Integrity => {
+                "Moral identity, adherence to ethical principles, and rejection of deceitful behavior (Fairness, Manipulativeness, Honesty)."
+            }
+            Self::OpennessToExperience => {
+                "Cognitive exploration, intellectual curiosity, creativity, and aesthetic sensitivity (Intellect, Introspection, Artistic Interests, Adventurousness, Liberalism)."
+            }
+            Self::Impulsivity => {
+                "Multifaceted behavioral regulation capturing thrill-seeking, rash action, and difficulty resisting impulses (Recklessness, Cautiousness, Excitement-Seeking, Immoderation)."
+            }
         }
     }
 }
@@ -372,9 +476,15 @@ impl Aspect for MetaTrait {
 
     fn description(&self) -> &'static str {
         match self {
-            Self::Stability => "Reflects shared variance in emotional, motivational, and behavioral restraint (Neuroticism and Conscientiousness), capturing purposeful goal pursuit without emotional volatility.",
-            Self::Plasticity => "Reflects shared variance in exploration and engagement (Sociability and Openness to Experience), capturing tendencies toward exploring novel internal ideas and external social experiences.",
-            Self::Disinhibition => "A novel superordinate meta-trait combining Integrity and Impulsivity, spanning externalizing tendencies, ethical self-regulation, and behavioral control vs. rash action.",
+            Self::Stability => {
+                "Reflects shared variance in emotional, motivational, and behavioral restraint (Neuroticism and Conscientiousness), capturing purposeful goal pursuit without emotional volatility."
+            }
+            Self::Plasticity => {
+                "Reflects shared variance in exploration and engagement (Sociability and Openness to Experience), capturing tendencies toward exploring novel internal ideas and external social experiences."
+            }
+            Self::Disinhibition => {
+                "A novel superordinate meta-trait combining Integrity and Impulsivity, spanning externalizing tendencies, ethical self-regulation, and behavioral control vs. rash action."
+            }
         }
     }
 }
@@ -651,7 +761,10 @@ impl QuestionnaireState {
         // Keep current queue order where possible, retaining only unanswered
         let mut new_queue = VecDeque::new();
         for &idx in &self.pending_queue {
-            if idx < self.questions.len() && self.questions[idx].response.is_none() && !new_queue.contains(&idx) {
+            if idx < self.questions.len()
+                && self.questions[idx].response.is_none()
+                && !new_queue.contains(&idx)
+            {
                 new_queue.push_back(idx);
             }
         }
@@ -668,7 +781,8 @@ impl QuestionnaireState {
         }
 
         if let Some(&first_pending) = self.pending_queue.front()
-            && (self.questions.get(self.current_focus_idx).is_none() || self.questions[self.current_focus_idx].response.is_some())
+            && (self.questions.get(self.current_focus_idx).is_none()
+                || self.questions[self.current_focus_idx].response.is_some())
         {
             self.current_focus_idx = first_pending;
         }
@@ -807,7 +921,12 @@ impl QuestionnaireState {
     }
 
     /// Loads a full response snapshot with complete undo/redo support.
-    pub fn load_snapshot_with_undo(&mut self, new_responses: Vec<Option<Response>>, new_show_results: bool, label: &str) {
+    pub fn load_snapshot_with_undo(
+        &mut self,
+        new_responses: Vec<Option<Response>>,
+        new_show_results: bool,
+        label: &str,
+    ) {
         let old_responses = self.current_responses_snapshot();
         let old_show_results = self.show_results;
         let old_focus = self.current_focus_idx;
@@ -1028,12 +1147,20 @@ impl QuestionnaireState {
 
                 let (old_focus_idx, old_show_results) = match first {
                     HistoryAction::AnswerChange { old_focus_idx, .. } => (*old_focus_idx, false),
-                    HistoryAction::StateSnapshot { old_focus_idx, old_show_results, .. } => (*old_focus_idx, *old_show_results),
+                    HistoryAction::StateSnapshot {
+                        old_focus_idx,
+                        old_show_results,
+                        ..
+                    } => (*old_focus_idx, *old_show_results),
                 };
 
                 let (new_focus_idx, new_show_results) = match last {
                     HistoryAction::AnswerChange { new_focus_idx, .. } => (*new_focus_idx, false),
-                    HistoryAction::StateSnapshot { new_focus_idx, new_show_results, .. } => (*new_focus_idx, *new_show_results),
+                    HistoryAction::StateSnapshot {
+                        new_focus_idx,
+                        new_show_results,
+                        ..
+                    } => (*new_focus_idx, *new_show_results),
                 };
 
                 // Track diff across chunk:
@@ -1042,11 +1169,20 @@ impl QuestionnaireState {
 
                 for item in chunk {
                     match item {
-                        HistoryAction::AnswerChange { question_idx, old_response, new_response, .. } => {
+                        HistoryAction::AnswerChange {
+                            question_idx,
+                            old_response,
+                            new_response,
+                            ..
+                        } => {
                             old_map.entry(*question_idx).or_insert(*old_response);
                             new_map.insert(*question_idx, *new_response);
                         }
-                        HistoryAction::StateSnapshot { old_responses, new_responses, .. } => {
+                        HistoryAction::StateSnapshot {
+                            old_responses,
+                            new_responses,
+                            ..
+                        } => {
                             for (q_i, &resp) in old_responses.iter().enumerate() {
                                 old_map.entry(q_i).or_insert(resp);
                             }
@@ -1116,7 +1252,11 @@ impl QuestionnaireState {
         }
 
         // If current focus is in the pending queue
-        if let Some(pos) = self.pending_queue.iter().position(|&idx| idx == self.current_focus_idx) {
+        if let Some(pos) = self
+            .pending_queue
+            .iter()
+            .position(|&idx| idx == self.current_focus_idx)
+        {
             let popped = self.pending_queue.remove(pos).unwrap();
             self.pending_queue.push_back(popped);
             if let Some(&next_idx) = self.pending_queue.front() {
@@ -1186,7 +1326,10 @@ impl QuestionnaireState {
 
     /// Count of questions that have been answered.
     pub fn answered_count(&self) -> usize {
-        self.questions.iter().filter(|q| q.response.is_some()).count()
+        self.questions
+            .iter()
+            .filter(|q| q.response.is_some())
+            .count()
     }
 
     /// Count of questions that remain unanswered.
@@ -1275,7 +1418,11 @@ fn parse_and_order_raw_questions() -> Vec<Question> {
     }
 
     // 2. Read sequence of labels from Optimized_Keys.csv
-    let opt_lines: Vec<&str> = OPTIMIZED_KEYS_CSV.lines().map(|l| l.trim()).filter(|l| !l.is_empty()).collect();
+    let opt_lines: Vec<&str> = OPTIMIZED_KEYS_CSV
+        .lines()
+        .map(|l| l.trim())
+        .filter(|l| !l.is_empty())
+        .collect();
     let sequence_labels: Vec<String> = if opt_lines.len() >= 2 {
         // Second row contains the labels
         parse_csv_line(opt_lines[1])

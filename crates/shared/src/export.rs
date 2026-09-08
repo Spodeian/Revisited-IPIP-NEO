@@ -3,7 +3,7 @@
 //! as well as importing previously saved CSV/JSON progress to resume testing.
 
 use crate::questionnaire::{
-    parse_csv_line, Aspect, Facet, MetaTrait, QuestionnaireState, Response, Trait,
+    Aspect, Facet, MetaTrait, QuestionnaireState, Response, Trait, parse_csv_line,
 };
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
@@ -164,7 +164,15 @@ pub fn export_to_csv(state: &QuestionnaireState) -> String {
 
         out.push_str(&format!(
             "\"{}\",\"{}\",\"{}\",{},{},{:.4},{:.4},{},{}\n",
-            c.level, c.name, tier_str, score_str, se_str, c.raw_score, c.abs_weight, c.answered_items, c.total_items
+            c.level,
+            c.name,
+            tier_str,
+            score_str,
+            se_str,
+            c.raw_score,
+            c.abs_weight,
+            c.answered_items,
+            c.total_items
         ));
     }
 
@@ -216,8 +224,12 @@ pub fn export_to_svg(state: &QuestionnaireState) -> String {
     for &meta in &MetaTrait::ALL {
         let meta_acc = state.meta_trait_acc.get(&meta).copied().unwrap_or_default();
         let meta_tier = meta_acc.tier().map(|t| t.label()).unwrap_or("N/A");
-        let meta_score_str = meta_acc.normalized_score().map_or("N/A".to_string(), |s| format!("{:.2}", s));
-        let meta_se_str = meta_acc.standard_error().map_or("N/A".to_string(), |s| format!("{:.2}", s));
+        let meta_score_str = meta_acc
+            .normalized_score()
+            .map_or("N/A".to_string(), |s| format!("{:.2}", s));
+        let meta_se_str = meta_acc
+            .standard_error()
+            .map_or("N/A".to_string(), |s| format!("{:.2}", s));
         let tier_color = tier_color_hex(meta_tier);
 
         // Meta-Trait Header Bar
@@ -249,10 +261,18 @@ pub fn export_to_svg(state: &QuestionnaireState) -> String {
         y += 52;
 
         for trait_item in meta.child_traits() {
-            let trait_acc = state.trait_acc.get(&trait_item).copied().unwrap_or_default();
+            let trait_acc = state
+                .trait_acc
+                .get(&trait_item)
+                .copied()
+                .unwrap_or_default();
             let trait_tier = trait_acc.tier().map(|t| t.label()).unwrap_or("N/A");
-            let trait_score_str = trait_acc.normalized_score().map_or("N/A".to_string(), |s| format!("{:.2}", s));
-            let trait_se_str = trait_acc.standard_error().map_or("N/A".to_string(), |s| format!("{:.2}", s));
+            let trait_score_str = trait_acc
+                .normalized_score()
+                .map_or("N/A".to_string(), |s| format!("{:.2}", s));
+            let trait_se_str = trait_acc
+                .standard_error()
+                .map_or("N/A".to_string(), |s| format!("{:.2}", s));
             let trait_tier_color = tier_color_hex(trait_tier);
 
             // Trait Section Box
@@ -286,8 +306,12 @@ pub fn export_to_svg(state: &QuestionnaireState) -> String {
             for facet in trait_item.child_facets() {
                 let facet_acc = state.facet_acc.get(&facet).copied().unwrap_or_default();
                 let facet_tier = facet_acc.tier().map(|t| t.label()).unwrap_or("N/A");
-                let facet_score_str = facet_acc.normalized_score().map_or("N/A".to_string(), |s| format!("{:.2}", s));
-                let facet_se_str = facet_acc.standard_error().map_or("N/A".to_string(), |s| format!("{:.2}", s));
+                let facet_score_str = facet_acc
+                    .normalized_score()
+                    .map_or("N/A".to_string(), |s| format!("{:.2}", s));
+                let facet_se_str = facet_acc
+                    .standard_error()
+                    .map_or("N/A".to_string(), |s| format!("{:.2}", s));
                 let f_color = tier_color_hex(facet_tier);
 
                 // Facet Row
@@ -381,8 +405,12 @@ pub fn export_to_printable_html(state: &QuestionnaireState) -> String {
     for &meta in &MetaTrait::ALL {
         let meta_acc = state.meta_trait_acc.get(&meta).copied().unwrap_or_default();
         let meta_tier = meta_acc.tier().map(|t| t.label()).unwrap_or("N/A");
-        let meta_score = meta_acc.normalized_score().map_or("N/A".to_string(), |s| format!("{:.3}", s));
-        let meta_se = meta_acc.standard_error().map_or("N/A".to_string(), |s| format!("{:.3}", s));
+        let meta_score = meta_acc
+            .normalized_score()
+            .map_or("N/A".to_string(), |s| format!("{:.3}", s));
+        let meta_se = meta_acc
+            .standard_error()
+            .map_or("N/A".to_string(), |s| format!("{:.3}", s));
 
         hierarchy_html.push_str(&format!(
             r#"<div class="meta-card">
@@ -410,10 +438,18 @@ pub fn export_to_printable_html(state: &QuestionnaireState) -> String {
         ));
 
         for trait_item in meta.child_traits() {
-            let trait_acc = state.trait_acc.get(&trait_item).copied().unwrap_or_default();
+            let trait_acc = state
+                .trait_acc
+                .get(&trait_item)
+                .copied()
+                .unwrap_or_default();
             let trait_tier = trait_acc.tier().map(|t| t.label()).unwrap_or("N/A");
-            let trait_score = trait_acc.normalized_score().map_or("N/A".to_string(), |s| format!("{:.3}", s));
-            let trait_se = trait_acc.standard_error().map_or("N/A".to_string(), |s| format!("{:.3}", s));
+            let trait_score = trait_acc
+                .normalized_score()
+                .map_or("N/A".to_string(), |s| format!("{:.3}", s));
+            let trait_se = trait_acc
+                .standard_error()
+                .map_or("N/A".to_string(), |s| format!("{:.3}", s));
 
             hierarchy_html.push_str(&format!(
                 r#"<div class="trait-card">
@@ -454,8 +490,12 @@ pub fn export_to_printable_html(state: &QuestionnaireState) -> String {
             for facet in trait_item.child_facets() {
                 let facet_acc = state.facet_acc.get(&facet).copied().unwrap_or_default();
                 let facet_tier = facet_acc.tier().map(|t| t.label()).unwrap_or("N/A");
-                let facet_score = facet_acc.normalized_score().map_or("N/A".to_string(), |s| format!("{:.3}", s));
-                let facet_se = facet_acc.standard_error().map_or("N/A".to_string(), |s| format!("{:.3}", s));
+                let facet_score = facet_acc
+                    .normalized_score()
+                    .map_or("N/A".to_string(), |s| format!("{:.3}", s));
+                let facet_se = facet_acc
+                    .standard_error()
+                    .map_or("N/A".to_string(), |s| format!("{:.3}", s));
 
                 hierarchy_html.push_str(&format!(
                     r#"<tr>
@@ -479,13 +519,13 @@ pub fn export_to_printable_html(state: &QuestionnaireState) -> String {
             hierarchy_html.push_str(
                 r#"            </tbody>
         </table>
-    </div>"#
+    </div>"#,
             );
         }
 
         hierarchy_html.push_str(
             r#"    </div>
-</div>"#
+</div>"#,
         );
     }
 
@@ -619,7 +659,8 @@ pub fn export_to_printable_html(state: &QuestionnaireState) -> String {
     )
 }
 
-const BASE64_URL_ALPHABET: &[u8; 64] = b"ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-_";
+const BASE64_URL_ALPHABET: &[u8; 64] =
+    b"ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-_";
 
 /// Encodes all current question responses into an ultra-compact, URL-safe Base64 bitpacked string (~111 chars).
 pub fn encode_responses_to_url_code(state: &QuestionnaireState) -> String {
@@ -668,7 +709,11 @@ pub fn unpack_3bit_stream(bytes: &[u8], count: usize) -> Vec<u8> {
             break;
         }
         let b0 = bytes[byte_idx] as u16;
-        let b1 = if byte_idx + 1 < bytes.len() { bytes[byte_idx + 1] as u16 } else { 0 };
+        let b1 = if byte_idx + 1 < bytes.len() {
+            bytes[byte_idx + 1] as u16
+        } else {
+            0
+        };
         let combined = (b0 << 8) | b1;
         let shifted = combined >> (16 - 3 - bit_in_byte);
         values.push((shifted & 0x07) as u8);
@@ -679,7 +724,10 @@ pub fn unpack_3bit_stream(bytes: &[u8], count: usize) -> Vec<u8> {
 /// Decodes responses from a compact URL-safe Base64 string into state.
 /// Supports both modern 3-bit continuous bitpacking (~111 chars) and legacy 2-per-byte format (~148 chars).
 /// Returns the number of successfully applied answers.
-pub fn decode_responses_from_url_code(state: &mut QuestionnaireState, code: &str) -> Result<usize, &'static str> {
+pub fn decode_responses_from_url_code(
+    state: &mut QuestionnaireState,
+    code: &str,
+) -> Result<usize, &'static str> {
     let bytes = base64_url_decode(code.trim())?;
     if bytes.is_empty() {
         return Err("Empty code provided");
@@ -751,8 +799,16 @@ fn base64_url_encode(data: &[u8]) -> String {
     let mut i = 0;
     while i < data.len() {
         let b0 = data[i] as u32;
-        let b1 = if i + 1 < data.len() { data[i + 1] as u32 } else { 0 };
-        let b2 = if i + 2 < data.len() { data[i + 2] as u32 } else { 0 };
+        let b1 = if i + 1 < data.len() {
+            data[i + 1] as u32
+        } else {
+            0
+        };
+        let b2 = if i + 2 < data.len() {
+            data[i + 2] as u32
+        } else {
+            0
+        };
 
         let triple = (b0 << 16) | (b1 << 8) | b2;
 
@@ -787,9 +843,21 @@ fn base64_url_decode(input: &str) -> Result<Vec<u8>, &'static str> {
 
     while i < chars.len() {
         let c0 = decode_char(chars[i])?;
-        let c1 = if i + 1 < chars.len() { decode_char(chars[i + 1])? } else { 0 };
-        let c2 = if i + 2 < chars.len() { decode_char(chars[i + 2])? } else { 0 };
-        let c3 = if i + 3 < chars.len() { decode_char(chars[i + 3])? } else { 0 };
+        let c1 = if i + 1 < chars.len() {
+            decode_char(chars[i + 1])?
+        } else {
+            0
+        };
+        let c2 = if i + 2 < chars.len() {
+            decode_char(chars[i + 2])?
+        } else {
+            0
+        };
+        let c3 = if i + 3 < chars.len() {
+            decode_char(chars[i + 3])?
+        } else {
+            0
+        };
 
         let chunk = (c0 << 18) | (c1 << 12) | (c2 << 6) | c3;
 
@@ -807,9 +875,13 @@ fn base64_url_decode(input: &str) -> Result<Vec<u8>, &'static str> {
 
 /// Imports and applies answers from a previously exported JSON results string.
 /// Returns the number of successfully applied answers.
-pub fn import_responses_from_json(state: &mut QuestionnaireState, json_str: &str) -> Result<usize, &'static str> {
-    let report: FullAssessmentReport = serde_json::from_str(json_str)
-        .map_err(|_| "Invalid JSON format. Please ensure this is a valid Revisited IPIP-NEO results file.")?;
+pub fn import_responses_from_json(
+    state: &mut QuestionnaireState,
+    json_str: &str,
+) -> Result<usize, &'static str> {
+    let report: FullAssessmentReport = serde_json::from_str(json_str).map_err(
+        |_| "Invalid JSON format. Please ensure this is a valid Revisited IPIP-NEO results file.",
+    )?;
 
     let old_responses = state.current_responses_snapshot();
     let old_show_results = state.show_results;
@@ -821,9 +893,7 @@ pub fn import_responses_from_json(state: &mut QuestionnaireState, json_str: &str
     let response_map: HashMap<String, f32> = report
         .item_responses
         .iter()
-        .filter_map(|item| {
-            item.response_score.map(|score| (item.label.clone(), score))
-        })
+        .filter_map(|item| item.response_score.map(|score| (item.label.clone(), score)))
         .collect();
 
     for q in state.questions.iter_mut() {
@@ -871,7 +941,10 @@ pub fn import_responses_from_json(state: &mut QuestionnaireState, json_str: &str
 
 /// Imports and applies answers from a previously exported CSV results string.
 /// Returns the number of successfully applied answers.
-pub fn import_responses_from_csv(state: &mut QuestionnaireState, csv_str: &str) -> Result<usize, &'static str> {
+pub fn import_responses_from_csv(
+    state: &mut QuestionnaireState,
+    csv_str: &str,
+) -> Result<usize, &'static str> {
     let old_responses = state.current_responses_snapshot();
     let old_show_results = state.show_results;
     let old_focus_idx = state.current_focus_idx;
@@ -952,18 +1025,24 @@ pub fn import_responses_from_csv(state: &mut QuestionnaireState, csv_str: &str) 
 /// Exports the full assessment report into compressed BSON binary bytes (Zlib-compressed BSON).
 pub fn export_to_compressed_bson(state: &QuestionnaireState) -> Result<Vec<u8>, String> {
     let report = FullAssessmentReport::from_state(state);
-    let bson_bytes = bson::to_vec(&report).map_err(|e| format!("BSON serialization failed: {}", e))?;
+    let bson_bytes =
+        bson::to_vec(&report).map_err(|e| format!("BSON serialization failed: {}", e))?;
     Ok(miniz_oxide::deflate::compress_to_vec_zlib(&bson_bytes, 6))
 }
 
 /// Imports and applies answers from a compressed (or raw) BSON slice.
 /// Returns the number of successfully applied answers.
-pub fn import_responses_from_bson(state: &mut QuestionnaireState, bytes: &[u8]) -> Result<usize, &'static str> {
+pub fn import_responses_from_bson(
+    state: &mut QuestionnaireState,
+    bytes: &[u8],
+) -> Result<usize, &'static str> {
     // Attempt zlib decompression first; if that fails, try parsing as raw BSON
-    let bson_bytes = miniz_oxide::inflate::decompress_to_vec_zlib(bytes).unwrap_or_else(|_| bytes.to_vec());
+    let bson_bytes =
+        miniz_oxide::inflate::decompress_to_vec_zlib(bytes).unwrap_or_else(|_| bytes.to_vec());
 
-    let report: FullAssessmentReport = bson::from_slice(&bson_bytes)
-        .map_err(|_| "Invalid BSON format. Please ensure this is a valid Revisited IPIP-NEO BSON file.")?;
+    let report: FullAssessmentReport = bson::from_slice(&bson_bytes).map_err(
+        |_| "Invalid BSON format. Please ensure this is a valid Revisited IPIP-NEO BSON file.",
+    )?;
 
     let old_responses = state.current_responses_snapshot();
     let old_show_results = state.show_results;
@@ -973,9 +1052,7 @@ pub fn import_responses_from_bson(state: &mut QuestionnaireState, bytes: &[u8]) 
     let response_map: HashMap<String, f32> = report
         .item_responses
         .iter()
-        .filter_map(|item| {
-            item.response_score.map(|score| (item.label.clone(), score))
-        })
+        .filter_map(|item| item.response_score.map(|score| (item.label.clone(), score)))
         .collect();
 
     for q in state.questions.iter_mut() {

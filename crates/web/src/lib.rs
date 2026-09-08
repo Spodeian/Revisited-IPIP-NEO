@@ -3,7 +3,7 @@
 #[cfg(target_arch = "wasm32")]
 use app::PersonalityApp;
 #[cfg(target_arch = "wasm32")]
-use wasm_bindgen::{prelude::*, JsCast};
+use wasm_bindgen::{JsCast, prelude::*};
 
 #[cfg(target_arch = "wasm32")]
 #[wasm_bindgen(start)]
@@ -29,11 +29,12 @@ pub fn main() {
 
         let web_options = eframe::WebOptions::default();
         let runner = eframe::WebRunner::new();
-        let _ = runner.start(
-            canvas,
-            web_options,
-            Box::new(|cc| Ok(Box::new(PersonalityApp::new(cc)))),
-        )
-        .await;
+        let _ = runner
+            .start(
+                canvas,
+                web_options,
+                Box::new(|cc| Ok(Box::new(PersonalityApp::new(cc)))),
+            )
+            .await;
     });
 }

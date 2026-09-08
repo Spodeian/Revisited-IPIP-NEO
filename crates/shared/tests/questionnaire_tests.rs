@@ -1,20 +1,31 @@
-use shared::{load_optimized_questions, QuestionnaireState, Response, ScoreTier};
+use shared::{QuestionnaireState, Response, ScoreTier, load_optimized_questions};
 
 #[test]
 fn test_dataset_item_count_and_uniqueness() {
     let questions = load_optimized_questions();
-    assert_eq!(questions.len(), 221, "Dataset must have exactly 221 questions");
+    assert_eq!(
+        questions.len(),
+        221,
+        "Dataset must have exactly 221 questions"
+    );
 
     let mut seen_ids = std::collections::HashSet::new();
     let mut seen_labels = std::collections::HashSet::new();
 
     for q in &questions {
         assert!(seen_ids.insert(q.id), "Question ID {} must be unique", q.id);
-        assert!(seen_labels.insert(q.label.clone()), "Label {} must be unique", q.label);
+        assert!(
+            seen_labels.insert(q.label.clone()),
+            "Label {} must be unique",
+            q.label
+        );
         assert!(!q.text.trim().is_empty(), "Question text cannot be empty");
         assert!(q.facet.weight.abs() > 0.0, "Facet weight cannot be zero");
         assert!(q.r#trait.weight.abs() > 0.0, "Trait weight cannot be zero");
-        assert!(q.meta_trait.weight.abs() > 0.0, "Meta-Trait weight cannot be zero");
+        assert!(
+            q.meta_trait.weight.abs() > 0.0,
+            "Meta-Trait weight cannot be zero"
+        );
     }
 }
 
@@ -33,7 +44,11 @@ fn test_hierarchy_coverage() {
 
     assert_eq!(facets_found.len(), 28, "All 28 facets must be present");
     assert_eq!(traits_found.len(), 6, "All 6 traits must be present");
-    assert_eq!(meta_traits_found.len(), 3, "All 3 meta-traits must be present");
+    assert_eq!(
+        meta_traits_found.len(),
+        3,
+        "All 3 meta-traits must be present"
+    );
 }
 
 #[test]
@@ -124,16 +139,28 @@ fn test_bson_compressed_roundtrip() {
     state.answer_question(10, Response::Neutral);
 
     let compressed_bson = shared::export_to_compressed_bson(&state).expect("BSON export failed");
-    assert!(!compressed_bson.is_empty(), "Compressed BSON should not be empty");
+    assert!(
+        !compressed_bson.is_empty(),
+        "Compressed BSON should not be empty"
+    );
 
     let mut restored_state = QuestionnaireState::from_embedded_data();
     let applied = shared::import_responses_from_bson(&mut restored_state, &compressed_bson)
         .expect("BSON import failed");
 
     assert_eq!(applied, 3);
-    assert_eq!(restored_state.questions[0].response, Some(Response::StronglyAgree));
-    assert_eq!(restored_state.questions[5].response, Some(Response::Disagree));
-    assert_eq!(restored_state.questions[10].response, Some(Response::Neutral));
+    assert_eq!(
+        restored_state.questions[0].response,
+        Some(Response::StronglyAgree)
+    );
+    assert_eq!(
+        restored_state.questions[5].response,
+        Some(Response::Disagree)
+    );
+    assert_eq!(
+        restored_state.questions[10].response,
+        Some(Response::Neutral)
+    );
 }
 
 #[test]
@@ -141,7 +168,10 @@ fn test_serde_backward_compatibility() {
     // Deserialize an older JSON state missing newer fields
     let legacy_json = r#"{"config":{"theme":"Dark"},"questionnaire":{"questions":[],"pending_queue":[],"current_focus_idx":0,"show_results":false,"show_detailed_stats":false}}"#;
     let app_state: Result<shared::AppState, _> = serde_json::from_str(legacy_json);
-    assert!(app_state.is_ok(), "Should parse legacy state without failure");
+    assert!(
+        app_state.is_ok(),
+        "Should parse legacy state without failure"
+    );
 }
 
 #[test]
@@ -173,7 +203,10 @@ fn test_undo_redo_and_branch_invalidation() {
     // Mutating a new action on this branch invalidates the redo future
     state.answer_question(2, Response::Disagree);
     assert_eq!(state.questions[2].response, Some(Response::Disagree));
-    assert!(!state.can_redo(), "Redo stack must be cleared when a new action is performed");
+    assert!(
+        !state.can_redo(),
+        "Redo stack must be cleared when a new action is performed"
+    );
     assert!(!state.redo(), "Redo should fail after branch divergence");
 }
 
@@ -254,8 +287,14 @@ fn test_compact_history_exponential_recency() {
     // Trigger compaction down to target 12 entries
     state.compact_history(12);
 
-    assert!(state.undo_stack.len() <= 15, "Compacted stack should be significantly smaller");
-    assert!(state.can_undo(), "Compacted history should still support undo");
+    assert!(
+        state.undo_stack.len() <= 15,
+        "Compacted stack should be significantly smaller"
+    );
+    assert!(
+        state.can_undo(),
+        "Compacted history should still support undo"
+    );
 
     // Perform an undo step
     assert!(state.undo());

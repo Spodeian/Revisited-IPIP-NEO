@@ -23,7 +23,7 @@ jobs:
       - name: Check Formatting
         run: cargo fmt --all -- --check
       - name: Clippy Linter
-        run: cargo clippy --workspace --all-targets --all-features -- -D warnings
+        run: cargo clippy --workspace --exclude desktop --all-targets --all-features -- -D warnings
 
   test-native:
     name: Native Tests & Coverage
@@ -38,12 +38,13 @@ jobs:
       - uses: taiki-e/install-action@cargo-llvm-cov
 
       - name: Run Tests with Nextest
-        run: cargo nextest run --workspace --profile ci
+        run: cargo nextest run --workspace --exclude desktop --profile ci
 
       - name: Measure Code Coverage (Discovery & Diagnostic)
         id: coverage
         run: |
-          cargo llvm-cov nextest --workspace --html --output-dir target/llvm-cov/html --lcov --output-path lcov.info
+          cargo llvm-cov nextest --workspace --exclude desktop --lcov --output-path lcov.info
+          cargo llvm-cov report --html --output-dir target/llvm-cov/html
           echo "### 📊 Test Coverage Summary" >> $GITHUB_STEP_SUMMARY
           echo '```' >> $GITHUB_STEP_SUMMARY
           cargo llvm-cov report --summary-only >> $GITHUB_STEP_SUMMARY

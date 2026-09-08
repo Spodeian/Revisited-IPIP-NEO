@@ -2,11 +2,10 @@
 #[global_allocator]
 static GLOBAL: mimalloc::MiMalloc = mimalloc::MiMalloc;
 
-
 use app::PersonalityApp;
-use eframe::egui;
 use eframe::NativeOptions;
-use tracing_subscriber::{fmt, prelude::*, EnvFilter};
+use eframe::egui;
+use tracing_subscriber::{EnvFilter, fmt, prelude::*};
 
 fn main() -> eframe::Result<()> {
     // Advanced logging setup:
@@ -34,4 +33,3 @@ fn main() -> eframe::Result<()> {
         Box::new(|cc| Ok(Box::new(PersonalityApp::new(cc)))),
     )
 }
-
