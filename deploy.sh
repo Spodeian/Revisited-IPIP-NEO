@@ -80,7 +80,7 @@ elif command -v wasm-opt &> /dev/null && wasm-opt --version &> /dev/null; then
     WASM_OPT_BIN="wasm-opt"
 else
     echo "Downloading and caching Binaryen wasm-opt..."
-    BINARYEN_VERSION="version_122"
+    BINARYEN_VERSION="version_132"
     temp_tar="/tmp/binaryen-${BINARYEN_VERSION}.tar.gz"
     wget -qO "$temp_tar" "https://github.com/WebAssembly/binaryen/releases/download/${BINARYEN_VERSION}/binaryen-${BINARYEN_VERSION}-x86_64-linux.tar.gz" || \
     wget -qO "$temp_tar" "https://github.com/WebAssembly/binaryen/releases/latest/download/binaryen-x86_64-linux.tar.gz"
@@ -96,7 +96,7 @@ fi
 echo "Purging previous build distribution caches..."
 rm -rf crates/web/dist dist
 
-export RUSTFLAGS="-C target-feature=+bulk-memory,+mutable-globals,+nontrapping-fptoint,+sign-ext -C link-arg=-zstack-size=2097152 ${RUSTFLAGS:-}"
+export RUSTFLAGS="-C target-feature=+simd128,+bulk-memory,+mutable-globals,+nontrapping-fptoint,+sign-ext,+reference-types,+multivalue -C link-arg=-zstack-size=2097152 ${RUSTFLAGS:-}"
 
 echo "Compiling and bundling web application for release..."
 "$TRUNK_BIN" clean
@@ -110,18 +110,21 @@ fi
 # Run wasm-opt pass on generated wasm artifact with bulk memory, reference-types, and performance optimizations
 WASM_OPT_FLAGS=(
     "-Oz"
+    "--enable-simd"
     "--enable-bulk-memory"
     "--enable-bulk-memory-opt"
     "--enable-mutable-globals"
     "--enable-sign-ext"
     "--enable-nontrapping-float-to-int"
+    "--enable-reference-types"
+    "--enable-multivalue"
 )
 
 if [ -x "$WASM_OPT_BIN" ] || command -v wasm-opt &> /dev/null; then
     for wasm_file in "$DIST_DIR"/*.wasm; do
         if [ -f "$wasm_file" ]; then
             echo "Optimizing WASM with wasm-opt (reference-types, bulk-memory, fast math): $wasm_file"
-            "$WASM_OPT_BIN" "${WASM_OPT_FLAGS[@]}" "$wasm_file" -o "$wasm_file" || "$WASM_OPT_BIN" -Oz "$wasm_file" -o "$wasm_file" || true
+            "$WASM_OPT_BIN" "${WASM_OPT_FLAGS[@]}" "$wasm_file" -o "$wasm_file" || "$WASM_OPT_BIN" -Oz --enable-simd "$wasm_file" -o "$wasm_file" || true
         fi
     done
 fi
