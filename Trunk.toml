@@ -1,7 +1,7 @@
 [build]
 target = "crates/web/index.html"
 dist = "crates/web/dist"
-wasm_opt = "z"
+wasm_opt = "0"
 
 [serve]
 port = 8080

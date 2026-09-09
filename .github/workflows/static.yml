@@ -78,6 +78,12 @@ jobs:
         run: |
           echo "Active wasm-opt version: $(wasm-opt --version)"
           trunk build --release --public-url "/Revisited-IPIP-NEO/"
+          for wasm_file in crates/web/dist/*.wasm; do
+            if [ -f "$wasm_file" ]; then
+              echo "Optimizing $wasm_file with wasm-opt (SIMD enabled)"
+              wasm-opt -Oz --enable-simd "$wasm_file" -o "$wasm_file" || true
+            fi
+          done
 
       - name: Setup Node.js 24 LTS
         uses: actions/setup-node@v4
