@@ -1,4 +1,4 @@
-# Simple workflow for deploying compiled Rust/WASM content to GitHub Pages
+# GitHub Actions: Compile (Trunk + SIMD wasm-opt), minify, and deploy WASM app to GitHub Pages
 name: Deploy static content to Pages
 
 on:
