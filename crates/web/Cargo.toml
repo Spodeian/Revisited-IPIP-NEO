@@ -11,7 +11,7 @@ description = "WebAssembly client and WebRunner entrypoint for Revisited IPIP-NE
 crate-type = ["cdylib", "rlib"]
 
 [dependencies]
-eframe = { workspace = true, features = ["default_fonts", "wgpu", "persistence"] }
+eframe = { workspace = true }
 wasm-bindgen = { workspace = true }
 wasm-bindgen-futures = { workspace = true }
 web-sys = { workspace = true }
@@ -21,4 +21,11 @@ tracing-web = { workspace = true }
 tracing = { workspace = true }
 app = { workspace = true }
 tracing-subscriber.workspace = true
+
+[features]
+default = ["accesskit", "persistence", "wgpu"]
+accesskit = ["app/accesskit", "eframe/accesskit"]
+persistence = ["app/persistence", "eframe/persistence"]
+wgpu = ["app/wgpu", "eframe/wgpu"]
+glow = ["app/glow", "eframe/glow"]
 

@@ -14,5 +14,9 @@ bson = { workspace = true }
 miniz_oxide = { workspace = true }
 num = { workspace = true }
 
+[features]
+default = ["std"]
+std = ["serde/std", "serde_json/std", "num/std"]
+
 [dev-dependencies]
 proptest = "1"
