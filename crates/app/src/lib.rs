@@ -382,12 +382,16 @@ impl PersonalityApp {
                 hc.extreme_bg_color = egui::Color32::from_rgb(10, 10, 10);
                 hc.widgets.noninteractive.fg_stroke = egui::Stroke::new(1.5, egui::Color32::WHITE);
                 hc.widgets.inactive.fg_stroke = egui::Stroke::new(1.5, egui::Color32::WHITE);
-                hc.widgets.hovered.fg_stroke = egui::Stroke::new(2.0, egui::Color32::from_rgb(255, 255, 0));
-                hc.widgets.active.fg_stroke = egui::Stroke::new(2.0, egui::Color32::from_rgb(255, 255, 0));
+                hc.widgets.hovered.fg_stroke =
+                    egui::Stroke::new(2.0, egui::Color32::from_rgb(255, 255, 0));
+                hc.widgets.active.fg_stroke =
+                    egui::Stroke::new(2.0, egui::Color32::from_rgb(255, 255, 0));
                 hc.widgets.noninteractive.bg_stroke = egui::Stroke::new(2.0, egui::Color32::WHITE);
                 hc.widgets.inactive.bg_stroke = egui::Stroke::new(2.0, egui::Color32::WHITE);
-                hc.widgets.hovered.bg_stroke = egui::Stroke::new(2.5, egui::Color32::from_rgb(255, 255, 0));
-                hc.widgets.active.bg_stroke = egui::Stroke::new(2.5, egui::Color32::from_rgb(255, 255, 0));
+                hc.widgets.hovered.bg_stroke =
+                    egui::Stroke::new(2.5, egui::Color32::from_rgb(255, 255, 0));
+                hc.widgets.active.bg_stroke =
+                    egui::Stroke::new(2.5, egui::Color32::from_rgb(255, 255, 0));
                 hc.widgets.inactive.bg_fill = egui::Color32::BLACK;
                 hc.widgets.hovered.bg_fill = egui::Color32::from_rgb(30, 30, 0);
                 hc.widgets.active.bg_fill = egui::Color32::from_rgb(50, 50, 0);
@@ -400,12 +404,16 @@ impl PersonalityApp {
                 hc.extreme_bg_color = egui::Color32::WHITE;
                 hc.widgets.noninteractive.fg_stroke = egui::Stroke::new(1.5, egui::Color32::BLACK);
                 hc.widgets.inactive.fg_stroke = egui::Stroke::new(1.5, egui::Color32::BLACK);
-                hc.widgets.hovered.fg_stroke = egui::Stroke::new(2.0, egui::Color32::from_rgb(0, 0, 180));
-                hc.widgets.active.fg_stroke = egui::Stroke::new(2.0, egui::Color32::from_rgb(0, 0, 220));
+                hc.widgets.hovered.fg_stroke =
+                    egui::Stroke::new(2.0, egui::Color32::from_rgb(0, 0, 180));
+                hc.widgets.active.fg_stroke =
+                    egui::Stroke::new(2.0, egui::Color32::from_rgb(0, 0, 220));
                 hc.widgets.noninteractive.bg_stroke = egui::Stroke::new(2.0, egui::Color32::BLACK);
                 hc.widgets.inactive.bg_stroke = egui::Stroke::new(2.0, egui::Color32::BLACK);
-                hc.widgets.hovered.bg_stroke = egui::Stroke::new(2.5, egui::Color32::from_rgb(0, 0, 180));
-                hc.widgets.active.bg_stroke = egui::Stroke::new(2.5, egui::Color32::from_rgb(0, 0, 220));
+                hc.widgets.hovered.bg_stroke =
+                    egui::Stroke::new(2.5, egui::Color32::from_rgb(0, 0, 180));
+                hc.widgets.active.bg_stroke =
+                    egui::Stroke::new(2.5, egui::Color32::from_rgb(0, 0, 220));
                 hc.widgets.inactive.bg_fill = egui::Color32::WHITE;
                 hc.widgets.hovered.bg_fill = egui::Color32::from_rgb(230, 235, 255);
                 hc.widgets.active.bg_fill = egui::Color32::from_rgb(210, 220, 255);
