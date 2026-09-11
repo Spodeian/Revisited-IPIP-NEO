@@ -956,11 +956,19 @@ impl PersonalityApp {
                             // Center Progress Bar filling remaining horizontal space in between
                             let remaining_width = (ui.available_width() - 8.0).max(0.0);
                             if remaining_width > 20.0 {
-                                ui.add(
+                                let pb_resp = ui.add(
                                     egui::ProgressBar::new(progress)
                                         .text(progress_text.clone())
                                         .desired_width(remaining_width),
                                 ).on_hover_text(&progress_hover_text);
+                                let p_text = progress_text.clone();
+                                pb_resp.widget_info(move || {
+                                    egui::WidgetInfo::labeled(
+                                        egui::WidgetType::ProgressIndicator,
+                                        true,
+                                        format!("Questionnaire assessment progress: {}", p_text),
+                                    )
+                                });
                             }
                         });
                     });
@@ -1126,6 +1134,78 @@ impl PersonalityApp {
 
             ui.add_space(8.0);
             ui.separator();
+            ui.add_space(4.0);
+
+            // Accessible Results Table (Collapsible for screen reader & keyboard linear inspection)
+            ui.collapsing("📋 Accessible Results Table (Screen Reader View)", |ui| {
+                ui.label(egui::RichText::new("A flat, high-contrast, linear table of all traits, domains, and facets for assistive technology navigation.").small().weak());
+                ui.add_space(4.0);
+                egui::Grid::new("accessible_results_summary_grid")
+                    .striped(true)
+                    .spacing([12.0, 6.0])
+                    .show(ui, |ui| {
+                        ui.label(egui::RichText::new("Construct").strong());
+                        ui.label(egui::RichText::new("Tier").strong());
+                        ui.label(egui::RichText::new("Score").strong());
+                        ui.label(egui::RichText::new("CI").strong());
+                        ui.label(egui::RichText::new("Progress").strong());
+                        ui.end_row();
+
+                        for &meta in &MetaTrait::ALL {
+                            let acc = self.state.questionnaire.meta_trait_acc.get(&meta).copied().unwrap_or_default();
+                            let score_str = acc.normalized_score().map(|s| format!("{:+.2}", s)).unwrap_or_else(|| "N/A".to_string());
+                            let tier_str = acc.tier().map(|t| t.label()).unwrap_or("N/A");
+                            let se = acc.standard_error().unwrap_or(0.0);
+                            let ci_str = if let Some(s) = acc.normalized_score() {
+                                format!("[{:+.2}, {:+.2}]", (s - se * std::f32::consts::E).clamp(-1.0, 1.0), (s + se * std::f32::consts::E).clamp(-1.0, 1.0))
+                            } else {
+                                "N/A".to_string()
+                            };
+                            ui.label(egui::RichText::new(format!("Meta: {}", meta.display_name())).strong());
+                            ui.label(tier_str);
+                            ui.label(score_str);
+                            ui.label(ci_str);
+                            ui.label(format!("{}/{}", acc.answered_count, acc.total_items));
+                            ui.end_row();
+
+                            for trait_item in meta.child_traits() {
+                                let d_acc = self.state.questionnaire.trait_acc.get(&trait_item).copied().unwrap_or_default();
+                                let d_score_str = d_acc.normalized_score().map(|s| format!("{:+.2}", s)).unwrap_or_else(|| "N/A".to_string());
+                                let d_tier_str = d_acc.tier().map(|t| t.label()).unwrap_or("N/A");
+                                let d_se = d_acc.standard_error().unwrap_or(0.0);
+                                let d_ci_str = if let Some(s) = d_acc.normalized_score() {
+                                    format!("[{:+.2}, {:+.2}]", (s - d_se * (std::f32::consts::E / 2.0)).clamp(-1.0, 1.0), (s + d_se * (std::f32::consts::E / 2.0)).clamp(-1.0, 1.0))
+                                } else {
+                                    "N/A".to_string()
+                                };
+                                ui.label(format!("  Trait: {}", trait_item.display_name()));
+                                ui.label(d_tier_str);
+                                ui.label(d_score_str);
+                                ui.label(d_ci_str);
+                                ui.label(format!("{}/{}", d_acc.answered_count, d_acc.total_items));
+                                ui.end_row();
+
+                                for facet in trait_item.child_facets() {
+                                    let f_acc = self.state.questionnaire.facet_acc.get(&facet).copied().unwrap_or_default();
+                                    let f_score_str = f_acc.normalized_score().map(|s| format!("{:+.2}", s)).unwrap_or_else(|| "N/A".to_string());
+                                    let f_tier_str = f_acc.tier().map(|t| t.label()).unwrap_or("N/A");
+                                    let f_se = f_acc.standard_error().unwrap_or(0.0);
+                                    let f_ci_str = if let Some(s) = f_acc.normalized_score() {
+                                        format!("[{:+.2}, {:+.2}]", (s - f_se * (std::f32::consts::E / 4.0)).clamp(-1.0, 1.0), (s + f_se * (std::f32::consts::E / 4.0)).clamp(-1.0, 1.0))
+                                    } else {
+                                        "N/A".to_string()
+                                    };
+                                    ui.label(format!("    Facet: {}", facet.display_name()));
+                                    ui.label(f_tier_str);
+                                    ui.label(f_score_str);
+                                    ui.label(f_ci_str);
+                                    ui.label(format!("{}/{}", f_acc.answered_count, f_acc.total_items));
+                                    ui.end_row();
+                                }
+                            }
+                        }
+                    });
+            });
             ui.add_space(4.0);
 
             // Construct Hierarchy Tree
@@ -1390,6 +1470,17 @@ impl PersonalityApp {
 
         let ci_min = (norm_score - se * ci_mult).clamp(-1.0, 1.0);
         let ci_max = (norm_score + se * ci_mult).clamp(-1.0, 1.0);
+        let ci_label_str = ci_label.to_string();
+        response.widget_info(move || {
+            egui::WidgetInfo::labeled(
+                egui::WidgetType::ProgressIndicator,
+                true,
+                format!(
+                    "Score gauge: normalized score {:+.2}, standard error {:.2}, {} confidence interval [{:+.2}, {:+.2}]",
+                    norm_score, se, ci_label_str, ci_min, ci_max
+                ),
+            )
+        });
         response.on_hover_ui(|ui| {
             ui.label(egui::RichText::new(format!("Normalized Score: {:+.2}", norm_score)).strong());
             ui.label(format!("Standard Error (SE): {:.2}", se));
@@ -1423,6 +1514,14 @@ impl PersonalityApp {
 
             let tier_badge_resp =
                 ui.colored_label(tier_color, egui::RichText::new(tier.label()).strong());
+            let tier_label_str = tier.label().to_string();
+            tier_badge_resp.widget_info(move || {
+                egui::WidgetInfo::labeled(
+                    egui::WidgetType::Other,
+                    true,
+                    format!("Construct tier classification: {}", tier_label_str),
+                )
+            });
             tier_badge_resp.on_hover_ui(|ui| {
                 ui.label(egui::RichText::new(format!("Classification: {}", tier.label())).strong());
                 ui.label(format!(
