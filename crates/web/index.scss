@@ -13,6 +13,21 @@ canvas {
   width: 100vw;
   height: 100vh;
   display: block;
+
+  &:focus-visible {
+    outline: 2px solid #58a6ff;
+    outline-offset: -2px;
+  }
+}
+
+// Global Reduced Motion Compliance
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
 }
 
 @media print {
