@@ -8,7 +8,7 @@ repository.workspace = true
 description = "Application view controller, UI layout components, and state management for Revisited IPIP-NEO"
 
 [dependencies]
-eframe = { workspace = true, features = ["default_fonts", "wgpu", "persistence"] }
+eframe = { workspace = true, features = ["default_fonts", "wgpu", "persistence", "accesskit"] }
 egui = { workspace = true, features = ["default_fonts"] }
 serde = { workspace = true, features = ["derive"] }
 serde_json = { workspace = true }

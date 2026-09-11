@@ -590,7 +590,7 @@ impl PersonalityApp {
             };
 
             let is_touch = constraints.is_mobile;
-            let btn_height = if is_touch { 34.0 } else { 26.0 };
+            let btn_height = if is_touch { 44.0 } else { 32.0 };
 
             ui.horizontal(|ui| {
                 ui.set_min_height(btn_height + 4.0);
@@ -838,8 +838,8 @@ impl PersonalityApp {
                         (Response::StronglyAgree, "Strongly Agree", "5", "Strongly Agree (+1.0 point)\nShortcut: Press '5' on keyboard"),
                     ];
 
-                    // Clean vertical stack for Likert buttons across all orientations
-                    let button_height = if is_ultra_tight { 26.0 } else if is_tight_height { 32.0 } else if is_mobile_portrait { 36.0 } else { 42.0 };
+                    // Clean vertical stack for Likert buttons across all orientations (enforces 44px touch targets)
+                    let button_height = if is_ultra_tight { 34.0 } else if is_tight_height { 38.0 } else { 44.0 };
                     let button_text_size = if is_ultra_tight { 13.5 } else if is_tight_height { 14.5 } else if is_mobile_portrait { 15.5 } else { 16.0 };
                     let btn_width = (ui.available_width() - 8.0).min(340.0);
 
@@ -2279,6 +2279,13 @@ impl eframe::App for PersonalityApp {
         }
 
         self.apply_theme(ui.ctx());
+        if self.state.config.theme.is_high_contrast() {
+            ui.spacing_mut().interact_size = egui::vec2(44.0, 44.0);
+            ui.spacing_mut().button_padding = egui::vec2(14.0, 10.0);
+        } else {
+            ui.spacing_mut().interact_size.y = ui.spacing_mut().interact_size.y.max(32.0);
+            ui.spacing_mut().button_padding = egui::vec2(12.0, 8.0);
+        }
         self.handle_keyboard_and_scroll(ui);
 
         // Process any async dropped or picked files that finished loading on WASM
