@@ -375,6 +375,50 @@ impl PersonalityApp {
                 light
             }
             ThemeMode::Dark => egui::Visuals::dark(),
+            ThemeMode::HighContrastDark => {
+                let mut hc = egui::Visuals::dark();
+                hc.panel_fill = egui::Color32::BLACK;
+                hc.window_fill = egui::Color32::BLACK;
+                hc.extreme_bg_color = egui::Color32::from_rgb(10, 10, 10);
+                hc.widgets.noninteractive.fg_stroke = egui::Stroke::new(1.5, egui::Color32::WHITE);
+                hc.widgets.inactive.fg_stroke = egui::Stroke::new(1.5, egui::Color32::WHITE);
+                hc.widgets.hovered.fg_stroke =
+                    egui::Stroke::new(2.0, egui::Color32::from_rgb(255, 255, 0));
+                hc.widgets.active.fg_stroke =
+                    egui::Stroke::new(2.0, egui::Color32::from_rgb(255, 255, 0));
+                hc.widgets.noninteractive.bg_stroke = egui::Stroke::new(2.0, egui::Color32::WHITE);
+                hc.widgets.inactive.bg_stroke = egui::Stroke::new(2.0, egui::Color32::WHITE);
+                hc.widgets.hovered.bg_stroke =
+                    egui::Stroke::new(2.5, egui::Color32::from_rgb(255, 255, 0));
+                hc.widgets.active.bg_stroke =
+                    egui::Stroke::new(2.5, egui::Color32::from_rgb(255, 255, 0));
+                hc.widgets.inactive.bg_fill = egui::Color32::BLACK;
+                hc.widgets.hovered.bg_fill = egui::Color32::from_rgb(30, 30, 0);
+                hc.widgets.active.bg_fill = egui::Color32::from_rgb(50, 50, 0);
+                hc
+            }
+            ThemeMode::HighContrastLight => {
+                let mut hc = egui::Visuals::light();
+                hc.panel_fill = egui::Color32::WHITE;
+                hc.window_fill = egui::Color32::WHITE;
+                hc.extreme_bg_color = egui::Color32::WHITE;
+                hc.widgets.noninteractive.fg_stroke = egui::Stroke::new(1.5, egui::Color32::BLACK);
+                hc.widgets.inactive.fg_stroke = egui::Stroke::new(1.5, egui::Color32::BLACK);
+                hc.widgets.hovered.fg_stroke =
+                    egui::Stroke::new(2.0, egui::Color32::from_rgb(0, 0, 180));
+                hc.widgets.active.fg_stroke =
+                    egui::Stroke::new(2.0, egui::Color32::from_rgb(0, 0, 220));
+                hc.widgets.noninteractive.bg_stroke = egui::Stroke::new(2.0, egui::Color32::BLACK);
+                hc.widgets.inactive.bg_stroke = egui::Stroke::new(2.0, egui::Color32::BLACK);
+                hc.widgets.hovered.bg_stroke =
+                    egui::Stroke::new(2.5, egui::Color32::from_rgb(0, 0, 180));
+                hc.widgets.active.bg_stroke =
+                    egui::Stroke::new(2.5, egui::Color32::from_rgb(0, 0, 220));
+                hc.widgets.inactive.bg_fill = egui::Color32::WHITE;
+                hc.widgets.hovered.bg_fill = egui::Color32::from_rgb(230, 235, 255);
+                hc.widgets.active.bg_fill = egui::Color32::from_rgb(210, 220, 255);
+                hc
+            }
         };
         ctx.set_visuals(visuals);
     }
@@ -554,7 +598,7 @@ impl PersonalityApp {
             };
 
             let is_touch = constraints.is_mobile;
-            let btn_height = if is_touch { 34.0 } else { 26.0 };
+            let btn_height = if is_touch { 44.0 } else { 32.0 };
 
             ui.horizontal(|ui| {
                 ui.set_min_height(btn_height + 4.0);
@@ -628,15 +672,9 @@ impl PersonalityApp {
                         ui.separator();
                         ui.label(egui::RichText::new("Settings & Info").small().weak());
 
-                        let theme_label = match self.state.config.theme {
-                            ThemeMode::Light => "🌙 Dark Mode",
-                            ThemeMode::Dark => "☀ Light Mode",
-                        };
-                        if ui.button(theme_label).on_hover_text("Switch between dark and light visual themes").clicked() {
-                            self.state.config.theme = match self.state.config.theme {
-                                ThemeMode::Light => ThemeMode::Dark,
-                                ThemeMode::Dark => ThemeMode::Light,
-                            };
+                        let theme_label = format!("{} Theme: {}", self.state.config.theme.icon(), self.state.config.theme.label());
+                        if ui.button(theme_label).on_hover_text("Cycle visual themes: Dark, Warm Light, High Contrast (Dark), and High Contrast (Light)").clicked() {
+                            self.state.config.theme = self.state.config.theme.next();
                             self.persist_state();
                             ui.close();
                         }
@@ -808,8 +846,8 @@ impl PersonalityApp {
                         (Response::StronglyAgree, "Strongly Agree", "5", "Strongly Agree (+1.0 point)\nShortcut: Press '5' on keyboard"),
                     ];
 
-                    // Clean vertical stack for Likert buttons across all orientations
-                    let button_height = if is_ultra_tight { 26.0 } else if is_tight_height { 32.0 } else if is_mobile_portrait { 36.0 } else { 42.0 };
+                    // Clean vertical stack for Likert buttons across all orientations (enforces 44px touch targets)
+                    let button_height = if is_ultra_tight { 34.0 } else if is_tight_height { 38.0 } else { 44.0 };
                     let button_text_size = if is_ultra_tight { 13.5 } else if is_tight_height { 14.5 } else if is_mobile_portrait { 15.5 } else { 16.0 };
                     let btn_width = (ui.available_width() - 8.0).min(340.0);
 
@@ -926,11 +964,19 @@ impl PersonalityApp {
                             // Center Progress Bar filling remaining horizontal space in between
                             let remaining_width = (ui.available_width() - 8.0).max(0.0);
                             if remaining_width > 20.0 {
-                                ui.add(
+                                let pb_resp = ui.add(
                                     egui::ProgressBar::new(progress)
                                         .text(progress_text.clone())
                                         .desired_width(remaining_width),
                                 ).on_hover_text(&progress_hover_text);
+                                let p_text = progress_text.clone();
+                                pb_resp.widget_info(move || {
+                                    egui::WidgetInfo::labeled(
+                                        egui::WidgetType::ProgressIndicator,
+                                        true,
+                                        format!("Questionnaire assessment progress: {}", p_text),
+                                    )
+                                });
                             }
                         });
                     });
@@ -1096,6 +1142,78 @@ impl PersonalityApp {
 
             ui.add_space(8.0);
             ui.separator();
+            ui.add_space(4.0);
+
+            // Accessible Results Table (Collapsible for screen reader & keyboard linear inspection)
+            ui.collapsing("📋 Accessible Results Table (Screen Reader View)", |ui| {
+                ui.label(egui::RichText::new("A flat, high-contrast, linear table of all traits, domains, and facets for assistive technology navigation.").small().weak());
+                ui.add_space(4.0);
+                egui::Grid::new("accessible_results_summary_grid")
+                    .striped(true)
+                    .spacing([12.0, 6.0])
+                    .show(ui, |ui| {
+                        ui.label(egui::RichText::new("Construct").strong());
+                        ui.label(egui::RichText::new("Tier").strong());
+                        ui.label(egui::RichText::new("Score").strong());
+                        ui.label(egui::RichText::new("CI").strong());
+                        ui.label(egui::RichText::new("Progress").strong());
+                        ui.end_row();
+
+                        for &meta in &MetaTrait::ALL {
+                            let acc = self.state.questionnaire.meta_trait_acc.get(&meta).copied().unwrap_or_default();
+                            let score_str = acc.normalized_score().map(|s| format!("{:+.2}", s)).unwrap_or_else(|| "N/A".to_string());
+                            let tier_str = acc.tier().map(|t| t.label()).unwrap_or("N/A");
+                            let se = acc.standard_error().unwrap_or(0.0);
+                            let ci_str = if let Some(s) = acc.normalized_score() {
+                                format!("[{:+.2}, {:+.2}]", (s - se * std::f32::consts::E).clamp(-1.0, 1.0), (s + se * std::f32::consts::E).clamp(-1.0, 1.0))
+                            } else {
+                                "N/A".to_string()
+                            };
+                            ui.label(egui::RichText::new(format!("Meta: {}", meta.display_name())).strong());
+                            ui.label(tier_str);
+                            ui.label(score_str);
+                            ui.label(ci_str);
+                            ui.label(format!("{}/{}", acc.answered_count, acc.total_items));
+                            ui.end_row();
+
+                            for trait_item in meta.child_traits() {
+                                let d_acc = self.state.questionnaire.trait_acc.get(&trait_item).copied().unwrap_or_default();
+                                let d_score_str = d_acc.normalized_score().map(|s| format!("{:+.2}", s)).unwrap_or_else(|| "N/A".to_string());
+                                let d_tier_str = d_acc.tier().map(|t| t.label()).unwrap_or("N/A");
+                                let d_se = d_acc.standard_error().unwrap_or(0.0);
+                                let d_ci_str = if let Some(s) = d_acc.normalized_score() {
+                                    format!("[{:+.2}, {:+.2}]", (s - d_se * (std::f32::consts::E / 2.0)).clamp(-1.0, 1.0), (s + d_se * (std::f32::consts::E / 2.0)).clamp(-1.0, 1.0))
+                                } else {
+                                    "N/A".to_string()
+                                };
+                                ui.label(format!("  Trait: {}", trait_item.display_name()));
+                                ui.label(d_tier_str);
+                                ui.label(d_score_str);
+                                ui.label(d_ci_str);
+                                ui.label(format!("{}/{}", d_acc.answered_count, d_acc.total_items));
+                                ui.end_row();
+
+                                for facet in trait_item.child_facets() {
+                                    let f_acc = self.state.questionnaire.facet_acc.get(&facet).copied().unwrap_or_default();
+                                    let f_score_str = f_acc.normalized_score().map(|s| format!("{:+.2}", s)).unwrap_or_else(|| "N/A".to_string());
+                                    let f_tier_str = f_acc.tier().map(|t| t.label()).unwrap_or("N/A");
+                                    let f_se = f_acc.standard_error().unwrap_or(0.0);
+                                    let f_ci_str = if let Some(s) = f_acc.normalized_score() {
+                                        format!("[{:+.2}, {:+.2}]", (s - f_se * (std::f32::consts::E / 4.0)).clamp(-1.0, 1.0), (s + f_se * (std::f32::consts::E / 4.0)).clamp(-1.0, 1.0))
+                                    } else {
+                                        "N/A".to_string()
+                                    };
+                                    ui.label(format!("    Facet: {}", facet.display_name()));
+                                    ui.label(f_tier_str);
+                                    ui.label(f_score_str);
+                                    ui.label(f_ci_str);
+                                    ui.label(format!("{}/{}", f_acc.answered_count, f_acc.total_items));
+                                    ui.end_row();
+                                }
+                            }
+                        }
+                    });
+            });
             ui.add_space(4.0);
 
             // Construct Hierarchy Tree
@@ -1360,6 +1478,17 @@ impl PersonalityApp {
 
         let ci_min = (norm_score - se * ci_mult).clamp(-1.0, 1.0);
         let ci_max = (norm_score + se * ci_mult).clamp(-1.0, 1.0);
+        let ci_label_str = ci_label.to_string();
+        response.widget_info(move || {
+            egui::WidgetInfo::labeled(
+                egui::WidgetType::ProgressIndicator,
+                true,
+                format!(
+                    "Score gauge: normalized score {:+.2}, standard error {:.2}, {} confidence interval [{:+.2}, {:+.2}]",
+                    norm_score, se, ci_label_str, ci_min, ci_max
+                ),
+            )
+        });
         response.on_hover_ui(|ui| {
             ui.label(egui::RichText::new(format!("Normalized Score: {:+.2}", norm_score)).strong());
             ui.label(format!("Standard Error (SE): {:.2}", se));
@@ -1393,6 +1522,14 @@ impl PersonalityApp {
 
             let tier_badge_resp =
                 ui.colored_label(tier_color, egui::RichText::new(tier.label()).strong());
+            let tier_label_str = tier.label().to_string();
+            tier_badge_resp.widget_info(move || {
+                egui::WidgetInfo::labeled(
+                    egui::WidgetType::Other,
+                    true,
+                    format!("Construct tier classification: {}", tier_label_str),
+                )
+            });
             tier_badge_resp.on_hover_ui(|ui| {
                 ui.label(egui::RichText::new(format!("Classification: {}", tier.label())).strong());
                 ui.label(format!(
@@ -1554,113 +1691,92 @@ impl PersonalityApp {
         }
     }
 
-    fn render_warning_banners(&mut self, ui: &mut egui::Ui) {
+    fn render_warning_banners(&mut self, ctx: &egui::Context) {
         let is_ephemeral = self.storage_diag.is_persisted == Some(false);
         let quota_exceeded = self.storage_diag.quota_exceeded;
 
-        // Combined Warning: Both Ephemeral & Quota Exceeded
-        if is_ephemeral && quota_exceeded && !self.dismissed_combined_warning {
-            egui::Frame::group(ui.style())
-                .fill(if ui.visuals().dark_mode { egui::Color32::from_rgb(60, 20, 20) } else { egui::Color32::from_rgb(255, 230, 230) })
-                .stroke(egui::Stroke::new(1.5, egui::Color32::from_rgb(220, 50, 50)))
-                .inner_margin(8.0)
-                .corner_radius(6.0)
-                .show(ui, |ui| {
-                    ui.horizontal_wrapped(|ui| {
-                        ui.label(egui::RichText::new("Storage Alert:").strong().color(egui::Color32::from_rgb(220, 50, 50)));
-                        ui.label("Storage is ephemeral and quota is constrained. To prevent data loss:");
-                        if ui.button("Request Persistence")
-                            .on_hover_text("Ask your browser for persistent storage permissions to prevent eviction")
-                            .clicked()
-                        {
-                            request_persistent_storage();
-                        }
-                        if self.storage_diag.pwa_install_available && !self.storage_diag.is_pwa_installed && ui.button("Install App").on_hover_text("Install application for permanent offline storage").clicked() {
-                            trigger_pwa_install();
-                        }
-                        if ui.button("Save .bson Backup").on_hover_text("Download compressed binary backup of your assessment").clicked()
-                            && let Ok(bytes) = export_to_compressed_bson(&self.state.questionnaire)
-                        {
-                            trigger_binary_download("ipip_neo_assessment_backup.bson", &bytes, "application/octet-stream");
-                        }
-                        if ui.small_button("Dismiss").on_hover_text("Dismiss this warning banner").clicked() {
-                            self.dismissed_combined_warning = true;
-                        }
-                    });
+        let show_combined = is_ephemeral && quota_exceeded && !self.dismissed_combined_warning;
+        let show_ephemeral = is_ephemeral && !self.dismissed_ephemeral_warning;
+        let show_quota = quota_exceeded && !self.dismissed_quota_warning;
+
+        if show_combined || show_ephemeral || show_quota {
+            let (msg, fill_color, stroke_color, text_color) = if show_combined {
+                (
+                    "Storage Warning: Running in ephemeral storage and quota is constrained.",
+                    egui::Color32::from_rgba_premultiplied(35, 20, 20, 245),
+                    egui::Color32::from_rgb(240, 80, 80),
+                    egui::Color32::from_rgb(255, 120, 120),
+                )
+            } else if show_ephemeral {
+                (
+                    "Ephemeral Storage: Browser may clear local data under storage pressure.",
+                    egui::Color32::from_rgba_premultiplied(35, 28, 15, 245),
+                    egui::Color32::from_rgb(220, 160, 30),
+                    egui::Color32::from_rgb(255, 200, 80),
+                )
+            } else {
+                (
+                    "Quota Warning: LocalStorage limit reached; compacted to conserve space.",
+                    egui::Color32::from_rgba_premultiplied(35, 28, 15, 245),
+                    egui::Color32::from_rgb(220, 160, 30),
+                    egui::Color32::from_rgb(255, 200, 80),
+                )
+            };
+
+            egui::Area::new(egui::Id::new("storage_warning_banner_area"))
+                .order(egui::Order::Foreground)
+                .anchor(egui::Align2::CENTER_BOTTOM, egui::vec2(0.0, -20.0))
+                .show(ctx, |ui| {
+                    egui::Frame::NONE
+                        .fill(fill_color)
+                        .stroke(egui::Stroke::new(1.0_f32, stroke_color))
+                        .corner_radius(8)
+                        .inner_margin(egui::Margin::symmetric(16, 10))
+                        .show(ui, |ui| {
+                            ui.with_layout(egui::Layout::top_down(egui::Align::Center), |ui| {
+                                ui.label(egui::RichText::new(msg).strong().color(text_color));
+                                ui.add_space(6.0);
+                                ui.with_layout(
+                                    egui::Layout::left_to_right(egui::Align::Center)
+                                        .with_main_align(egui::Align::Center),
+                                    |ui| {
+                                        if ui
+                                            .button("Save .bson Backup")
+                                            .on_hover_text("Download compressed binary backup of your assessment")
+                                            .clicked()
+                                            && let Ok(bytes) = export_to_compressed_bson(&self.state.questionnaire)
+                                        {
+                                            trigger_binary_download(
+                                                "ipip_neo_assessment_backup.bson",
+                                                &bytes,
+                                                "application/octet-stream",
+                                            );
+                                        }
+                                        if ui
+                                            .button("Request Persistence")
+                                            .on_hover_text("Ask your browser for persistent storage permissions to prevent eviction")
+                                            .clicked()
+                                        {
+                                            request_persistent_storage();
+                                        }
+                                        if ui
+                                            .button("Dismiss")
+                                            .on_hover_text("Dismiss this warning banner")
+                                            .clicked()
+                                        {
+                                            if show_combined {
+                                                self.dismissed_combined_warning = true;
+                                            } else if show_ephemeral {
+                                                self.dismissed_ephemeral_warning = true;
+                                            } else {
+                                                self.dismissed_quota_warning = true;
+                                            }
+                                        }
+                                    },
+                                );
+                            });
+                        });
                 });
-            ui.add_space(6.0);
-        } else if is_ephemeral && !self.dismissed_ephemeral_warning {
-            // Ephemeral Only Warning Banner
-            egui::Frame::group(ui.style())
-                .fill(if ui.visuals().dark_mode { egui::Color32::from_rgb(45, 35, 15) } else { egui::Color32::from_rgb(255, 248, 225) })
-                .stroke(egui::Stroke::new(1.0, egui::Color32::from_rgb(230, 140, 50)))
-                .inner_margin(8.0)
-                .corner_radius(6.0)
-                .show(ui, |ui| {
-                    ui.horizontal_wrapped(|ui| {
-                        ui.label(egui::RichText::new("Storage is ephemeral:").strong().color(egui::Color32::from_rgb(230, 140, 50)));
-                        ui.label("Browser may evict data under disk pressure.");
-                        if ui.button("Request Persistence")
-                            .on_hover_text("Ask your browser for persistent storage permissions to prevent eviction")
-                            .clicked()
-                        {
-                            request_persistent_storage();
-                        }
-                        if self.storage_diag.pwa_install_available && !self.storage_diag.is_pwa_installed && ui.button("Install App").on_hover_text("Install application for permanent offline storage").clicked() {
-                            trigger_pwa_install();
-                        }
-                        if ui.small_button("Dismiss").on_hover_text("Dismiss this warning banner").clicked() {
-                            self.dismissed_ephemeral_warning = true;
-                        }
-                    });
-                });
-            ui.add_space(6.0);
-        } else if quota_exceeded && !self.dismissed_quota_warning {
-            // Quota Exceeded Warning Banner
-            egui::Frame::group(ui.style())
-                .fill(if ui.visuals().dark_mode {
-                    egui::Color32::from_rgb(45, 35, 15)
-                } else {
-                    egui::Color32::from_rgb(255, 248, 225)
-                })
-                .stroke(egui::Stroke::new(
-                    1.0,
-                    egui::Color32::from_rgb(230, 140, 50),
-                ))
-                .inner_margin(8.0)
-                .corner_radius(6.0)
-                .show(ui, |ui| {
-                    ui.horizontal_wrapped(|ui| {
-                        ui.label(
-                            egui::RichText::new("Quota Warning:")
-                                .strong()
-                                .color(egui::Color32::from_rgb(230, 140, 50)),
-                        );
-                        ui.label(
-                            "LocalStorage limit reached; undo history compacted to conserve space.",
-                        );
-                        if ui
-                            .button("Save .bson Backup")
-                            .on_hover_text("Download compressed binary backup of your assessment")
-                            .clicked()
-                            && let Ok(bytes) = export_to_compressed_bson(&self.state.questionnaire)
-                        {
-                            trigger_binary_download(
-                                "ipip_neo_assessment_backup.bson",
-                                &bytes,
-                                "application/octet-stream",
-                            );
-                        }
-                        if ui
-                            .small_button("Dismiss")
-                            .on_hover_text("Dismiss this warning banner")
-                            .clicked()
-                        {
-                            self.dismissed_quota_warning = true;
-                        }
-                    });
-                });
-            ui.add_space(6.0);
         }
     }
 
@@ -2249,6 +2365,13 @@ impl eframe::App for PersonalityApp {
         }
 
         self.apply_theme(ui.ctx());
+        if self.state.config.theme.is_high_contrast() {
+            ui.spacing_mut().interact_size = egui::vec2(44.0, 44.0);
+            ui.spacing_mut().button_padding = egui::vec2(14.0, 10.0);
+        } else {
+            ui.spacing_mut().interact_size.y = ui.spacing_mut().interact_size.y.max(32.0);
+            ui.spacing_mut().button_padding = egui::vec2(12.0, 8.0);
+        }
         self.handle_keyboard_and_scroll(ui);
 
         // Process any async dropped or picked files that finished loading on WASM
@@ -2380,9 +2503,6 @@ impl eframe::App for PersonalityApp {
                     ui.add_space(6.0);
                 }
 
-                // Render warning banners (persistence / quota / combined)
-                self.render_warning_banners(ui);
-
                 if self.state.questionnaire.show_results && !show_results_side_panel {
                     // Viewport is under 900px: render results full-screen inside CentralPanel
                     egui::ScrollArea::vertical().show(ui, |ui| {
@@ -2403,5 +2523,6 @@ impl eframe::App for PersonalityApp {
             });
 
         self.render_dialogs(ui);
+        self.render_warning_banners(ui.ctx());
     }
 }
