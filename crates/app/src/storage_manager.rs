@@ -167,10 +167,7 @@ pub fn load_state_multi_tier(storage: Option<&dyn eframe::Storage>) -> Option<sh
         if let Ok(content) = std::fs::read_to_string(&filename) {
             match deserialize_app_state(&content) {
                 Ok(mut state) => {
-                    info!(
-                        "Restored assessment state from disk file [{}]",
-                        filename
-                    );
+                    info!("Restored assessment state from disk file [{}]", filename);
                     if state.questionnaire.unanswered_count() == 0
                         && !state.questionnaire.questions.is_empty()
                     {
@@ -338,7 +335,10 @@ pub fn save_state_multi_tier(key: &str, json_str: &str) -> Result<StorageBackend
         match std::fs::write(&filename, json_str) {
             Ok(()) => Ok(StorageBackend::DiskFile),
             Err(err) => {
-                warn!("Failed to persist assessment state to file '{}': {}", filename, err);
+                warn!(
+                    "Failed to persist assessment state to file '{}': {}",
+                    filename, err
+                );
                 Err(StorageError::DiskWrite {
                     path: filename,
                     source: err,

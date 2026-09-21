@@ -129,7 +129,8 @@ impl PersonalityApp {
                 self.state.questionnaire.navigate_previous();
             }
         }
-        if ui.input(|i| i.key_pressed(egui::Key::ArrowRight) || i.key_pressed(egui::Key::ArrowDown)) {
+        if ui.input(|i| i.key_pressed(egui::Key::ArrowRight) || i.key_pressed(egui::Key::ArrowDown))
+        {
             if shift_held {
                 self.state.questionnaire.navigate_next_unanswered();
             } else {

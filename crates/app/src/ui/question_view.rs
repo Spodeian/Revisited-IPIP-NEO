@@ -5,7 +5,11 @@ use crate::app::PersonalityApp;
 use crate::types::ScreenConstraints;
 
 impl PersonalityApp {
-    pub(crate) fn render_question_focus(&mut self, ui: &mut egui::Ui, constraints: &ScreenConstraints) {
+    pub(crate) fn render_question_focus(
+        &mut self,
+        ui: &mut egui::Ui,
+        constraints: &ScreenConstraints,
+    ) {
         let total = self.state.questionnaire.total_questions();
         if total == 0 {
             ui.centered_and_justified(|ui| {

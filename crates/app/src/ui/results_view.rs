@@ -248,13 +248,7 @@ impl PersonalityApp {
                 });
 
                 ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
-                    self.render_construct_badge_row(
-                        ui,
-                        &acc,
-                        show_detailed,
-                        3.0,
-                        "3σ",
-                    );
+                    self.render_construct_badge_row(ui, &acc, show_detailed, 3.0, "3σ");
                 });
             })
             .body(|ui| {
@@ -311,13 +305,7 @@ impl PersonalityApp {
                 });
 
                 ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
-                    self.render_construct_badge_row(
-                        ui,
-                        &acc,
-                        show_detailed,
-                        2.0,
-                        "2σ",
-                    );
+                    self.render_construct_badge_row(ui, &acc, show_detailed, 2.0, "2σ");
                 });
             })
             .body(|ui| {
@@ -356,13 +344,7 @@ impl PersonalityApp {
             });
 
             ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
-                self.render_construct_badge_row(
-                    ui,
-                    &acc,
-                    show_detailed,
-                    1.0,
-                    "1σ",
-                );
+                self.render_construct_badge_row(ui, &acc, show_detailed, 1.0, "1σ");
             });
         });
     }
