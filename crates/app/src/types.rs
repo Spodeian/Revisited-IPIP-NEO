@@ -34,6 +34,16 @@ pub enum ExportFormat {
 }
 
 impl ExportFormat {
+    pub fn icon(self) -> &'static str {
+        match self {
+            Self::Csv => "📊",
+            Self::Json => "⚙",
+            Self::Bson => "📦",
+            Self::Svg => "🎨",
+            Self::Html => "🖨",
+        }
+    }
+
     pub fn label(self) -> &'static str {
         match self {
             Self::Csv => "CSV File",
@@ -42,5 +52,9 @@ impl ExportFormat {
             Self::Svg => "SVG Vector Graphic",
             Self::Html => "HTML Report",
         }
+    }
+
+    pub fn label_with_icon(self) -> String {
+        format!("{}  {}", self.icon(), self.label())
     }
 }

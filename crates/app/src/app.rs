@@ -407,9 +407,10 @@ impl eframe::App for PersonalityApp {
             .show(ui, |ui| {
                 if self.hide_header {
                     ui.vertical_centered(|ui| {
-                        let expand_btn =
-                            egui::Button::new(egui::RichText::new("Show Header").size(11.0).weak())
-                                .min_size(egui::vec2(120.0, 22.0));
+                        let expand_btn = egui::Button::new(
+                            egui::RichText::new("▼  Show Header").size(11.0).weak(),
+                        )
+                        .min_size(egui::vec2(130.0, 24.0));
                         if ui
                             .add(expand_btn)
                             .on_hover_text("Show top navigation header")
@@ -424,7 +425,7 @@ impl eframe::App for PersonalityApp {
                 if self.state.questionnaire.show_results && !show_results_side_panel {
                     egui::ScrollArea::vertical().show(ui, |ui| {
                         ui.add_space(8.0);
-                        if ui.button("Return to Questions").clicked() {
+                        if ui.button("📝  Return to Questions").clicked() {
                             self.state.questionnaire.show_results = false;
                             self.persist_state();
                         }

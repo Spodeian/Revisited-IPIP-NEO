@@ -58,7 +58,7 @@ impl PersonalityApp {
                         });
                         ui.label("Storage permission has not been granted. Browsers may evict site data under disk pressure.");
                         ui.add_space(4.0);
-                        if ui.button("Request Persistent Storage Permission")
+                        if ui.button("🛡  Request Persistent Storage Permission")
                             .on_hover_text("Ask your browser for persistent storage permissions to prevent eviction")
                             .clicked()
                         {
@@ -70,7 +70,7 @@ impl PersonalityApp {
                             ui.label("• Persistence Mode:");
                             ui.colored_label(egui::Color32::GRAY, "Checking Storage Engine...");
                         });
-                        if ui.button("Request Persistent Storage")
+                        if ui.button("🛡  Request Persistent Storage")
                             .on_hover_text("Ask your browser for persistent storage permissions to prevent eviction")
                             .clicked()
                         {
@@ -103,7 +103,7 @@ impl PersonalityApp {
                     ui.colored_label(egui::Color32::from_rgb(80, 180, 90), "App is installed as standalone PWA.");
                 } else if self.storage_diag.pwa_install_available {
                     ui.label("Installing this assessment to your home screen or desktop grants permanent storage status.");
-                    if ui.button("Install Assessment App")
+                    if ui.button("📲  Install Assessment App")
                         .on_hover_text("Install assessment as a standalone Progressive Web App for permanent offline durability")
                         .clicked()
                     {
@@ -122,12 +122,12 @@ impl PersonalityApp {
                 ui.label("Download a standalone compressed binary backup of your assessment to store on disk or transfer across devices:");
                 ui.add_space(4.0);
                 ui.horizontal(|ui| {
-                    if ui.button("Download .bson Backup").on_hover_text("Download compact, binary compressed assessment state").clicked()
+                    if ui.button("💾  Download .bson Backup").on_hover_text("Download compact, binary compressed assessment state").clicked()
                         && let Ok(bytes) = export_to_compressed_bson(&self.state.questionnaire)
                     {
                         trigger_binary_download("ipip_neo_assessment_backup.bson", &bytes, "application/octet-stream");
                     }
-                    if ui.button("Import Saved File").on_hover_text("Open import window to restore saved assessment data").clicked() {
+                    if ui.button("📂  Import Saved File").on_hover_text("Open import window to restore saved assessment data").clicked() {
                         self.show_import_dialog = true;
                     }
                 });
@@ -188,7 +188,7 @@ impl PersonalityApp {
                                         .with_main_align(egui::Align::Center),
                                     |ui| {
                                         if ui
-                                            .button("Save .bson Backup")
+                                            .button("💾  Save .bson Backup")
                                             .on_hover_text("Download compressed binary backup of your assessment")
                                             .clicked()
                                             && let Ok(bytes) = export_to_compressed_bson(&self.state.questionnaire)
@@ -200,14 +200,14 @@ impl PersonalityApp {
                                             );
                                         }
                                         if ui
-                                            .button("Request Persistence")
+                                            .button("🛡  Request Persistence")
                                             .on_hover_text("Ask your browser for persistent storage permissions to prevent eviction")
                                             .clicked()
                                         {
                                             request_persistent_storage();
                                         }
                                         if ui
-                                            .button("Dismiss")
+                                            .button("✕  Dismiss")
                                             .on_hover_text("Dismiss this warning banner")
                                             .clicked()
                                         {
@@ -350,7 +350,7 @@ impl PersonalityApp {
                 });
                 ui.add_space(8.0);
                 if ui
-                    .button("Close")
+                    .button("✕  Close")
                     .on_hover_text("Close item matrix map (Escape)")
                     .clicked()
                 {
@@ -406,7 +406,7 @@ impl PersonalityApp {
                                 .show(ui, |ui| {
                                     ui.horizontal(|ui| {
                                         ui.label(egui::RichText::new("Currently viewing shared link.").weak());
-                                        if ui.button("Return to Saved Assessment").on_hover_text("Exit shared link view and restore locally saved assessment").clicked() {
+                                        if ui.button("↩  Return to Saved Assessment").on_hover_text("Exit shared link view and restore locally saved assessment").clicked() {
                                             self.restore_saved_instance();
                                             self.show_help_dialog = false;
                                         }
@@ -532,7 +532,7 @@ impl PersonalityApp {
                 ui.add_space(12.0);
                 ui.horizontal(|ui| {
                     if ui
-                        .button("Yes, Reset")
+                        .button("🗑  Yes, Reset")
                         .on_hover_text(
                             "Clear all answers, reset queue, and restart the questionnaire",
                         )
@@ -544,7 +544,7 @@ impl PersonalityApp {
                         self.persist_state();
                     }
                     if ui
-                        .button("Cancel")
+                        .button("✕  Cancel")
                         .on_hover_text("Keep existing answers and return to questionnaire")
                         .clicked()
                     {
@@ -594,7 +594,7 @@ impl PersonalityApp {
                 ui.horizontal(|ui| {
                     if export_format == ExportFormat::Bson
                         && ui
-                            .button("Download .bson File")
+                            .button("💾  Download .bson File")
                             .on_hover_text("Download compressed binary backup to your device")
                             .clicked()
                         && let Ok(bytes) = export_to_compressed_bson(&self.state.questionnaire)
@@ -606,7 +606,7 @@ impl PersonalityApp {
                         );
                     }
                     if ui
-                        .button("Copy to Clipboard")
+                        .button("📋  Copy to Clipboard")
                         .on_hover_text("Copy formatted export data directly to clipboard")
                         .clicked()
                     {
@@ -617,7 +617,8 @@ impl PersonalityApp {
                         && ui.input(|i| i.time) - t < 3.0
                     {
                         ui.label(
-                            egui::RichText::new("Copied to clipboard").color(egui::Color32::GREEN),
+                            egui::RichText::new("✓  Copied to clipboard")
+                                .color(egui::Color32::GREEN),
                         );
                     }
                 });
@@ -654,7 +655,7 @@ impl PersonalityApp {
                     ui.vertical_centered(|ui| {
                         ui.add_space(4.0);
                         let file_btn = egui::Button::new(
-                            egui::RichText::new("Browse Backup File...")
+                            egui::RichText::new("📂  Browse Backup File...")
                                 .size(14.0)
                                 .strong(),
                         ).min_size(egui::vec2(280.0, 34.0));
@@ -725,7 +726,7 @@ impl PersonalityApp {
                         });
 
                     ui.add_space(6.0);
-                    if ui.button("Apply Pasted Text").on_hover_text("Parse pasted data and restore answers").clicked() {
+                    if ui.button("📥  Apply Pasted Text").on_hover_text("Parse pasted data and restore answers").clicked() {
                         let input = self.import_text_buffer.trim().as_bytes().to_vec();
                         if input.is_empty() {
                             self.import_result_message = Some(Err("Pasted text is empty".to_string()));
@@ -758,7 +759,7 @@ impl PersonalityApp {
 
                 ui.add_space(6.0);
                 ui.horizontal(|ui| {
-                    if ui.button("Close").clicked() {
+                    if ui.button("✕  Close").clicked() {
                         self.show_import_dialog = false;
                         self.import_text_buffer.clear();
                         self.import_result_message = None;

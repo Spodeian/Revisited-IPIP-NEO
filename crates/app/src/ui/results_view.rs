@@ -14,9 +14,9 @@ impl PersonalityApp {
         ui.vertical(|ui| {
             ui.add_space(4.0);
             ui.horizontal(|ui| {
-                ui.heading("Assessment Results");
+                ui.heading("📊  Assessment Results");
                 ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
-                    if ui.button("Close").on_hover_text("Close results panel and return to questions (Escape)").clicked() {
+                    if ui.button("✕  Close").on_hover_text("Close results panel and return to questions (Escape)").clicked() {
                         self.state.questionnaire.show_results = false;
                         self.persist_state();
                     }
@@ -38,7 +38,7 @@ impl PersonalityApp {
                         .small(),
                 );
                 ui.add_space(2.0);
-                if ui.button("Return to Saved Assessment").on_hover_text("Exit shared link view and restore locally saved assessment").clicked() {
+                if ui.button("↩  Return to Saved Assessment").on_hover_text("Exit shared link view and restore locally saved assessment").clicked() {
                     self.restore_saved_instance();
                 }
             }
@@ -53,7 +53,7 @@ impl PersonalityApp {
 
             ui.add_space(6.0);
             ui.horizontal_wrapped(|ui| {
-                if ui.button("Share Link").on_hover_text("Copy shareable results URL to clipboard without affecting recipients' saved progress").clicked() {
+                if ui.button("🔗  Share Link").on_hover_text("Copy shareable results URL to clipboard without affecting recipients' saved progress").clicked() {
                     let code = encode_responses_to_url_code(&self.state.questionnaire);
 
                     let full_url = {
@@ -81,16 +81,16 @@ impl PersonalityApp {
                 ui.separator();
 
                 egui::ComboBox::from_id_salt("export_format_dropdown")
-                    .selected_text(self.selected_export_format.label())
+                    .selected_text(format!("📄 {}", self.selected_export_format.label()))
                     .show_ui(ui, |ui| {
-                        ui.selectable_value(&mut self.selected_export_format, ExportFormat::Csv, "CSV File");
-                        ui.selectable_value(&mut self.selected_export_format, ExportFormat::Json, "JSON File");
-                        ui.selectable_value(&mut self.selected_export_format, ExportFormat::Bson, "Compressed BSON (.bson)");
-                        ui.selectable_value(&mut self.selected_export_format, ExportFormat::Svg, "SVG Vector Graphic");
-                        ui.selectable_value(&mut self.selected_export_format, ExportFormat::Html, "HTML Report");
+                        ui.selectable_value(&mut self.selected_export_format, ExportFormat::Csv, "📊 CSV File");
+                        ui.selectable_value(&mut self.selected_export_format, ExportFormat::Json, "⚙ JSON File");
+                        ui.selectable_value(&mut self.selected_export_format, ExportFormat::Bson, "📦 Compressed BSON (.bson)");
+                        ui.selectable_value(&mut self.selected_export_format, ExportFormat::Svg, "🎨 SVG Vector Graphic");
+                        ui.selectable_value(&mut self.selected_export_format, ExportFormat::Html, "🖨 HTML Report");
                     });
 
-                if ui.button("Download File").on_hover_text("Export results and download selected file format to your device").clicked() {
+                if ui.button("💾  Download File").on_hover_text("Export results and download selected file format to your device").clicked() {
                     match self.selected_export_format {
                         ExportFormat::Csv => {
                             let csv_content = export_to_csv(&self.state.questionnaire);
@@ -120,7 +120,7 @@ impl PersonalityApp {
             if let Some(t) = self.share_link_copied_time
                 && ui.input(|i| i.time) - t < 3.0
             {
-                ui.label(egui::RichText::new("Share link copied to clipboard").color(egui::Color32::from_rgb(80, 180, 90)).strong());
+                ui.label(egui::RichText::new("✓  Share link copied to clipboard").color(egui::Color32::from_rgb(80, 180, 90)).strong());
             }
 
             ui.add_space(8.0);

@@ -46,12 +46,24 @@ pub enum StorageBackend {
 }
 
 impl StorageBackend {
+    pub fn icon(self) -> &'static str {
+        match self {
+            Self::LocalStorage => "⚡",
+            Self::DiskFile => "💾",
+            Self::MemoryOnly => "💭",
+        }
+    }
+
     pub fn label(self) -> &'static str {
         match self {
             Self::LocalStorage => "Local Storage (Fast Tier)",
             Self::DiskFile => "Local File System",
             Self::MemoryOnly => "In-Memory Only (Ephemeral)",
         }
+    }
+
+    pub fn label_with_icon(self) -> String {
+        format!("{} {}", self.icon(), self.label())
     }
 }
 
