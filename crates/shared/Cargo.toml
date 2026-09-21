@@ -2,7 +2,6 @@
 name = "shared"
 version.workspace = true
 edition.workspace = true
-authors.workspace = true
 license.workspace = true
 repository.workspace = true
 description = "Core psychometric models, scoring calculations, datasets, and serialization formats for Revisited IPIP-NEO"
@@ -10,13 +9,13 @@ description = "Core psychometric models, scoring calculations, datasets, and ser
 [dependencies]
 serde = { workspace = true, features = ["derive"] }
 serde_json = { workspace = true }
-bson = { workspace = true }
+bson = { workspace = true, features = ["serde"] }
 miniz_oxide = { workspace = true }
 num = { workspace = true }
+
+[dev-dependencies]
+proptest = { workspace = true }
 
 [features]
 default = ["std"]
 std = ["serde/std", "serde_json/std", "num/std"]
-
-[dev-dependencies]
-proptest = "1"
