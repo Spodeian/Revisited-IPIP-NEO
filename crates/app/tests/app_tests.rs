@@ -20,6 +20,10 @@ impl Storage for MockStorage {
     fn flush(&mut self) {}
 }
 
+fn clean_disk_artifacts() {
+    let _ = std::fs::remove_file("revisited_ipip_neo_state.json");
+}
+
 #[test]
 fn test_personality_app_initialization() {
     let app = PersonalityApp::default();
@@ -29,6 +33,7 @@ fn test_personality_app_initialization() {
 
 #[test]
 fn test_personality_app_save_and_load() {
+    clean_disk_artifacts();
     let mut storage = MockStorage::default();
     let mut app = PersonalityApp::default();
 
@@ -54,10 +59,12 @@ fn test_personality_app_save_and_load() {
         loaded_state.questionnaire.questions[0].response,
         Some(Response::StronglyAgree)
     );
+    clean_disk_artifacts();
 }
 
 #[test]
 fn test_shared_link_does_not_overwrite_persistent_state() {
+    clean_disk_artifacts();
     let mut storage = MockStorage::default();
 
     // 1. User has their own saved state with question 0 answered StronglyAgree
@@ -117,6 +124,7 @@ fn test_shared_link_does_not_overwrite_persistent_state() {
         updated_persistent.questionnaire.questions[0].response,
         Some(Response::Neutral)
     );
+    clean_disk_artifacts();
 }
 
 #[test]
@@ -211,6 +219,7 @@ fn test_app_grid_matrix_navigation() {
 
 #[test]
 fn test_import_from_bytes_all_formats() {
+    clean_disk_artifacts();
     let mut source_app = PersonalityApp::default();
     source_app
         .state
@@ -281,10 +290,12 @@ fn test_import_from_bytes_all_formats() {
         app_b64.state.questionnaire.questions[1].response,
         Some(Response::Disagree)
     );
+    clean_disk_artifacts();
 }
 
 #[test]
 fn test_load_state_multi_tier_json_and_ron() {
+    clean_disk_artifacts();
     use app::storage_manager::{
         DEDICATED_STORAGE_KEY, deserialize_app_state, load_state_multi_tier,
     };
@@ -317,7 +328,8 @@ fn test_load_state_multi_tier_json_and_ron() {
     let mut storage_dedicated = MockStorage::default();
     storage_dedicated.set_string(DEDICATED_STORAGE_KEY, json_str.clone());
     let loaded_dedicated =
-        load_state_multi_tier(Some(&storage_dedicated)).expect("Should load from dedicated key");
+        load_state_multi_tier(Some(&storage_dedicated as &dyn eframe::Storage))
+            .expect("Should load from dedicated key");
     assert_eq!(
         loaded_dedicated.questionnaire.questions[0].response,
         Some(Response::StronglyAgree)
@@ -327,7 +339,8 @@ fn test_load_state_multi_tier_json_and_ron() {
     let mut storage_json_app = MockStorage::default();
     storage_json_app.set_string(eframe::APP_KEY, json_str);
     let loaded_json_app =
-        load_state_multi_tier(Some(&storage_json_app)).expect("Should load from app key JSON");
+        load_state_multi_tier(Some(&storage_json_app as &dyn eframe::Storage))
+            .expect("Should load from app key JSON");
     assert_eq!(
         loaded_json_app.questionnaire.questions[0].response,
         Some(Response::StronglyAgree)
@@ -337,15 +350,18 @@ fn test_load_state_multi_tier_json_and_ron() {
     let mut storage_ron_app = MockStorage::default();
     storage_ron_app.set_string(eframe::APP_KEY, ron_str);
     let loaded_ron_app =
-        load_state_multi_tier(Some(&storage_ron_app)).expect("Should load from app key RON");
+        load_state_multi_tier(Some(&storage_ron_app as &dyn eframe::Storage))
+            .expect("Should load from app key RON");
     assert_eq!(
         loaded_ron_app.questionnaire.questions[0].response,
         Some(Response::StronglyAgree)
     );
+    clean_disk_artifacts();
 }
 
 #[test]
 fn test_results_persistence_and_completion_restoration() {
+    clean_disk_artifacts();
     use app::storage_manager::{DEDICATED_STORAGE_KEY, load_state_multi_tier};
 
     let mut storage = MockStorage::default();
@@ -362,7 +378,7 @@ fn test_results_persistence_and_completion_restoration() {
     assert!(storage.get_string(DEDICATED_STORAGE_KEY).is_some());
 
     // Load state
-    let loaded = load_state_multi_tier(Some(&storage)).expect("Should load state");
+    let loaded = load_state_multi_tier(Some(&storage as &dyn eframe::Storage)).expect("Should load state");
     assert!(
         loaded.questionnaire.show_results,
         "show_results state should be preserved on load"
@@ -384,9 +400,11 @@ fn test_results_persistence_and_completion_restoration() {
     storage_complete.set_string(DEDICATED_STORAGE_KEY, complete_json);
 
     let loaded_complete =
-        load_state_multi_tier(Some(&storage_complete)).expect("Should load complete state");
+        load_state_multi_tier(Some(&storage_complete as &dyn eframe::Storage))
+            .expect("Should load complete state");
     assert!(
         loaded_complete.questionnaire.show_results,
         "show_results should be auto-set to true when 100% completed"
     );
+    clean_disk_artifacts();
 }

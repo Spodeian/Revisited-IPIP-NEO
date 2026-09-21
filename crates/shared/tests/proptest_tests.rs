@@ -1,9 +1,8 @@
 use proptest::prelude::*;
-use shared::export::{
-    decode_responses_from_url_code, encode_responses_to_url_code, pack_3bit_stream,
-    unpack_3bit_stream,
+use shared::{
+    QuestionnaireState, Response, decode_responses_from_url_code, encode_responses_to_url_code,
 };
-use shared::questionnaire::{QuestionnaireState, Response};
+use shared::export::{pack_3bit_stream, unpack_3bit_stream};
 
 fn random_response_strategy() -> impl Strategy<Value = Option<Response>> {
     prop_oneof![

@@ -171,89 +171,9 @@ pub fn deserialize_app_state(content: &str) -> Result<shared::AppState, StorageE
 }
 
 /// Multi-tiered loader for AppState.
-/// Checks local disk file (on desktop), window.localStorage (on wasm32), and eframe::Storage.
+/// Checks explicit `eframe::Storage` first if supplied, followed by disk file or window.localStorage.
 pub fn load_state_multi_tier(storage: Option<&dyn eframe::Storage>) -> Option<shared::AppState> {
-    #[cfg(not(target_arch = "wasm32"))]
-    {
-        let filename = format!("{}.json", DEDICATED_STORAGE_KEY);
-        if let Ok(content) = std::fs::read_to_string(&filename) {
-            match deserialize_app_state(&content) {
-                Ok(mut state) => {
-                    info!("Restored assessment state from disk file [{}]", filename);
-                    if state.questionnaire.unanswered_count() == 0
-                        && !state.questionnaire.questions.is_empty()
-                    {
-                        state.questionnaire.show_results = true;
-                    }
-                    state.questionnaire.rebuild_cache();
-                    return Some(state);
-                }
-                Err(e) => {
-                    warn!(
-                        "Failed to parse assessment state from disk file [{}]: {}",
-                        filename, e
-                    );
-                }
-            }
-        }
-    }
-
-    #[cfg(target_arch = "wasm32")]
-    {
-        if let Some(window) = web_sys::window() {
-            if let Ok(Some(local_storage)) = window.local_storage() {
-                if let Ok(Some(content)) = local_storage.get_item(DEDICATED_STORAGE_KEY) {
-                    match deserialize_app_state(&content) {
-                        Ok(mut state) => {
-                            info!(
-                                "Restored assessment state from localStorage [{}]",
-                                DEDICATED_STORAGE_KEY
-                            );
-                            if state.questionnaire.unanswered_count() == 0
-                                && !state.questionnaire.questions.is_empty()
-                            {
-                                state.questionnaire.show_results = true;
-                            }
-                            state.questionnaire.rebuild_cache();
-                            return Some(state);
-                        }
-                        Err(e) => {
-                            warn!(
-                                "Failed to parse assessment state from localStorage [{}]: {}",
-                                DEDICATED_STORAGE_KEY, e
-                            );
-                        }
-                    }
-                }
-
-                if let Ok(Some(content)) = local_storage.get_item(eframe::APP_KEY) {
-                    match deserialize_app_state(&content) {
-                        Ok(mut state) => {
-                            info!(
-                                "Restored assessment state from localStorage [{}]",
-                                eframe::APP_KEY
-                            );
-                            if state.questionnaire.unanswered_count() == 0
-                                && !state.questionnaire.questions.is_empty()
-                            {
-                                state.questionnaire.show_results = true;
-                            }
-                            state.questionnaire.rebuild_cache();
-                            return Some(state);
-                        }
-                        Err(e) => {
-                            warn!(
-                                "Failed to parse assessment state from localStorage [{}]: {}",
-                                eframe::APP_KEY,
-                                e
-                            );
-                        }
-                    }
-                }
-            }
-        }
-    }
-
+    // 1. Explicit eframe storage tier (priority in test environments and standard app startup)
     if let Some(storage) = storage {
         if let Some(raw) = storage.get_string(DEDICATED_STORAGE_KEY) {
             match deserialize_app_state(&raw) {
@@ -313,6 +233,89 @@ pub fn load_state_multi_tier(storage: Option<&dyn eframe::Storage>) -> Option<sh
             }
             state.questionnaire.rebuild_cache();
             return Some(state);
+        }
+    }
+
+    // 2. Desktop filesystem persistence fallback
+    #[cfg(not(target_arch = "wasm32"))]
+    {
+        let filename = format!("{}.json", DEDICATED_STORAGE_KEY);
+        if let Ok(content) = std::fs::read_to_string(&filename) {
+            match deserialize_app_state(&content) {
+                Ok(mut state) => {
+                    info!("Restored assessment state from disk file [{}]", filename);
+                    if state.questionnaire.unanswered_count() == 0
+                        && !state.questionnaire.questions.is_empty()
+                    {
+                        state.questionnaire.show_results = true;
+                    }
+                    state.questionnaire.rebuild_cache();
+                    return Some(state);
+                }
+                Err(e) => {
+                    warn!(
+                        "Failed to parse assessment state from disk file [{}]: {}",
+                        filename, e
+                    );
+                }
+            }
+        }
+    }
+
+    // 3. Browser localStorage fallback
+    #[cfg(target_arch = "wasm32")]
+    {
+        if let Some(window) = web_sys::window() {
+            if let Ok(Some(local_storage)) = window.local_storage() {
+                if let Ok(Some(content)) = local_storage.get_item(DEDICATED_STORAGE_KEY) {
+                    match deserialize_app_state(&content) {
+                        Ok(mut state) => {
+                            info!(
+                                "Restored assessment state from localStorage [{}]",
+                                DEDICATED_STORAGE_KEY
+                            );
+                            if state.questionnaire.unanswered_count() == 0
+                                && !state.questionnaire.questions.is_empty()
+                            {
+                                state.questionnaire.show_results = true;
+                            }
+                            state.questionnaire.rebuild_cache();
+                            return Some(state);
+                        }
+                        Err(e) => {
+                            warn!(
+                                "Failed to parse assessment state from localStorage [{}]: {}",
+                                DEDICATED_STORAGE_KEY, e
+                            );
+                        }
+                    }
+                }
+
+                if let Ok(Some(content)) = local_storage.get_item(eframe::APP_KEY) {
+                    match deserialize_app_state(&content) {
+                        Ok(mut state) => {
+                            info!(
+                                "Restored assessment state from localStorage [{}]",
+                                eframe::APP_KEY
+                            );
+                            if state.questionnaire.unanswered_count() == 0
+                                && !state.questionnaire.questions.is_empty()
+                            {
+                                state.questionnaire.show_results = true;
+                            }
+                            state.questionnaire.rebuild_cache();
+                            return Some(state);
+                        }
+                        Err(e) => {
+                            warn!(
+                                "Failed to parse assessment state from localStorage [{}]: {}",
+                                eframe::APP_KEY,
+                                e
+                            );
+                        }
+                    }
+                }
+            }
         }
     }
 
