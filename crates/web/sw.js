@@ -40,6 +40,10 @@ self.addEventListener('activate', (event) => {
 });
 
 // 3. Fetch router: Cache-First with Background Network Revalidation
+function isHostOrSubdomain(hostname, domain) {
+  return hostname === domain || hostname.endsWith(`.${domain}`);
+}
+
 self.addEventListener('fetch', (event) => {
   // Only handle local same-origin GET requests
   if (event.request.method !== 'GET' || !event.request.url.startsWith(self.location.origin)) {
@@ -49,7 +53,7 @@ self.addEventListener('fetch', (event) => {
   const url = new URL(event.request.url);
 
   // Bypass third-party analytics, beacon, or challenge endpoints
-  if (url.hostname.includes('cloudflareinsights.com') || url.hostname.includes('google-analytics.com') || url.pathname.includes('/cdn-cgi/')) {
+  if (isHostOrSubdomain(url.hostname, 'cloudflareinsights.com') || isHostOrSubdomain(url.hostname, 'google-analytics.com') || url.pathname.includes('/cdn-cgi/')) {
     return;
   }
 

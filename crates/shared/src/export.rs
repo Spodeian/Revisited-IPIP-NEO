@@ -143,7 +143,6 @@ pub fn export_to_json(state: &QuestionnaireState) -> String {
 pub fn export_to_csv(state: &QuestionnaireState) -> String {
     let mut out = String::new();
 
-    // Section 1: Summary Construct Scores
     out.push_str("# CONSTRUCT SCORES\n");
     out.push_str("Level,Construct,Tier,Normalized Score [-1 to +1],Standard Error (SE),Raw Score,Abs Weight Sum,Answered Items,Total Items\n");
 
@@ -232,7 +231,6 @@ pub fn export_to_svg(state: &QuestionnaireState) -> String {
             .map_or("N/A".to_string(), |s| format!("{:.2}", s));
         let tier_color = tier_color_hex(meta_tier);
 
-        // Meta-Trait Header Bar
         svg_elements.push_str(&format!(
             r#"<rect x="30" y="{}" width="840" height="42" rx="6" fill="{}" stroke="{}" stroke-width="2"/>
 <text x="45" y="{}" font-family="system-ui, -apple-system, sans-serif" font-size="15" font-weight="700" fill="{}">META-TRAIT: {}</text>
@@ -275,7 +273,6 @@ pub fn export_to_svg(state: &QuestionnaireState) -> String {
                 .map_or("N/A".to_string(), |s| format!("{:.2}", s));
             let trait_tier_color = tier_color_hex(trait_tier);
 
-            // Trait Section Box
             svg_elements.push_str(&format!(
                 r#"<rect x="50" y="{}" width="820" height="34" rx="4" fill="{}" stroke="{}" stroke-width="1"/>
 <text x="65" y="{}" font-family="system-ui, sans-serif" font-size="13" font-weight="700" fill="{}">Trait: {}</text>
@@ -314,7 +311,6 @@ pub fn export_to_svg(state: &QuestionnaireState) -> String {
                     .map_or("N/A".to_string(), |s| format!("{:.2}", s));
                 let f_color = tier_color_hex(facet_tier);
 
-                // Facet Row
                 svg_elements.push_str(&format!(
                     r#"<rect x="70" y="{}" width="800" height="24" rx="3" fill="{}" opacity="0.6"/>
 <text x="85" y="{}" font-family="system-ui, sans-serif" font-size="11" fill="{}">└─ {}</text>
@@ -735,8 +731,6 @@ pub fn decode_responses_from_url_code(
 
     let mut applied_count = 0;
 
-    // If bytes length <= 90 (221 * 3 bits = 83 bytes), it is the modern continuous 3-bit stream.
-    // If bytes length > 90 (e.g. 111 bytes for 2-per-byte), it is the legacy format.
     if bytes.len() <= 90 {
         let unpacked = unpack_3bit_stream(&bytes, state.questions.len());
         for (i, val) in unpacked.into_iter().enumerate() {
@@ -758,7 +752,6 @@ pub fn decode_responses_from_url_code(
             state.questions[i].response = resp;
         }
     } else {
-        // Legacy 2-per-byte unpacking
         let mut q_idx = 0;
         for byte in bytes {
             let v1 = (byte >> 3) & 0x07;
@@ -889,7 +882,6 @@ pub fn import_responses_from_json(
 
     let mut applied_count = 0;
 
-    // Build a map: Label -> Response Score
     let response_map: HashMap<String, f32> = report
         .item_responses
         .iter()
@@ -898,7 +890,6 @@ pub fn import_responses_from_json(
 
     for q in state.questions.iter_mut() {
         if let Some(&score) = response_map.get(&q.label) {
-            // Map floating point score back to Response enum
             let resp = if (score - 1.0).abs() < 0.1 {
                 Some(Response::StronglyAgree)
             } else if (score - 0.5).abs() < 0.1 {
@@ -965,7 +956,7 @@ pub fn import_responses_from_csv(
 
         if in_responses_section {
             if line.starts_with('#') || line.starts_with("Question #") {
-                continue; // Skip comments and header rows
+                continue;
             }
 
             let fields = parse_csv_line(line);
@@ -1026,7 +1017,7 @@ pub fn import_responses_from_csv(
 pub fn export_to_compressed_bson(state: &QuestionnaireState) -> Result<Vec<u8>, String> {
     let report = FullAssessmentReport::from_state(state);
     let bson_bytes =
-        bson::to_vec(&report).map_err(|e| format!("BSON serialization failed: {}", e))?;
+        bson::serialize_to_vec(&report).map_err(|e| format!("BSON serialization failed: {}", e))?;
     Ok(miniz_oxide::deflate::compress_to_vec_zlib(&bson_bytes, 6))
 }
 
@@ -1036,11 +1027,10 @@ pub fn import_responses_from_bson(
     state: &mut QuestionnaireState,
     bytes: &[u8],
 ) -> Result<usize, &'static str> {
-    // Attempt zlib decompression first; if that fails, try parsing as raw BSON
     let bson_bytes =
         miniz_oxide::inflate::decompress_to_vec_zlib(bytes).unwrap_or_else(|_| bytes.to_vec());
 
-    let report: FullAssessmentReport = bson::from_slice(&bson_bytes).map_err(
+    let report: FullAssessmentReport = bson::deserialize_from_slice(&bson_bytes).map_err(
         |_| "Invalid BSON format. Please ensure this is a valid Revisited IPIP-NEO BSON file.",
     )?;
 

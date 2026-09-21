@@ -2,7 +2,6 @@
 name = "web"
 version.workspace = true
 edition.workspace = true
-authors.workspace = true
 license.workspace = true
 repository.workspace = true
 description = "WebAssembly client and WebRunner entrypoint for Revisited IPIP-NEO"
@@ -11,16 +10,15 @@ description = "WebAssembly client and WebRunner entrypoint for Revisited IPIP-NE
 crate-type = ["cdylib", "rlib"]
 
 [dependencies]
-eframe = { workspace = true }
+eframe = { workspace = true, features = ["default_fonts"] }
 wasm-bindgen = { workspace = true }
 wasm-bindgen-futures = { workspace = true }
-web-sys = { workspace = true }
+web-sys = { workspace = true, features = ["Document", "Window", "HtmlCanvasElement", "Element", "Blob", "BlobPropertyBag", "Url", "HtmlAnchorElement", "HtmlDocument", "Location"] }
 console_error_panic_hook = { workspace = true }
 tracing-web = { workspace = true }
-
 tracing = { workspace = true }
+tracing-subscriber = { workspace = true, features = ["env-filter", "ansi", "tracing-log"]}
 app = { workspace = true }
-tracing-subscriber.workspace = true
 
 [features]
 default = ["accesskit", "persistence", "wgpu"]
@@ -28,4 +26,3 @@ accesskit = ["app/accesskit", "eframe/accesskit"]
 persistence = ["app/persistence", "eframe/persistence"]
 wgpu = ["app/wgpu", "eframe/wgpu"]
 glow = ["app/glow", "eframe/glow"]
-

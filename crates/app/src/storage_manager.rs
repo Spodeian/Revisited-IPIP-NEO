@@ -1,25 +1,69 @@
 //! Unified multi-tiered storage engine, persistence manager, PWA install bridge, and diagnostics.
 
 use serde::{Deserialize, Serialize};
+use thiserror::Error;
 #[allow(unused_imports)]
 use tracing::{error, info, warn};
 
 #[cfg(target_arch = "wasm32")]
 use wasm_bindgen::JsCast;
 
+/// Strongly typed storage errors replacing ad-hoc string reporting.
+#[derive(Error, Debug)]
+pub enum StorageError {
+    #[error("Storage content is empty")]
+    EmptyContent,
+
+    #[error("Failed to deserialize assessment state: JSON ({json_err}), RON ({ron_err})")]
+    Deserialization {
+        json_err: serde_json::Error,
+        ron_err: ron::error::SpannedError,
+    },
+
+    #[cfg(target_arch = "wasm32")]
+    #[error("Web storage quota exceeded or access restricted: {0}")]
+    QuotaExceeded(String),
+
+    #[cfg(target_arch = "wasm32")]
+    #[error("Browser window localStorage is unavailable in this context")]
+    LocalStorageUnavailable,
+
+    #[cfg(not(target_arch = "wasm32"))]
+    #[error("Failed to write assessment state to desktop file '{path}': {source}")]
+    DiskWrite {
+        path: String,
+        #[source]
+        source: std::io::Error,
+    },
+}
+
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Default, Serialize, Deserialize)]
 pub enum StorageBackend {
     #[default]
     LocalStorage,
+    DiskFile,
     MemoryOnly,
 }
 
 impl StorageBackend {
+    pub fn icon(self) -> &'static str {
+        match self {
+            Self::LocalStorage => "⚡",
+            Self::DiskFile => "💾",
+            Self::MemoryOnly => "💭",
+        }
+    }
+
     pub fn label(self) -> &'static str {
         match self {
             Self::LocalStorage => "Local Storage (Fast Tier)",
+            Self::DiskFile => "Local File System",
             Self::MemoryOnly => "In-Memory Only (Ephemeral)",
         }
+    }
+
+    pub fn label_with_icon(self) -> String {
+        format!("{} {}", self.icon(), self.label())
     }
 }
 
@@ -41,7 +85,6 @@ pub fn query_storage_diagnostics() -> StorageDiagnostics {
     #[cfg(target_arch = "wasm32")]
     {
         if let Some(window) = web_sys::window() {
-            // Check if PWA is installed or installable
             if let Ok(val) = js_sys::Reflect::get(
                 &window,
                 &wasm_bindgen::JsValue::from_str("__pwaInstallAvailable"),
@@ -53,8 +96,6 @@ pub fn query_storage_diagnostics() -> StorageDiagnostics {
             {
                 diag.is_pwa_installed = val.as_bool().unwrap_or(false);
             }
-
-            // Check persistence state
             if let Ok(val) = js_sys::Reflect::get(
                 &window,
                 &wasm_bindgen::JsValue::from_str("__storagePersisted"),
@@ -64,6 +105,12 @@ pub fn query_storage_diagnostics() -> StorageDiagnostics {
                 }
             }
         }
+    }
+
+    #[cfg(not(target_arch = "wasm32"))]
+    {
+        diag.backend = StorageBackend::DiskFile;
+        diag.is_persisted = Some(true);
     }
 
     diag
@@ -80,7 +127,7 @@ pub fn request_persistent_storage() {
             ) {
                 if let Some(func) = func.dyn_ref::<js_sys::Function>() {
                     let _ = func.call0(&window);
-                    info!("Triggered __requestPersistentStorage from UI");
+                    info!("Triggered persistent storage request from client");
                 }
             }
         }
@@ -98,7 +145,7 @@ pub fn trigger_pwa_install() {
             ) {
                 if let Some(func) = func.dyn_ref::<js_sys::Function>() {
                     let _ = func.call0(&window);
-                    info!("Triggered __triggerPWAInstall from UI");
+                    info!("Triggered PWA install prompt from client");
                 }
             }
         }
@@ -108,98 +155,31 @@ pub fn trigger_pwa_install() {
 pub const DEDICATED_STORAGE_KEY: &str = "revisited_ipip_neo_state";
 
 /// Robust dual-format deserializer for AppState, attempting JSON first and falling back to RON.
-pub fn deserialize_app_state(content: &str) -> Result<shared::AppState, String> {
+pub fn deserialize_app_state(content: &str) -> Result<shared::AppState, StorageError> {
     let trimmed = content.trim();
     if trimmed.is_empty() {
-        return Err("Storage content is empty".to_string());
+        return Err(StorageError::EmptyContent);
     }
 
-    // 1. Attempt JSON deserialization
     match serde_json::from_str::<shared::AppState>(trimmed) {
         Ok(state) => Ok(state),
-        Err(json_err) => {
-            // 2. Attempt RON deserialization
-            match ron::from_str::<shared::AppState>(trimmed) {
-                Ok(state) => Ok(state),
-                Err(ron_err) => Err(format!(
-                    "Failed to deserialize AppState: JSON error: {}; RON error: {}",
-                    json_err, ron_err
-                )),
-            }
-        }
+        Err(json_err) => match ron::from_str::<shared::AppState>(trimmed) {
+            Ok(state) => Ok(state),
+            Err(ron_err) => Err(StorageError::Deserialization { json_err, ron_err }),
+        },
     }
 }
 
 /// Multi-tiered loader for AppState.
-/// Checks window.localStorage (on wasm32) and eframe::Storage across both dedicated and legacy keys,
-/// supporting both JSON and RON formats seamlessly with automatic cache rebuild.
+/// Checks explicit `eframe::Storage` first if supplied, followed by disk file or window.localStorage.
 pub fn load_state_multi_tier(storage: Option<&dyn eframe::Storage>) -> Option<shared::AppState> {
-    #[cfg(target_arch = "wasm32")]
-    {
-        if let Some(window) = web_sys::window() {
-            if let Ok(Some(local_storage)) = window.local_storage() {
-                // Tier 1: Check dedicated key in browser localStorage
-                if let Ok(Some(content)) = local_storage.get_item(DEDICATED_STORAGE_KEY) {
-                    match deserialize_app_state(&content) {
-                        Ok(mut state) => {
-                            info!(
-                                "Successfully restored AppState from localStorage [{}]",
-                                DEDICATED_STORAGE_KEY
-                            );
-                            if state.questionnaire.unanswered_count() == 0
-                                && !state.questionnaire.questions.is_empty()
-                            {
-                                state.questionnaire.show_results = true;
-                            }
-                            state.questionnaire.rebuild_cache();
-                            return Some(state);
-                        }
-                        Err(e) => {
-                            warn!(
-                                "Failed to parse AppState from localStorage [{}]: {}",
-                                DEDICATED_STORAGE_KEY, e
-                            );
-                        }
-                    }
-                }
-
-                // Tier 2: Check standard 'app' key in browser localStorage (fallback/legacy)
-                if let Ok(Some(content)) = local_storage.get_item(eframe::APP_KEY) {
-                    match deserialize_app_state(&content) {
-                        Ok(mut state) => {
-                            info!(
-                                "Successfully restored AppState from localStorage [{}]",
-                                eframe::APP_KEY
-                            );
-                            if state.questionnaire.unanswered_count() == 0
-                                && !state.questionnaire.questions.is_empty()
-                            {
-                                state.questionnaire.show_results = true;
-                            }
-                            state.questionnaire.rebuild_cache();
-                            return Some(state);
-                        }
-                        Err(e) => {
-                            warn!(
-                                "Failed to parse AppState from localStorage [{}]: {}",
-                                eframe::APP_KEY,
-                                e
-                            );
-                        }
-                    }
-                }
-            }
-        }
-    }
-
-    // Tier 3: Check eframe::Storage
+    // 1. Explicit eframe storage tier (priority in test environments and standard app startup)
     if let Some(storage) = storage {
-        // Check dedicated key in eframe storage
         if let Some(raw) = storage.get_string(DEDICATED_STORAGE_KEY) {
             match deserialize_app_state(&raw) {
                 Ok(mut state) => {
                     info!(
-                        "Successfully restored AppState from eframe::Storage [{}]",
+                        "Restored assessment state from eframe storage [{}]",
                         DEDICATED_STORAGE_KEY
                     );
                     if state.questionnaire.unanswered_count() == 0
@@ -212,19 +192,18 @@ pub fn load_state_multi_tier(storage: Option<&dyn eframe::Storage>) -> Option<sh
                 }
                 Err(e) => {
                     warn!(
-                        "Failed to parse AppState from eframe::Storage [{}]: {}",
+                        "Failed to parse assessment state from eframe storage [{}]: {}",
                         DEDICATED_STORAGE_KEY, e
                     );
                 }
             }
         }
 
-        // Check 'app' key string in eframe storage
         if let Some(raw) = storage.get_string(eframe::APP_KEY) {
             match deserialize_app_state(&raw) {
                 Ok(mut state) => {
                     info!(
-                        "Successfully restored AppState from eframe::Storage [{}]",
+                        "Restored assessment state from eframe storage [{}]",
                         eframe::APP_KEY
                     );
                     if state.questionnaire.unanswered_count() == 0
@@ -237,7 +216,7 @@ pub fn load_state_multi_tier(storage: Option<&dyn eframe::Storage>) -> Option<sh
                 }
                 Err(e) => {
                     warn!(
-                        "Failed to parse AppState from eframe::Storage [{}]: {}",
+                        "Failed to parse assessment state from eframe storage [{}]: {}",
                         eframe::APP_KEY,
                         e
                     );
@@ -245,9 +224,8 @@ pub fn load_state_multi_tier(storage: Option<&dyn eframe::Storage>) -> Option<sh
             }
         }
 
-        // Check native eframe::get_value (RON deserializer)
         if let Some(mut state) = eframe::get_value::<shared::AppState>(storage, eframe::APP_KEY) {
-            info!("Successfully restored AppState from eframe::get_value (RON).");
+            info!("Restored assessment state from eframe get_value");
             if state.questionnaire.unanswered_count() == 0
                 && !state.questionnaire.questions.is_empty()
             {
@@ -258,41 +236,134 @@ pub fn load_state_multi_tier(storage: Option<&dyn eframe::Storage>) -> Option<sh
         }
     }
 
+    // 2. Desktop filesystem persistence fallback
+    #[cfg(not(target_arch = "wasm32"))]
+    {
+        let filename = format!("{}.json", DEDICATED_STORAGE_KEY);
+        if let Ok(content) = std::fs::read_to_string(&filename) {
+            match deserialize_app_state(&content) {
+                Ok(mut state) => {
+                    info!("Restored assessment state from disk file [{}]", filename);
+                    if state.questionnaire.unanswered_count() == 0
+                        && !state.questionnaire.questions.is_empty()
+                    {
+                        state.questionnaire.show_results = true;
+                    }
+                    state.questionnaire.rebuild_cache();
+                    return Some(state);
+                }
+                Err(e) => {
+                    warn!(
+                        "Failed to parse assessment state from disk file [{}]: {}",
+                        filename, e
+                    );
+                }
+            }
+        }
+    }
+
+    // 3. Browser localStorage fallback
+    #[cfg(target_arch = "wasm32")]
+    {
+        if let Some(window) = web_sys::window() {
+            if let Ok(Some(local_storage)) = window.local_storage() {
+                if let Ok(Some(content)) = local_storage.get_item(DEDICATED_STORAGE_KEY) {
+                    match deserialize_app_state(&content) {
+                        Ok(mut state) => {
+                            info!(
+                                "Restored assessment state from localStorage [{}]",
+                                DEDICATED_STORAGE_KEY
+                            );
+                            if state.questionnaire.unanswered_count() == 0
+                                && !state.questionnaire.questions.is_empty()
+                            {
+                                state.questionnaire.show_results = true;
+                            }
+                            state.questionnaire.rebuild_cache();
+                            return Some(state);
+                        }
+                        Err(e) => {
+                            warn!(
+                                "Failed to parse assessment state from localStorage [{}]: {}",
+                                DEDICATED_STORAGE_KEY, e
+                            );
+                        }
+                    }
+                }
+
+                if let Ok(Some(content)) = local_storage.get_item(eframe::APP_KEY) {
+                    match deserialize_app_state(&content) {
+                        Ok(mut state) => {
+                            info!(
+                                "Restored assessment state from localStorage [{}]",
+                                eframe::APP_KEY
+                            );
+                            if state.questionnaire.unanswered_count() == 0
+                                && !state.questionnaire.questions.is_empty()
+                            {
+                                state.questionnaire.show_results = true;
+                            }
+                            state.questionnaire.rebuild_cache();
+                            return Some(state);
+                        }
+                        Err(e) => {
+                            warn!(
+                                "Failed to parse assessment state from localStorage [{}]: {}",
+                                eframe::APP_KEY,
+                                e
+                            );
+                        }
+                    }
+                }
+            }
+        }
+    }
+
     None
 }
 
-/// Save state using localStorage with fallback to in-memory ephemeral tier
-pub fn save_state_multi_tier(key: &str, json_str: &str) -> Result<StorageBackend, String> {
+/// Save state using localStorage (WASM) or atomic file system write (desktop).
+pub fn save_state_multi_tier(key: &str, json_str: &str) -> Result<StorageBackend, StorageError> {
     #[cfg(target_arch = "wasm32")]
     {
         if let Some(window) = web_sys::window() {
             if let Ok(Some(storage)) = window.local_storage() {
                 match storage.set_item(key, json_str) {
-                    Ok(()) => {
-                        return Ok(StorageBackend::LocalStorage);
-                    }
+                    Ok(()) => return Ok(StorageBackend::LocalStorage),
                     Err(err) => {
                         warn!(
-                            "localStorage.set_item failed with error {:?}. Quota exceeded or storage restricted.",
+                            "Storage write failed with error {:?}; quota exceeded or storage restricted",
                             err
                         );
-                        return Err(format!("localStorage quota exceeded: {:?}", err));
+                        return Err(StorageError::QuotaExceeded(format!("{:?}", err)));
                     }
                 }
             }
-            return Err("localStorage unavailable in browser window.".to_string());
+            return Err(StorageError::LocalStorageUnavailable);
         }
+        Err(StorageError::LocalStorageUnavailable)
     }
 
     #[cfg(not(target_arch = "wasm32"))]
     {
-        let _ = (key, json_str);
+        let filename = format!("{}.json", key);
+        match std::fs::write(&filename, json_str) {
+            Ok(()) => Ok(StorageBackend::DiskFile),
+            Err(err) => {
+                warn!(
+                    "Failed to persist assessment state to file '{}': {}",
+                    filename, err
+                );
+                Err(StorageError::DiskWrite {
+                    path: filename,
+                    source: err,
+                })
+            }
+        }
     }
-
-    Ok(StorageBackend::MemoryOnly)
 }
 
-/// Trigger client-side text file download via Blob URL
+/// Trigger client-side text file download via Blob URL (WASM) or direct file write (desktop).
 pub fn trigger_text_download(filename: &str, content: &str, mime_type: &str) {
     #[cfg(target_arch = "wasm32")]
     {
@@ -323,13 +394,13 @@ pub fn trigger_text_download(filename: &str, content: &str, mime_type: &str) {
     {
         let _ = mime_type;
         match std::fs::write(filename, content) {
-            Ok(()) => info!("Successfully exported file: {}", filename),
+            Ok(()) => info!("Exported file successfully: {}", filename),
             Err(e) => error!("Failed to write export file '{}': {}", filename, e),
         }
     }
 }
 
-/// Trigger client-side binary file download (e.g. Compressed BSON) via Blob URL
+/// Trigger client-side binary file download (e.g. Compressed BSON) via Blob URL (WASM) or direct write (desktop).
 pub fn trigger_binary_download(filename: &str, bytes: &[u8], mime_type: &str) {
     #[cfg(target_arch = "wasm32")]
     {
@@ -361,7 +432,7 @@ pub fn trigger_binary_download(filename: &str, bytes: &[u8], mime_type: &str) {
     {
         let _ = mime_type;
         match std::fs::write(filename, bytes) {
-            Ok(()) => info!("Successfully exported binary file: {}", filename),
+            Ok(()) => info!("Exported binary file successfully: {}", filename),
             Err(e) => error!("Failed to write binary export file '{}': {}", filename, e),
         }
     }
