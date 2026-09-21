@@ -327,9 +327,8 @@ fn test_load_state_multi_tier_json_and_ron() {
     // 3. Verify load_state_multi_tier from dedicated storage key containing JSON
     let mut storage_dedicated = MockStorage::default();
     storage_dedicated.set_string(DEDICATED_STORAGE_KEY, json_str.clone());
-    let loaded_dedicated =
-        load_state_multi_tier(Some(&storage_dedicated as &dyn eframe::Storage))
-            .expect("Should load from dedicated key");
+    let loaded_dedicated = load_state_multi_tier(Some(&storage_dedicated as &dyn eframe::Storage))
+        .expect("Should load from dedicated key");
     assert_eq!(
         loaded_dedicated.questionnaire.questions[0].response,
         Some(Response::StronglyAgree)
@@ -338,9 +337,8 @@ fn test_load_state_multi_tier_json_and_ron() {
     // 4. Verify load_state_multi_tier from app key containing JSON (backward compatibility)
     let mut storage_json_app = MockStorage::default();
     storage_json_app.set_string(eframe::APP_KEY, json_str);
-    let loaded_json_app =
-        load_state_multi_tier(Some(&storage_json_app as &dyn eframe::Storage))
-            .expect("Should load from app key JSON");
+    let loaded_json_app = load_state_multi_tier(Some(&storage_json_app as &dyn eframe::Storage))
+        .expect("Should load from app key JSON");
     assert_eq!(
         loaded_json_app.questionnaire.questions[0].response,
         Some(Response::StronglyAgree)
@@ -349,9 +347,8 @@ fn test_load_state_multi_tier_json_and_ron() {
     // 5. Verify load_state_multi_tier from app key containing RON
     let mut storage_ron_app = MockStorage::default();
     storage_ron_app.set_string(eframe::APP_KEY, ron_str);
-    let loaded_ron_app =
-        load_state_multi_tier(Some(&storage_ron_app as &dyn eframe::Storage))
-            .expect("Should load from app key RON");
+    let loaded_ron_app = load_state_multi_tier(Some(&storage_ron_app as &dyn eframe::Storage))
+        .expect("Should load from app key RON");
     assert_eq!(
         loaded_ron_app.questionnaire.questions[0].response,
         Some(Response::StronglyAgree)
@@ -378,7 +375,8 @@ fn test_results_persistence_and_completion_restoration() {
     assert!(storage.get_string(DEDICATED_STORAGE_KEY).is_some());
 
     // Load state
-    let loaded = load_state_multi_tier(Some(&storage as &dyn eframe::Storage)).expect("Should load state");
+    let loaded =
+        load_state_multi_tier(Some(&storage as &dyn eframe::Storage)).expect("Should load state");
     assert!(
         loaded.questionnaire.show_results,
         "show_results state should be preserved on load"
@@ -399,9 +397,8 @@ fn test_results_persistence_and_completion_restoration() {
     let mut storage_complete = MockStorage::default();
     storage_complete.set_string(DEDICATED_STORAGE_KEY, complete_json);
 
-    let loaded_complete =
-        load_state_multi_tier(Some(&storage_complete as &dyn eframe::Storage))
-            .expect("Should load complete state");
+    let loaded_complete = load_state_multi_tier(Some(&storage_complete as &dyn eframe::Storage))
+        .expect("Should load complete state");
     assert!(
         loaded_complete.questionnaire.show_results,
         "show_results should be auto-set to true when 100% completed"
