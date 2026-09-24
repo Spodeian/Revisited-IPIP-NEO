@@ -6,6 +6,9 @@ license.workspace = true
 repository.workspace = true
 description = "Application view controller, UI layout components, and state management for Revisited IPIP-NEO"
 
+[lib]
+crate-type = ["cdylib", "rlib"]
+
 [dependencies]
 serde = { workspace = true, features = ["derive"] }
 serde_json = { workspace = true }
@@ -27,8 +30,12 @@ wasm-bindgen-futures = { workspace = true }
 web-sys = { workspace = true, features = ["HtmlDocument", "Window", "Document", "Blob", "BlobPropertyBag", "Url", "HtmlAnchorElement", "Location", "Storage"] }
 js-sys = { workspace = true }
 
-[target.'cfg(not(target_arch = "wasm32"))'.dependencies]
+[target.'cfg(not(any(target_arch = "wasm32", target_os = "android")))'.dependencies]
 eframe = { workspace = true, features = ["x11", "wayland"] }
+
+[target.'cfg(target_os = "android")'.dependencies]
+winit = { workspace = true, features = ["android-native-activity"] }
+android-activity = { workspace = true }
 
 [features]
 default = ["accesskit", "persistence", "wgpu"]

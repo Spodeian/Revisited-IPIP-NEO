@@ -21,3 +21,11 @@
 - [x] Spider / radar trait visualization in egui.
 - [x] PDF / High-resolution PNG summary card exports.
 - [ ] Longitudinal tracking of repeated assessments over time.
+
+---
+
+## Phase 4: Mobile Android Deployment (`cargo-ndk`) [ACTIVE]
+- [x] Multi-target toolchain support (`aarch64-linux-android`, `armv7-linux-androideabi`, `x86_64-linux-android`).
+- [x] Native `cdylib` output with `android_main` activity entry point.
+- [x] Automated compilation scripts (`scripts/build-android.ps1`, `scripts/build-android.sh`).
+- [ ] Mobile touch slider responsiveness and haptic feedback.

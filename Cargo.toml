@@ -41,6 +41,8 @@ rfd = "0.17"
 mimalloc = "0.1"
 shared = { path = "crates/shared" }
 app = { path = "crates/app" }
+winit = { version = "0.30", default-features = false }
+android-activity = { version = "0.6", default-features = false, features = ["native-activity"] }
 
 [profile.release]
 opt-level = 3
