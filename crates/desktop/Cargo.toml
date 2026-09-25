@@ -10,6 +10,7 @@ description = "Native desktop runner for Revisited IPIP-NEO"
 eframe = { workspace = true, features = ["default_fonts"] }
 tracing = { workspace = true }
 tracing-subscriber = { workspace = true, features = ["env-filter", "ansi", "tracing-log"] }
+spodeian-telemetry = { workspace = true }
 app = { workspace = true }
 mimalloc = { workspace = true }
 

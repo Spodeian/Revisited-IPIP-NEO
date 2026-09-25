@@ -12,6 +12,8 @@ serde_json = { workspace = true }
 bson = { workspace = true, features = ["serde"] }
 miniz_oxide = { workspace = true }
 num = { workspace = true }
+spodeian-export = { workspace = true }
+spodeian-tokens = { workspace = true }
 
 [dev-dependencies]
 proptest = { workspace = true }
