@@ -1450,25 +1450,4 @@ fn parse_and_order_raw_questions() -> Vec<Question> {
     ordered_questions
 }
 
-pub fn parse_csv_line(line: &str) -> Vec<String> {
-    let mut fields = Vec::new();
-    let mut current = String::new();
-    let mut in_quotes = false;
-
-    for c in line.chars() {
-        match c {
-            '"' => {
-                in_quotes = !in_quotes;
-            }
-            ',' if !in_quotes => {
-                fields.push(current.trim().to_string());
-                current.clear();
-            }
-            _ => {
-                current.push(c);
-            }
-        }
-    }
-    fields.push(current.trim().to_string());
-    fields
-}
+pub use spodeian_export::parse_csv_line;
