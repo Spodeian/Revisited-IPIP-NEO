@@ -3272,7 +3272,8 @@ dependencies = [
 
 [[package]]
 name = "spodeian-cache"
-version = "1.0.0"
+version = "1.1.0"
+source = "git+https://github.com/Spodeian/spodeian-core?tag=v2.0.0#4b325d308aabbe70498f27627f83ebcd742d2361"
 dependencies = [
  "base64 0.22.1",
  "js-sys",
@@ -3288,7 +3289,8 @@ dependencies = [
 
 [[package]]
 name = "spodeian-export"
-version = "1.0.0"
+version = "2.0.0"
+source = "git+https://github.com/Spodeian/spodeian-core?tag=v2.0.0#4b325d308aabbe70498f27627f83ebcd742d2361"
 dependencies = [
  "bson 2.15.0",
  "miniz_oxide 0.8.9",
@@ -3299,9 +3301,13 @@ dependencies = [
 
 [[package]]
 name = "spodeian-telemetry"
-version = "1.0.0"
+version = "1.1.0"
+source = "git+https://github.com/Spodeian/spodeian-core?tag=v2.0.0#4b325d308aabbe70498f27627f83ebcd742d2361"
 dependencies = [
  "console_error_panic_hook",
+ "js-sys",
+ "serde",
+ "serde_json",
  "tracing",
  "tracing-subscriber",
  "tracing-web",
@@ -3309,7 +3315,8 @@ dependencies = [
 
 [[package]]
 name = "spodeian-tokens"
-version = "1.0.0"
+version = "1.1.0"
+source = "git+https://github.com/Spodeian/spodeian-core?tag=v2.0.0#4b325d308aabbe70498f27627f83ebcd742d2361"
 dependencies = [
  "serde",
  "serde_json",
@@ -3318,19 +3325,23 @@ dependencies = [
 [[package]]
 name = "spodeian-ui"
 version = "1.0.0"
+source = "git+https://github.com/Spodeian/spodeian-core?tag=v2.0.0#4b325d308aabbe70498f27627f83ebcd742d2361"
 dependencies = [
  "egui",
  "serde",
+ "spodeian-telemetry",
  "spodeian-tokens",
 ]
 
 [[package]]
 name = "spodeian-web-utils"
-version = "1.0.0"
+version = "1.1.0"
+source = "git+https://github.com/Spodeian/spodeian-core?tag=v2.0.0#4b325d308aabbe70498f27627f83ebcd742d2361"
 dependencies = [
  "js-sys",
  "tracing",
  "wasm-bindgen",
+ "wasm-bindgen-futures",
  "web-sys",
 ]
 
