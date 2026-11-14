@@ -54,7 +54,7 @@ graph TD
   - **Dual-Format Fallback Deserializer**: Seamlessly parses JSON first and automatically falls back to RON, preserving compatibility across past releases.
   - **Active State Persistence**: Dispatches immediate storage saves on every answer, demographic update, reset, or import.
   - **Storage Diagnostics**: Inspects browser storage durability (`persisted` vs `ephemeral`) and quota status with one-click persistence requests.
-- **📦 Instant Data Exporting**: Built-in tools for copying and downloading reports as raw CSV, structured JSON, printable HTML/PDF, or compact compressed BSON.
+- **📦 Instant Data Exporting**: Built-in tools for copying and downloading reports as raw CSV, structured JSON, printable HTML and vector SVG, or compact compressed BSON.
 - **📶 Immutable Serverless PWA Caching**: Hybrid caching strategy (**Network-First** for `index.html` to guarantee atomic releases; **Cache-First** for immutable, content-hashed `.wasm`, `.js`, and `.css` assets) with offline fallback.
 - **🛡️ SRI Minification Immunity**: Configured with `data-integrity="none"` to allow aggressive post-build asset minification (HTML, CSS, JS) without SRI hash mismatches.
 

@@ -582,7 +582,7 @@ impl PersonalityApp {
             ExportFormat::Json => "Export JSON",
             ExportFormat::Bson => "Export Compressed BSON Binary",
             ExportFormat::Svg => "Export SVG Vector Graphic",
-            ExportFormat::Html => "Printable Report (HTML/PDF)",
+            ExportFormat::Html => "Printable Report (HTML)",
         };
 
         let mut open = true;
