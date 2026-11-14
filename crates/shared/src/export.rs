@@ -1190,9 +1190,10 @@ pub fn import_responses_from_bson(
     state: &mut QuestionnaireState,
     bytes: &[u8],
 ) -> Result<usize, &'static str> {
-    let report: FullAssessmentReport = spodeian_export::import_from_compressed_bson(bytes).map_err(
-        |_| "Invalid BSON format. Please ensure this is a valid Revisited IPIP-NEO BSON file.",
-    )?;
+    let report: FullAssessmentReport = spodeian_export::import_from_compressed_bson(bytes)
+        .map_err(
+            |_| "Invalid BSON format. Please ensure this is a valid Revisited IPIP-NEO BSON file.",
+        )?;
 
     apply_imported_item_responses(
         state,

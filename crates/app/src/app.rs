@@ -104,18 +104,8 @@ impl PersonalityApp {
                 "",
                 "Data",
             ),
-            CommandEntry::new(
-                "open_import",
-                "Import / Restore Saved Backup",
-                "",
-                "Data",
-            ),
-            CommandEntry::new(
-                "open_help",
-                "Open Help, Methods & Limitations",
-                "?",
-                "Help",
-            ),
+            CommandEntry::new("open_import", "Import / Restore Saved Backup", "", "Data"),
+            CommandEntry::new("open_help", "Open Help, Methods & Limitations", "?", "Help"),
         ])
     }
 

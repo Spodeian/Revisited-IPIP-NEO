@@ -462,7 +462,12 @@ impl PersonalityApp {
                             .weak(),
                     );
                     let norms = NormSet::theoretical_tga();
-                    Self::render_tooltip_narrative_and_norm(ui, &meta, &acc, norms.for_meta_trait(meta));
+                    Self::render_tooltip_narrative_and_norm(
+                        ui,
+                        &meta,
+                        &acc,
+                        norms.for_meta_trait(meta),
+                    );
                 });
 
                 ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
@@ -521,7 +526,12 @@ impl PersonalityApp {
                             .weak(),
                     );
                     let norms = NormSet::theoretical_tga();
-                    Self::render_tooltip_narrative_and_norm(ui, &trait_item, &acc, norms.for_trait(trait_item));
+                    Self::render_tooltip_narrative_and_norm(
+                        ui,
+                        &trait_item,
+                        &acc,
+                        norms.for_trait(trait_item),
+                    );
                 });
 
                 ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {

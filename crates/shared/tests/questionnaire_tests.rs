@@ -422,7 +422,9 @@ fn test_app_state_longitudinal_profile_snapshots_bounded() {
 
     let mut app_state = AppState::default();
     app_state.questionnaire.answer_question(0, Response::Agree);
-    app_state.questionnaire.answer_question(1, Response::StronglyAgree);
+    app_state
+        .questionnaire
+        .answer_question(1, Response::StronglyAgree);
 
     for i in 1..=(MAX_PROFILE_HISTORY + 5) {
         let snap = app_state.record_profile_snapshot(format!("Snap {}", i), format!("t={}", i));

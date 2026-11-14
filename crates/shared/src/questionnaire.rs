@@ -584,7 +584,10 @@ impl NormParameters {
     }
 
     /// Default theoretical prior: mean 0.0, standard deviation 0.40 on [-1.0, 1.0].
-    pub const THEORETICAL_DEFAULT: Self = Self { mean: 0.0, sd: 0.40 };
+    pub const THEORETICAL_DEFAULT: Self = Self {
+        mean: 0.0,
+        sd: 0.40,
+    };
 }
 
 /// Complete set of population norming parameters for Meta-Traits, Traits, and Facets.
@@ -610,7 +613,11 @@ impl NormSet {
         description: impl Into<String>,
         params: NormParameters,
     ) -> Self {
-        let meta_traits = MetaTrait::ALL.iter().copied().map(|m| (m, params)).collect();
+        let meta_traits = MetaTrait::ALL
+            .iter()
+            .copied()
+            .map(|m| (m, params))
+            .collect();
         let traits = Trait::ALL.iter().copied().map(|t| (t, params)).collect();
         let facets = Facet::ALL.iter().copied().map(|f| (f, params)).collect();
         Self {
@@ -998,13 +1005,9 @@ impl QuestionnaireState {
         self.rebuild_cache();
         if let Some(&first_pending) = self.pending_queue.front() {
             let mask = self.active_question_mask();
-            let focus_invalid = self
-                .questions
-                .get(self.current_focus_idx)
-                .is_none_or(|q| {
-                    !mask.get(self.current_focus_idx).copied().unwrap_or(false)
-                        || q.response.is_some()
-                });
+            let focus_invalid = self.questions.get(self.current_focus_idx).is_none_or(|q| {
+                !mask.get(self.current_focus_idx).copied().unwrap_or(false) || q.response.is_some()
+            });
             if focus_invalid {
                 self.current_focus_idx = first_pending;
             }

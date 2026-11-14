@@ -74,7 +74,10 @@ pub fn load_state_multi_tier(storage: Option<&dyn eframe::Storage>) -> Option<sh
     if let Ok(content) = std::fs::read_to_string(disk_path) {
         match deserialize_app_state(&content) {
             Ok(state) => {
-                info!("Restored legacy RON state from disk file [{}]", disk_filename);
+                info!(
+                    "Restored legacy RON state from disk file [{}]",
+                    disk_filename
+                );
                 return Some(finalize_loaded_state(state));
             }
             Err(e) => {
