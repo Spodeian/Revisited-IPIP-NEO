@@ -22,4 +22,4 @@ harness = false
 
 [features]
 default = ["std"]
-std = ["serde/std", "serde_json/std", "num/std"]
+std = ["serde/std", "serde_json/std"]
