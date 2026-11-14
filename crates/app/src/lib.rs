@@ -20,5 +20,6 @@ fn android_main(app: winit::platform::android::activity::AndroidApp) {
         "Revisited IPIP-NEO",
         options,
         Box::new(|cc| Ok(Box::new(PersonalityApp::new(cc)))),
-    ).unwrap();
+    )
+    .unwrap();
 }

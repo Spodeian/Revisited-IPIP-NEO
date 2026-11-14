@@ -1,6 +1,5 @@
 pub use spodeian_ui::ScreenConstraints;
 
-
 /// Data interchange formats supported for assessment exports.
 #[derive(Clone, Copy, PartialEq, Eq, Debug, Default)]
 pub enum ExportFormat {
