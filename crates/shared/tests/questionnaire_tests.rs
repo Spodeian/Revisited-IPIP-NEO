@@ -364,8 +364,8 @@ fn test_rapid_112_mode_preserves_answers_and_covers_all_28_facets() {
     assert_eq!(state.total_questions(), 221);
 
     // Every previously recorded answer must remain intact
-    for i in 0..8 {
-        assert_eq!(state.questions[i].response, Some(Response::Agree));
+    for q in state.questions.iter().take(8) {
+        assert_eq!(q.response, Some(Response::Agree));
     }
 
     // Complete remaining active Rapid112 items
