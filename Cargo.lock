@@ -3461,6 +3461,7 @@ dependencies = [
 [[package]]
 name = "spodeian-cache"
 version = "1.1.0"
+source = "git+https://github.com/Spodeian/spodeian-core?tag=v3.0.0#45316eb60a9d821041abdbed8e10a0ecbcbf4db4"
 dependencies = [
  "base64 0.22.1",
  "js-sys",
@@ -3477,6 +3478,7 @@ dependencies = [
 [[package]]
 name = "spodeian-export"
 version = "2.0.0"
+source = "git+https://github.com/Spodeian/spodeian-core?tag=v3.0.0#45316eb60a9d821041abdbed8e10a0ecbcbf4db4"
 dependencies = [
  "bson",
  "miniz_oxide 0.8.9",
@@ -3488,6 +3490,7 @@ dependencies = [
 [[package]]
 name = "spodeian-persist"
 version = "0.1.0"
+source = "git+https://github.com/Spodeian/spodeian-core?tag=v3.0.0#45316eb60a9d821041abdbed8e10a0ecbcbf4db4"
 dependencies = [
  "js-sys",
  "serde",
@@ -3503,6 +3506,7 @@ dependencies = [
 [[package]]
 name = "spodeian-telemetry"
 version = "1.1.0"
+source = "git+https://github.com/Spodeian/spodeian-core?tag=v3.0.0#45316eb60a9d821041abdbed8e10a0ecbcbf4db4"
 dependencies = [
  "console_error_panic_hook",
  "js-sys",
@@ -3516,6 +3520,7 @@ dependencies = [
 [[package]]
 name = "spodeian-tokens"
 version = "1.1.0"
+source = "git+https://github.com/Spodeian/spodeian-core?tag=v3.0.0#45316eb60a9d821041abdbed8e10a0ecbcbf4db4"
 dependencies = [
  "serde",
  "serde_json",
@@ -3524,6 +3529,7 @@ dependencies = [
 [[package]]
 name = "spodeian-ui"
 version = "1.0.0"
+source = "git+https://github.com/Spodeian/spodeian-core?tag=v3.0.0#45316eb60a9d821041abdbed8e10a0ecbcbf4db4"
 dependencies = [
  "egui",
  "serde",
@@ -3536,6 +3542,7 @@ dependencies = [
 [[package]]
 name = "spodeian-web-utils"
 version = "1.1.0"
+source = "git+https://github.com/Spodeian/spodeian-core?tag=v3.0.0#45316eb60a9d821041abdbed8e10a0ecbcbf4db4"
 dependencies = [
  "base64 0.22.1",
  "js-sys",
