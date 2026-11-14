@@ -4,7 +4,7 @@ on:
   push:
     branches: [ "main", "dev" ]
   pull_request:
-    branches: [ "main" ]
+    branches: [ "main", "dev" ]
     types: [ opened, synchronize, reopened, labeled, unlabeled ]
   workflow_dispatch:
 
@@ -16,6 +16,23 @@ env:
   CARGO_TERM_COLOR: always
 
 jobs:
+  licenses:
+    name: Dependency Licenses
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install Rust Toolchain
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Install cargo-deny
+        uses: taiki-e/install-action@v2
+        with:
+          tool: cargo-deny
+
+      - name: Check dependency licenses
+        run: cargo deny --all-features check licenses
+
   version-bump-check:
     name: Enforce Version Bump on Main PR
     runs-on: ubuntu-latest

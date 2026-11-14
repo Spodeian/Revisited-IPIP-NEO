@@ -2,7 +2,7 @@
 
 [![CI & Test Suite](https://github.com/Spodeian/Revisited-IPIP-NEO/actions/workflows/ci.yml/badge.svg)](https://github.com/Spodeian/Revisited-IPIP-NEO/actions/workflows/ci.yml)
 [![GitHub Pages](https://github.com/Spodeian/Revisited-IPIP-NEO/actions/workflows/static.yml/badge.svg)](https://github.com/Spodeian/Revisited-IPIP-NEO/actions/workflows/static.yml)
-[![License: CC-BY-NC-SA 4.0](https://img.shields.io/badge/License-CC--BY--NC--SA--4.0-lightgrey.svg)](LICENSE)
+[![License: PolyForm Noncommercial 1.0.0](https://img.shields.io/badge/license-PolyForm%20Noncommercial%201.0.0-blue.svg)](LICENSE.md)
 [![Rust: 2024 Edition](https://img.shields.io/badge/Rust-2024%20Edition-orange.svg)](https://www.rust-lang.org)
 [![egui: 0.36](https://img.shields.io/badge/egui-0.36-blueviolet.svg)](https://github.com/emilk/egui)
 [![Cloudflare Pages: v3](https://img.shields.io/badge/Cloudflare%20Pages-Build%20System%20v3-F38020.svg)](https://pages.cloudflare.com)
@@ -150,8 +150,19 @@ The compiled release executable will be located in `target/release/`.
 
 ## 📄 Licensing & Attribution
 
-This project is dual-licensed to fully respect academic research rights and software author contributions:
+This repository combines three things under different terms:
 
-- **Standard Non-Commercial License**: [Creative Commons Attribution-NonCommercial-ShareAlike 4.0 International (CC-BY-NC-SA 4.0)](LICENSE).
-  - Allows copying, modifying, and redistributing the codebase for non-commercial purposes, provided downstream edits are shared under the same license.
-- **Commercial Use**: Any commercial use requires separate commercial licensing for the [software library](https://github.com/Spodeian/Revisited-IPIP-NEO) and the underlying research ([Data](Distilled%20Key.csv) / [Research](https://doi.org/10.1177/08902070251352590)). For all commercial licensing inquiries and enterprise terms, please contact the author and maintainer directly at **spodeian@proton.me**.
+- **The software** (the Rust/WASM code, queue engine and UI) is licensed under
+  the [PolyForm Noncommercial License 1.0.0](LICENSE.md). You may use, change
+  and share it for any noncommercial purpose. For a commercial license,
+  contact [Spodeian](https://github.com/Spodeian). Earlier releases keep the
+  license they were published under. This covers the software only, not the
+  items or the research materials below.
+- **The questionnaire items** come from the
+  [International Personality Item Pool](https://ipip.ori.org) and are in the
+  public domain.
+- **The scoring keys and weights** (`Distilled Key.csv`, `Optimized_Keys.csv`)
+  are derived from the materials of Samo et al. (2026) on the
+  [Open Science Framework](https://osf.io/hwpa9), published under
+  [CC BY 4.0](https://creativecommons.org/licenses/by/4.0/). Any reuse must
+  credit that work; see [ATTRIBUTION.md](ATTRIBUTION.md).
