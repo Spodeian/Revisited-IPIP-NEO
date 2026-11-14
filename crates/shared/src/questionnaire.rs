@@ -1,3 +1,20 @@
+//! Core psychometric data structures, TGA scoring engine, and administration protocols
+//! for Revisited IPIP-NEO.
+//!
+//! # Tridimensional / Three-Tier Psychometric Model (TGA)
+//! - **Hierarchy:** 221 optimized items map simultaneously onto 28 primary [`Facet`]s,
+//!   6 higher-order [`Trait`]s, and 3 broad [`MetaTrait`] dimensions via signed item weights.
+//! - **Normalized Scores:** Each construct accumulator maps weighted Likert responses `[-1.0, 1.0]`
+//!   onto `normalized_score = sum(score_i * w_i) / sum(|w_i|)`.
+//! - **Precision (SE):** Scale-level standard error on `[-1.0, 1.0]` is estimated as
+//!   `SE = (sqrt(sum(w_i^2)) / sum(|w_i|)) * 0.5`.
+//! - **Population Norming:** [`NormSet`] converts normalized scores to z-scores and Gaussian
+//!   percentile estimates; the default [`NormSet::theoretical_tga`] uses a synthetic
+//!   zero-centered prior pending empirical reference samples.
+//! - **Administration Modes:** [`AdministrationMode::Full221`] administers all 221 items, while
+//!   [`AdministrationMode::Rapid112`] selects a facet-balanced 112-item short protocol without
+//!   discarding previously entered answers.
+
 use serde::{Deserialize, Serialize};
 use std::collections::{HashMap, VecDeque};
 use std::fmt;
@@ -553,6 +570,221 @@ impl ScoreTier {
     }
 }
 
+/// Mean and standard deviation reference parameters on the normalized [-1.0, 1.0] scale.
+#[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize)]
+pub struct NormParameters {
+    pub mean: f32,
+    pub sd: f32,
+}
+
+impl NormParameters {
+    /// Creates custom normative parameters.
+    pub const fn new(mean: f32, sd: f32) -> Self {
+        Self { mean, sd }
+    }
+
+    /// Default theoretical prior: mean 0.0, standard deviation 0.40 on [-1.0, 1.0].
+    pub const THEORETICAL_DEFAULT: Self = Self { mean: 0.0, sd: 0.40 };
+}
+
+/// Complete set of population norming parameters for Meta-Traits, Traits, and Facets.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct NormSet {
+    pub name: String,
+    pub description: String,
+    pub meta_traits: HashMap<MetaTrait, NormParameters>,
+    pub traits: HashMap<Trait, NormParameters>,
+    pub facets: HashMap<Facet, NormParameters>,
+}
+
+impl Default for NormSet {
+    fn default() -> Self {
+        Self::theoretical_tga()
+    }
+}
+
+impl NormSet {
+    /// Builds a uniform norming set applying the same [`NormParameters`] across every construct.
+    pub fn with_uniform_parameters(
+        name: impl Into<String>,
+        description: impl Into<String>,
+        params: NormParameters,
+    ) -> Self {
+        let meta_traits = MetaTrait::ALL.iter().copied().map(|m| (m, params)).collect();
+        let traits = Trait::ALL.iter().copied().map(|t| (t, params)).collect();
+        let facets = Facet::ALL.iter().copied().map(|f| (f, params)).collect();
+        Self {
+            name: name.into(),
+            description: description.into(),
+            meta_traits,
+            traits,
+            facets,
+        }
+    }
+
+    /// Synthetic theoretical prior (`mean = 0.0`, `sd = 0.40`) pending empirical sample norms.
+    pub fn theoretical_tga() -> Self {
+        Self::with_uniform_parameters(
+            "Theoretical TGA Prior (Zero-Centered)",
+            "Uncalibrated theoretical Gaussian prior (mean = 0.0, sd = 0.40) on [-1.0, 1.0]; substitute empirical sample norms when available.",
+            NormParameters::THEORETICAL_DEFAULT,
+        )
+    }
+
+    /// Returns norming parameters for a meta-trait, falling back to `THEORETICAL_DEFAULT`.
+    pub fn for_meta_trait(&self, meta: MetaTrait) -> NormParameters {
+        self.meta_traits
+            .get(&meta)
+            .copied()
+            .unwrap_or(NormParameters::THEORETICAL_DEFAULT)
+    }
+
+    /// Returns norming parameters for a trait, falling back to `THEORETICAL_DEFAULT`.
+    pub fn for_trait(&self, r#trait: Trait) -> NormParameters {
+        self.traits
+            .get(&r#trait)
+            .copied()
+            .unwrap_or(NormParameters::THEORETICAL_DEFAULT)
+    }
+
+    /// Returns norming parameters for a facet, falling back to `THEORETICAL_DEFAULT`.
+    pub fn for_facet(&self, facet: Facet) -> NormParameters {
+        self.facets
+            .get(&facet)
+            .copied()
+            .unwrap_or(NormParameters::THEORETICAL_DEFAULT)
+    }
+}
+
+/// Active administration protocol controlling how many items are queued.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default, Serialize, Deserialize)]
+pub enum AdministrationMode {
+    /// Full 221-item battery across all 28 facets.
+    #[default]
+    Full221,
+    /// Rapid 112-item facet-balanced short form covering all 28 facets.
+    Rapid112,
+}
+
+impl AdministrationMode {
+    /// Full human-readable label for dialogs and selectors.
+    pub const fn label(self) -> &'static str {
+        match self {
+            Self::Full221 => "Full Battery (221 items)",
+            Self::Rapid112 => "Rapid Protocol (112 items)",
+        }
+    }
+
+    /// Concise badge/menu label.
+    pub const fn short_label(self) -> &'static str {
+        match self {
+            Self::Full221 => "Full (221)",
+            Self::Rapid112 => "Rapid (112)",
+        }
+    }
+}
+
+/// Computes the deterministic 112-item facet-balanced subset indices (up to 4 items per
+/// facet across all 28 facets, then topped up to 112 in `Optimized_Keys.csv` order).
+pub fn rapid_112_indices(questions: &[Question]) -> Vec<usize> {
+    const TARGET_LEN: usize = 112;
+    let target = TARGET_LEN.min(questions.len());
+    if questions.len() <= target {
+        return (0..questions.len()).collect();
+    }
+
+    let mut selected = vec![false; questions.len()];
+    let mut facet_counts: HashMap<Facet, usize> = HashMap::new();
+    let mut selected_count = 0usize;
+
+    // Pass 1: select up to 4 items per facet in optimized order so every facet is represented.
+    for (idx, q) in questions.iter().enumerate() {
+        if selected_count >= target {
+            break;
+        }
+        let count = facet_counts.entry(q.facet.category).or_insert(0);
+        if *count < 4 {
+            selected[idx] = true;
+            *count += 1;
+            selected_count += 1;
+        }
+    }
+
+    // Pass 2: fill any remaining slots up to 112 in optimized order.
+    if selected_count < target {
+        for (idx, flag) in selected.iter_mut().enumerate() {
+            if selected_count >= target {
+                break;
+            }
+            if !*flag {
+                *flag = true;
+                selected_count += 1;
+            }
+            let _ = idx;
+        }
+    }
+
+    selected
+        .into_iter()
+        .enumerate()
+        .filter_map(|(idx, keep)| if keep { Some(idx) } else { None })
+        .collect()
+}
+
+/// Generates a plain-language 2-sentence interpretation for a construct score tier.
+pub fn construct_narrative(name: &str, tier: ScoreTier, description: &str) -> String {
+    let stance = match tier {
+        ScoreTier::VeryLow => "strongly below the theoretical midpoint",
+        ScoreTier::Low => "moderately below the theoretical midpoint",
+        ScoreTier::Average => "near the balanced midpoint",
+        ScoreTier::High => "moderately above the theoretical midpoint",
+        ScoreTier::VeryHigh => "strongly above the theoretical midpoint",
+    };
+    let guidance = match tier {
+        ScoreTier::VeryLow => format!(
+            "You strongly lean toward the opposite pole of {}.",
+            name.to_lowercase()
+        ),
+        ScoreTier::Low => format!(
+            "You tend to express relatively restrained or opposite tendencies around {}.",
+            name.to_lowercase()
+        ),
+        ScoreTier::Average => format!(
+            "You generally show situational flexibility rather than a strong extreme on {}.",
+            name.to_lowercase()
+        ),
+        ScoreTier::High => format!(
+            "This dimension tends to be a noticeable part of your everyday style ({}).",
+            description.trim_end_matches('.')
+        ),
+        ScoreTier::VeryHigh => format!(
+            "This dimension is a prominent, consistent theme in your self-ratings ({}).",
+            description.trim_end_matches('.')
+        ),
+    };
+    format!(
+        "Your {} score is {} ({} tier; Construct focus: {}). {}",
+        name,
+        stance,
+        tier.label(),
+        description.trim_end_matches('.'),
+        guidance
+    )
+}
+
+/// Abramowitz & Stegun 7.1.26 erf approximation for Gaussian CDF percentiles.
+fn erf_approx(x: f64) -> f64 {
+    let sign = if x < 0.0 { -1.0 } else { 1.0 };
+    let ax = x.abs();
+    let t = 1.0 / (1.0 + 0.3275911 * ax);
+    let y = 1.0
+        - (((((1.061405429 * t - 1.453152027) * t) + 1.421413741) * t - 0.284496736) * t
+            + 0.254829592)
+            * t
+            * (-ax * ax).exp();
+    sign * y
+}
+
 #[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize)]
 pub struct ScoreWeight<T: Aspect> {
     pub category: T,
@@ -632,6 +864,28 @@ impl ScoreAccumulator {
     pub fn tier(&self) -> Option<ScoreTier> {
         self.normalized_score().map(ScoreTier::from_score)
     }
+
+    /// Computes standardized z-score relative to [`NormParameters`] (`None` if uncomputed or `sd <= 0`).
+    pub fn z_score(&self, norms: NormParameters) -> Option<f32> {
+        if !norms.sd.is_finite() || norms.sd <= f32::EPSILON || !norms.mean.is_finite() {
+            return None;
+        }
+        self.normalized_score().map(|s| (s - norms.mean) / norms.sd)
+    }
+
+    /// Computes estimated percentile in `[0.0, 100.0]` under a Gaussian norming assumption.
+    pub fn percentile_estimate(&self, norms: NormParameters) -> Option<f32> {
+        self.z_score(norms).map(|z| {
+            let cdf = 0.5 * (1.0 + erf_approx(f64::from(z) / std::f64::consts::SQRT_2));
+            (cdf * 100.0).clamp(0.0, 100.0) as f32
+        })
+    }
+
+    /// Generates a plain-language interpretation string for the given construct.
+    pub fn narrative(&self, aspect: &impl Aspect) -> Option<String> {
+        self.tier()
+            .map(|tier| construct_narrative(aspect.display_name(), tier, aspect.description()))
+    }
 }
 
 /// Action entry in the undo/redo history stack.
@@ -682,6 +936,9 @@ pub struct QuestionnaireState {
     /// Redo history stack storing undone actions.
     #[serde(default)]
     pub redo_stack: Vec<HistoryAction>,
+    /// Active administration protocol (`Full221` vs. `Rapid112`).
+    #[serde(default)]
+    pub admin_mode: AdministrationMode,
 }
 
 impl Default for QuestionnaireState {
@@ -706,12 +963,108 @@ impl QuestionnaireState {
             meta_trait_acc: HashMap::new(),
             undo_stack: Vec::new(),
             redo_stack: Vec::new(),
+            admin_mode: AdministrationMode::Full221,
         };
         state.rebuild_cache();
         state
     }
 
-    /// Fully rebuilds accumulators from question list.
+    /// Returns the ordered list of active question indices for the current [`AdministrationMode`].
+    pub fn active_question_indices(&self) -> Vec<usize> {
+        match self.admin_mode {
+            AdministrationMode::Full221 => (0..self.questions.len()).collect(),
+            AdministrationMode::Rapid112 => rapid_112_indices(&self.questions),
+        }
+    }
+
+    /// Returns a boolean mask indexed by `self.questions` marking active protocol items.
+    pub fn active_question_mask(&self) -> Vec<bool> {
+        let mut mask = vec![false; self.questions.len()];
+        for idx in self.active_question_indices() {
+            if idx < mask.len() {
+                mask[idx] = true;
+            }
+        }
+        mask
+    }
+
+    /// Switches between [`AdministrationMode::Full221`] and [`AdministrationMode::Rapid112`]
+    /// while preserving every previously recorded response.
+    pub fn set_administration_mode(&mut self, mode: AdministrationMode) {
+        if self.admin_mode == mode {
+            return;
+        }
+        self.admin_mode = mode;
+        self.rebuild_cache();
+        if let Some(&first_pending) = self.pending_queue.front() {
+            let mask = self.active_question_mask();
+            let focus_invalid = self
+                .questions
+                .get(self.current_focus_idx)
+                .is_none_or(|q| {
+                    !mask.get(self.current_focus_idx).copied().unwrap_or(false)
+                        || q.response.is_some()
+                });
+            if focus_invalid {
+                self.current_focus_idx = first_pending;
+            }
+        }
+    }
+
+    /// Captures compact construct score vectors for longitudinal snapshots.
+    pub fn snapshot_construct_scores(
+        &self,
+    ) -> (
+        Vec<crate::SnapshotConstructScore>,
+        Vec<crate::SnapshotConstructScore>,
+        Vec<crate::SnapshotConstructScore>,
+    ) {
+        let meta = MetaTrait::ALL
+            .iter()
+            .enumerate()
+            .map(|(i, &m)| {
+                let acc = self.meta_trait_acc.get(&m).copied().unwrap_or_default();
+                crate::SnapshotConstructScore {
+                    id: (i + 1) as u8,
+                    name: m.display_name().to_string(),
+                    normalized_score: acc.normalized_score(),
+                    standard_error: acc.standard_error(),
+                    tier_label: acc.tier().map(|t| t.label().to_string()),
+                }
+            })
+            .collect();
+        let traits = Trait::ALL
+            .iter()
+            .enumerate()
+            .map(|(i, &t)| {
+                let acc = self.trait_acc.get(&t).copied().unwrap_or_default();
+                crate::SnapshotConstructScore {
+                    id: (i + 1) as u8,
+                    name: t.display_name().to_string(),
+                    normalized_score: acc.normalized_score(),
+                    standard_error: acc.standard_error(),
+                    tier_label: acc.tier().map(|tier| tier.label().to_string()),
+                }
+            })
+            .collect();
+        let facets = Facet::ALL
+            .iter()
+            .enumerate()
+            .map(|(i, &f)| {
+                let acc = self.facet_acc.get(&f).copied().unwrap_or_default();
+                crate::SnapshotConstructScore {
+                    id: (i + 1) as u8,
+                    name: f.display_name().to_string(),
+                    normalized_score: acc.normalized_score(),
+                    standard_error: acc.standard_error(),
+                    tier_label: acc.tier().map(|tier| tier.label().to_string()),
+                }
+            })
+            .collect();
+        (meta, traits, facets)
+    }
+
+    /// Fully rebuilds accumulators and the protocol-filtered pending queue from the question list.
     pub fn rebuild_cache(&mut self) {
         self.facet_acc.clear();
         self.trait_acc.clear();
@@ -749,19 +1102,19 @@ impl QuestionnaireState {
             }
         }
 
-        // 3. Rebuild pending queue from unanswered questions
-        let unanswered: Vec<usize> = self
-            .questions
-            .iter()
-            .enumerate()
-            .filter(|(_, q)| q.response.is_none())
-            .map(|(i, _)| i)
+        // 3. Rebuild pending queue from unanswered active-protocol questions
+        let mask = self.active_question_mask();
+        let active_indices = self.active_question_indices();
+        let unanswered: Vec<usize> = active_indices
+            .into_iter()
+            .filter(|&i| self.questions.get(i).is_some_and(|q| q.response.is_none()))
             .collect();
 
-        // Keep current queue order where possible, retaining only unanswered
+        // Keep current queue order where possible, retaining only active unanswered indices
         let mut new_queue = VecDeque::new();
         for &idx in &self.pending_queue {
             if idx < self.questions.len()
+                && mask.get(idx).copied().unwrap_or(false)
                 && self.questions[idx].response.is_none()
                 && !new_queue.contains(&idx)
             {
@@ -775,13 +1128,14 @@ impl QuestionnaireState {
         }
         self.pending_queue = new_queue;
 
-        // If all questions are answered, auto-enable show_results
+        // If all active protocol questions are answered, auto-enable show_results
         if self.pending_queue.is_empty() && !self.questions.is_empty() {
             self.show_results = true;
         }
 
         if let Some(&first_pending) = self.pending_queue.front()
             && (self.questions.get(self.current_focus_idx).is_none()
+                || !mask.get(self.current_focus_idx).copied().unwrap_or(false)
                 || self.questions[self.current_focus_idx].response.is_some())
         {
             self.current_focus_idx = first_pending;
@@ -1332,28 +1686,50 @@ impl QuestionnaireState {
             .count()
     }
 
-    /// Count of questions that remain unanswered.
+    /// Count of questions that remain unanswered in the active protocol.
     pub fn unanswered_count(&self) -> usize {
-        self.total_questions().saturating_sub(self.answered_count())
+        self.active_total_count()
+            .saturating_sub(self.active_answered_count())
     }
 
-    /// Total questions count.
+    /// Total questions count across the underlying 221-item bank.
     pub fn total_questions(&self) -> usize {
         self.questions.len()
     }
 
-    /// Completion rate in [0.0, 1.0].
-    pub fn completion_rate(&self) -> f32 {
-        if self.questions.is_empty() {
-            0.0
-        } else {
-            self.answered_count() as f32 / self.questions.len() as f32
+    /// Total items belonging to the currently active [`AdministrationMode`] (`221` or `112`).
+    pub fn active_total_count(&self) -> usize {
+        match self.admin_mode {
+            AdministrationMode::Full221 => self.questions.len(),
+            AdministrationMode::Rapid112 => rapid_112_indices(&self.questions).len(),
         }
     }
 
-    /// Checks if all questions have been answered.
+    /// Count of answered items belonging to the currently active [`AdministrationMode`].
+    pub fn active_answered_count(&self) -> usize {
+        match self.admin_mode {
+            AdministrationMode::Full221 => self.answered_count(),
+            AdministrationMode::Rapid112 => rapid_112_indices(&self.questions)
+                .into_iter()
+                .filter(|&i| self.questions.get(i).is_some_and(|q| q.response.is_some()))
+                .count(),
+        }
+    }
+
+    /// Completion rate in [0.0, 1.0] for the active protocol.
+    pub fn completion_rate(&self) -> f32 {
+        let denom = self.active_total_count();
+        if denom == 0 {
+            0.0
+        } else {
+            self.active_answered_count() as f32 / denom as f32
+        }
+    }
+
+    /// Checks if all items of the active protocol have been answered.
     pub fn is_completed(&self) -> bool {
-        !self.questions.is_empty() && self.answered_count() == self.questions.len()
+        let denom = self.active_total_count();
+        denom > 0 && self.active_answered_count() == denom
     }
 }
 

@@ -162,6 +162,47 @@ impl PersonalityApp {
                         }
 
                         if ui
+                            .button("⌘  Command Palette (Ctrl+K)")
+                            .on_hover_text("Open quick action palette for keyboard navigation, protocol toggles, and exports")
+                            .clicked()
+                        {
+                            self.command_palette.open();
+                            ui.close();
+                        }
+
+                        let mode_label = format!(
+                            "⚡  Mode: {}",
+                            self.state.questionnaire.admin_mode.short_label()
+                        );
+                        if ui
+                            .button(mode_label)
+                            .on_hover_text("Switch between Full (221-item) and Rapid (112-item facet-balanced) protocols without losing answers")
+                            .clicked()
+                        {
+                            self.toggle_administration_mode();
+                            ui.close();
+                        }
+
+                        let dyslexia_label = format!(
+                            "🔤  Dyslexia-Friendly: {}",
+                            if self.state.config.dyslexia_friendly {
+                                "ON"
+                            } else {
+                                "OFF"
+                            }
+                        );
+                        if ui
+                            .button(dyslexia_label)
+                            .on_hover_text("Toggle larger readable typography and generous touch/reading spacing")
+                            .clicked()
+                        {
+                            self.state.config.dyslexia_friendly =
+                                !self.state.config.dyslexia_friendly;
+                            self.persist_state();
+                            ui.close();
+                        }
+
+                        if ui
                             .button("❓  Help & Shortcuts")
                             .on_hover_text("View instructions, psychometric background, keyboard shortcuts, and data privacy")
                             .clicked()

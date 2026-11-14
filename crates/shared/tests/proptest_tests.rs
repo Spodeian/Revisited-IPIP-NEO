@@ -86,4 +86,50 @@ proptest! {
             prop_assert_eq!(state.questions[i].response, initial_state.questions[i].response);
         }
     }
+
+    #[test]
+    fn test_queue_machine_every_item_asked_once_and_skip_defer(
+        use_rapid in any::<bool>(),
+        skip_pattern in prop::collection::vec(0usize..4, 1..250),
+    ) {
+        use std::collections::HashSet;
+
+        let mut state = QuestionnaireState::from_embedded_data();
+        if use_rapid {
+            state.set_administration_mode(shared::AdministrationMode::Rapid112);
+        }
+        let expected_active: HashSet<usize> = state.active_question_indices().into_iter().collect();
+        let expected_len = if use_rapid { 112 } else { 221 };
+        prop_assert_eq!(expected_active.len(), expected_len);
+
+        let mut answered_indices = Vec::new();
+        let mut step = 0usize;
+        let max_steps = expected_len * 4;
+        while !state.is_completed() && step < max_steps {
+            let skips = skip_pattern[step % skip_pattern.len()];
+            for _ in 0..skips {
+                state.skip_current();
+            }
+            let focus = state.current_focus_idx;
+            prop_assert!(
+                expected_active.contains(&focus),
+                "Focused item {} is outside active protocol",
+                focus
+            );
+            if state.questions[focus].response.is_none() {
+                state.answer_question(focus, Response::Agree);
+                answered_indices.push(focus);
+            }
+            step += 1;
+        }
+
+        prop_assert!(
+            state.is_completed(),
+            "Queue machine did not finish within {} steps",
+            max_steps
+        );
+        prop_assert!(state.pending_queue.is_empty());
+        let answered_set: HashSet<usize> = answered_indices.into_iter().collect();
+        prop_assert_eq!(answered_set, expected_active);
+    }
 }

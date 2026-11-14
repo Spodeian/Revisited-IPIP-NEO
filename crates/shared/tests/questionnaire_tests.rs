@@ -299,3 +299,139 @@ fn test_compact_history_exponential_recency() {
     // Perform an undo step
     assert!(state.undo());
 }
+
+#[test]
+fn test_norm_set_z_score_and_percentile_estimates() {
+    use shared::{Aspect, MetaTrait, NormParameters, NormSet, ScoreAccumulator};
+
+    let norms = NormSet::theoretical_tga();
+    let mut neutral_acc = ScoreAccumulator::default();
+    neutral_acc.record_response(0.0, 1.0);
+
+    let meta_norm = norms.for_meta_trait(MetaTrait::Stability);
+    let z_zero = neutral_acc.z_score(meta_norm).unwrap();
+    let pct_zero = neutral_acc.percentile_estimate(meta_norm).unwrap();
+    assert!(z_zero.abs() < 1e-5);
+    assert!((pct_zero - 50.0).abs() < 0.25);
+
+    let mut high_acc = ScoreAccumulator::default();
+    high_acc.record_response(0.8, 1.0);
+    let z_high = high_acc.z_score(meta_norm).unwrap();
+    let pct_high = high_acc.percentile_estimate(meta_norm).unwrap();
+    assert!(z_high > 1.5);
+    assert!(pct_high > 90.0 && pct_high <= 100.0);
+
+    let invalid_norm = NormParameters::new(0.0, 0.0);
+    assert!(high_acc.z_score(invalid_norm).is_none());
+    assert!(high_acc.percentile_estimate(invalid_norm).is_none());
+
+    let narrative = high_acc
+        .narrative(&MetaTrait::Stability)
+        .expect("Narrative should exist once answered");
+    assert!(narrative.contains(MetaTrait::Stability.display_name()));
+    assert!(narrative.contains("Very High"));
+}
+
+#[test]
+fn test_rapid_112_mode_preserves_answers_and_covers_all_28_facets() {
+    use shared::{AdministrationMode, Facet, QuestionnaireState, Response, rapid_112_indices};
+    use std::collections::HashSet;
+
+    let mut state = QuestionnaireState::from_embedded_data();
+    assert_eq!(state.admin_mode, AdministrationMode::Full221);
+    assert_eq!(state.active_total_count(), 221);
+
+    let rapid_idx = rapid_112_indices(&state.questions);
+    assert_eq!(rapid_idx.len(), 112);
+
+    let covered_facets: HashSet<Facet> = rapid_idx
+        .iter()
+        .map(|&idx| state.questions[idx].facet.category)
+        .collect();
+    assert_eq!(
+        covered_facets.len(),
+        Facet::ALL.len(),
+        "Rapid 112 protocol must cover all 28 facets"
+    );
+
+    // Record answers under Full221 first
+    for i in 0..8 {
+        state.answer_question(i, Response::Agree);
+    }
+
+    state.set_administration_mode(AdministrationMode::Rapid112);
+    assert_eq!(state.active_total_count(), 112);
+    assert_eq!(state.total_questions(), 221);
+
+    // Every previously recorded answer must remain intact
+    for i in 0..8 {
+        assert_eq!(state.questions[i].response, Some(Response::Agree));
+    }
+
+    // Complete remaining active Rapid112 items
+    for idx in rapid_idx {
+        if state.questions[idx].response.is_none() {
+            state.answer_question(idx, Response::Neutral);
+        }
+    }
+    assert!(state.is_completed());
+    assert_eq!(state.unanswered_count(), 0);
+    assert!((state.completion_rate() - 1.0).abs() < 1e-5);
+    assert!(state.show_results);
+
+    // Switching back to Full221 exposes remaining unanswered items while preserving all 112+ answers
+    state.set_administration_mode(AdministrationMode::Full221);
+    assert_eq!(state.active_total_count(), 221);
+    assert!(!state.is_completed());
+    assert!(state.unanswered_count() > 0);
+}
+
+#[test]
+fn test_report_schema_v2_and_shareable_summary_omits_raw_items() {
+    use shared::{
+        FullAssessmentReport, QuestionnaireState, REPORT_SCHEMA_VERSION, Response,
+        ShareableSummaryReport, export_shareable_summary_json,
+    };
+
+    assert_eq!(REPORT_SCHEMA_VERSION, 2);
+
+    let mut state = QuestionnaireState::from_embedded_data();
+    state.answer_question(0, Response::StronglyAgree);
+    state.answer_question(1, Response::Disagree);
+
+    let full = FullAssessmentReport::from_state(&state);
+    assert_eq!(full.schema_version, 2);
+
+    let summary_json = export_shareable_summary_json(&state);
+    assert!(
+        !summary_json.contains("\"item_responses\""),
+        "Shareable summary must strip raw item_responses"
+    );
+    let parsed: ShareableSummaryReport =
+        serde_json::from_str(&summary_json).expect("Summary JSON should parse cleanly");
+    assert_eq!(parsed.schema_version, 2);
+    assert_eq!(parsed.meta_traits.len(), 3);
+    assert_eq!(parsed.traits.len(), 6);
+    assert_eq!(parsed.facets.len(), 28);
+    assert!(parsed.meta_traits.iter().any(|m| m.narrative.is_some()));
+}
+
+#[test]
+fn test_app_state_longitudinal_profile_snapshots_bounded() {
+    use shared::{AppState, MAX_PROFILE_HISTORY, Response};
+
+    let mut app_state = AppState::default();
+    app_state.questionnaire.answer_question(0, Response::Agree);
+    app_state.questionnaire.answer_question(1, Response::StronglyAgree);
+
+    for i in 1..=(MAX_PROFILE_HISTORY + 5) {
+        let snap = app_state.record_profile_snapshot(format!("Snap {}", i), format!("t={}", i));
+        assert_eq!(snap.meta_scores.len(), 3);
+        assert_eq!(snap.trait_scores.len(), 6);
+        assert_eq!(snap.facet_scores.len(), 28);
+    }
+
+    assert_eq!(app_state.profile_history.len(), MAX_PROFILE_HISTORY);
+    assert_eq!(app_state.profile_history.first().unwrap().label, "Snap 6");
+    assert_eq!(app_state.profile_history.last().unwrap().label, "Snap 55");
+}

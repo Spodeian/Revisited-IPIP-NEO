@@ -10,18 +10,19 @@
 
 ---
 
-## Phase 2: Performance & Benchmarking [CURRENT]
-- [x] Zero-warning Clippy enforcement.
-- [ ] Criterion benchmark suite for TGA graph resolution and norming calculations (`benches/`).
-- [x] Compressed binary profile export (compressed BSON via deflate / `miniz_oxide`).
-- [ ] Samo et al. (2026) OSF reference fixture verification & shared `spodeian-persist` integration.
+## Phase 2: Performance & Benchmarking [COMPLETE]
+- [x] Zero-warning Clippy enforcement (`-D warnings`).
+- [x] Criterion benchmark suite for TGA graph resolution, norming, exports, and URL codecs (`crates/shared/benches/scoring_benchmarks.rs`).
+- [x] Compressed binary profile export (`spodeian-export` deflate BSON & schema-v2 JSON versioning).
+- [x] Shared ecosystem integration (`spodeian-persist`, `spodeian-export`, `spodeian-ui` command palette) & TGA `NormSet` priors.
 
 ---
 
-## Phase 3: Reporting & Visualizations [CURRENT]
-- [x] Spider / radar trait visualization in egui.
-- [x] Printable HTML and vector SVG summary card exports.
-- [ ] Longitudinal tracking of repeated assessments over time.
+## Phase 3: Reporting, Accessibility & Longitudinal Tracking [COMPLETE]
+- [x] Hierarchical trait/facet dashboard & CI score gauges in `egui`.
+- [x] Printable HTML, vector SVG, and privacy-preserving `ShareableSummaryReport` JSON (raw item answers stripped).
+- [x] Longitudinal profile snapshots & two-session delta comparison (`AppState::profile_history`).
+- [x] Plain-language construct narratives, Full (221) vs. Rapid (112) facet-balanced protocol, and Dyslexia-Friendly Reading Mode.
 
 ---
 

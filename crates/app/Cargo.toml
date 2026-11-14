@@ -12,18 +12,18 @@ crate-type = ["cdylib", "rlib"]
 [dependencies]
 serde = { workspace = true, features = ["derive"] }
 serde_json = { workspace = true }
-bson = { workspace = true }
 base64 = { workspace = true }
 ron = { workspace = true }
 eframe = { workspace = true, features = ["default_fonts"] }
 egui = { workspace = true, features = ["default_fonts"] }
 tracing = { workspace = true }
 tracing-subscriber = { workspace = true, features = ["env-filter", "ansi", "tracing-log"] }
-miniz_oxide = { workspace = true }
 thiserror = { workspace = true }
 rfd = { workspace = true }
 shared = { workspace = true }
 spodeian-cache = { workspace = true }
+spodeian-persist = { workspace = true }
+spodeian-telemetry = { workspace = true }
 spodeian-tokens = { workspace = true }
 spodeian-ui = { workspace = true }
 spodeian-web-utils = { workspace = true }

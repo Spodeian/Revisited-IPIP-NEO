@@ -3,13 +3,26 @@
 //! as well as importing previously saved CSV/JSON progress to resume testing.
 
 use crate::questionnaire::{
-    Aspect, Facet, MetaTrait, QuestionnaireState, Response, Trait, parse_csv_line,
+    AdministrationMode, Aspect, Facet, MetaTrait, NormParameters, NormSet, QuestionnaireState,
+    Response, ScoreAccumulator, Trait, parse_csv_line,
 };
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 
+/// Current export schema version for `FullAssessmentReport` and `ShareableSummaryReport`.
+pub const REPORT_SCHEMA_VERSION: u32 = 2;
+
+const fn default_schema_version() -> u32 {
+    1
+}
+
+/// Shared non-clinical limitations disclaimer embedded in shareable and printable reports.
+pub const NON_CLINICAL_LIMITATIONS_NOTICE: &str = "Educational and self-reflection tool based on the Revisited IPIP-NEO (TGA) taxonomy (DOI: 10.1177/08902070251352590). Normalized [-1.0, 1.0] scores, scale SEs, and theoretical Gaussian percentile estimates are uncalibrated research indicators, not clinical diagnoses, medical assessments, or employment selection instruments.";
+
 #[derive(Serialize, Deserialize)]
 pub struct FullAssessmentReport {
+    #[serde(default = "default_schema_version")]
+    pub schema_version: u32,
     pub total_questions: usize,
     pub answered_questions: usize,
     pub completion_percentage: f32,
@@ -123,6 +136,7 @@ impl FullAssessmentReport {
             .collect();
 
         Self {
+            schema_version: REPORT_SCHEMA_VERSION,
             total_questions: state.total_questions(),
             answered_questions: state.answered_count(),
             completion_percentage: state.completion_rate() * 100.0,
@@ -135,9 +149,106 @@ impl FullAssessmentReport {
     }
 }
 
+/// Shareable construct summary without any item-level raw response leakage.
+#[derive(Serialize, Deserialize, Clone, Debug, PartialEq)]
+pub struct ShareableConstructSummary {
+    pub level: String,
+    pub name: String,
+    pub tier: Option<String>,
+    pub normalized_score: Option<f32>,
+    pub standard_error: Option<f32>,
+    pub percentile_estimate: Option<f32>,
+    pub narrative: Option<String>,
+    pub answered_items: usize,
+    pub total_items: usize,
+}
+
+/// Shareable assessment summary containing construct scores, SEs, and plain-language
+/// narratives while omitting raw `item_responses`.
+#[derive(Serialize, Deserialize, Clone, Debug, PartialEq)]
+pub struct ShareableSummaryReport {
+    #[serde(default = "default_schema_version")]
+    pub schema_version: u32,
+    pub admin_mode: AdministrationMode,
+    pub total_questions: usize,
+    pub active_total_questions: usize,
+    pub answered_questions: usize,
+    pub completion_percentage: f32,
+    pub is_completed: bool,
+    pub norm_set_name: String,
+    pub meta_traits: Vec<ShareableConstructSummary>,
+    pub traits: Vec<ShareableConstructSummary>,
+    pub facets: Vec<ShareableConstructSummary>,
+    pub limitations_notice: String,
+}
+
+fn build_construct_summaries<A: Aspect>(
+    items: &[A],
+    accumulators: &HashMap<A, ScoreAccumulator>,
+    level: &str,
+    norms_fn: impl Fn(A) -> NormParameters,
+) -> Vec<ShareableConstructSummary> {
+    items
+        .iter()
+        .map(|&aspect| {
+            let acc = accumulators.get(&aspect).copied().unwrap_or_default();
+            let norms = norms_fn(aspect);
+            ShareableConstructSummary {
+                level: level.to_string(),
+                name: aspect.display_name().to_string(),
+                tier: acc.tier().map(|t| t.label().to_string()),
+                normalized_score: acc.normalized_score(),
+                standard_error: acc.standard_error(),
+                percentile_estimate: acc.percentile_estimate(norms),
+                narrative: acc.narrative(&aspect),
+                answered_items: acc.answered_count,
+                total_items: acc.total_items,
+            }
+        })
+        .collect()
+}
+
+impl ShareableSummaryReport {
+    /// Builds a privacy-preserving summary report (no raw item answers) from questionnaire state.
+    pub fn from_state(state: &QuestionnaireState) -> Self {
+        let norms = NormSet::theoretical_tga();
+        Self {
+            schema_version: REPORT_SCHEMA_VERSION,
+            admin_mode: state.admin_mode,
+            total_questions: state.total_questions(),
+            active_total_questions: state.active_total_count(),
+            answered_questions: state.answered_count(),
+            completion_percentage: state.completion_rate() * 100.0,
+            is_completed: state.is_completed(),
+            norm_set_name: norms.name.clone(),
+            meta_traits: build_construct_summaries(
+                &MetaTrait::ALL,
+                &state.meta_trait_acc,
+                "Meta-Trait",
+                |m| norms.for_meta_trait(m),
+            ),
+            traits: build_construct_summaries(&Trait::ALL, &state.trait_acc, "Trait", |t| {
+                norms.for_trait(t)
+            }),
+            facets: build_construct_summaries(&Facet::ALL, &state.facet_acc, "Facet", |f| {
+                norms.for_facet(f)
+            }),
+            limitations_notice: NON_CLINICAL_LIMITATIONS_NOTICE.to_string(),
+        }
+    }
+}
+
+/// Exports the full assessment report as pretty-printed JSON via `spodeian_export`.
 pub fn export_to_json(state: &QuestionnaireState) -> String {
     let report = FullAssessmentReport::from_state(state);
-    serde_json::to_string_pretty(&report).unwrap_or_else(|_| "{}".to_string())
+    spodeian_export::export_to_json(&report).unwrap_or_else(|_| "{}".to_string())
+}
+
+/// Exports a privacy-preserving summary JSON containing construct scores, SEs,
+/// and plain-language narratives with all raw item responses stripped.
+pub fn export_shareable_summary_json(state: &QuestionnaireState) -> String {
+    let summary = ShareableSummaryReport::from_state(state);
+    spodeian_export::export_to_json(&summary).unwrap_or_else(|_| "{}".to_string())
 }
 
 pub fn export_to_csv(state: &QuestionnaireState) -> String {
@@ -408,6 +519,11 @@ pub fn export_to_printable_html(state: &QuestionnaireState) -> String {
             .standard_error()
             .map_or("N/A".to_string(), |s| format!("{:.3}", s));
 
+        let meta_narrative_html = meta_acc
+            .narrative(&meta)
+            .map(|n| format!(r#"<p class="narrative-note">{}</p>"#, escape_html(&n)))
+            .unwrap_or_default();
+
         hierarchy_html.push_str(&format!(
             r#"<div class="meta-card">
     <div class="meta-header">
@@ -423,6 +539,7 @@ pub fn export_to_printable_html(state: &QuestionnaireState) -> String {
             <span class="metric"><strong>Items:</strong> {}/{}</span>
         </div>
     </div>
+    {}
     <div class="traits-container">"#,
             escape_html(meta.display_name()),
             escape_html(meta_tier),
@@ -430,7 +547,8 @@ pub fn export_to_printable_html(state: &QuestionnaireState) -> String {
             meta_se,
             meta_acc.raw_score,
             meta_acc.answered_count,
-            meta_acc.total_items
+            meta_acc.total_items,
+            meta_narrative_html
         ));
 
         for trait_item in meta.child_traits() {
@@ -446,6 +564,10 @@ pub fn export_to_printable_html(state: &QuestionnaireState) -> String {
             let trait_se = trait_acc
                 .standard_error()
                 .map_or("N/A".to_string(), |s| format!("{:.3}", s));
+            let trait_narrative_html = trait_acc
+                .narrative(&trait_item)
+                .map(|n| format!(r#"<p class="narrative-note">{}</p>"#, escape_html(&n)))
+                .unwrap_or_default();
 
             hierarchy_html.push_str(&format!(
                 r#"<div class="trait-card">
@@ -462,6 +584,7 @@ pub fn export_to_printable_html(state: &QuestionnaireState) -> String {
                 <span class="metric"><strong>Items:</strong> {}/{}</span>
             </div>
         </div>
+        {}
         <table class="facet-table">
             <thead>
                 <tr>
@@ -480,7 +603,8 @@ pub fn export_to_printable_html(state: &QuestionnaireState) -> String {
                 trait_se,
                 trait_acc.raw_score,
                 trait_acc.answered_count,
-                trait_acc.total_items
+                trait_acc.total_items,
+                trait_narrative_html
             ));
 
             for facet in trait_item.child_facets() {
@@ -627,11 +751,32 @@ pub fn export_to_printable_html(state: &QuestionnaireState) -> String {
         color: #1e40af;
         font-size: 11px;
     }}
+    .narrative-note {{
+        font-size: 12px;
+        color: #475569;
+        margin: 4px 0 10px 0;
+        line-height: 1.45;
+    }}
+    .limitations-box {{
+        margin-top: 22px;
+        padding: 12px 14px;
+        border: 1px solid #cbd5e1;
+        border-radius: 6px;
+        background: #f8fafc;
+        font-size: 11.5px;
+        color: #475569;
+    }}
+    .limitations-box h3 {{
+        margin: 0 0 6px 0;
+        font-size: 13px;
+        color: #0f172a;
+    }}
 
     @media print {{
         body {{ padding: 0; }}
         .meta-card {{ border: 1px solid #94a3b8; page-break-inside: avoid; }}
         .trait-card {{ border: 1px solid #cbd5e1; page-break-inside: avoid; }}
+        .limitations-box {{ page-break-inside: avoid; }}
     }}
 </style>
 </head>
@@ -646,12 +791,20 @@ pub fn export_to_printable_html(state: &QuestionnaireState) -> String {
 <h2>Hierarchical Psychometric Breakdown</h2>
 {}
 
+<div class="limitations-box">
+    <h3>Methods, Norming &amp; Non-Clinical Limitations</h3>
+    <p><strong>Scoring Model:</strong> Responses [-1.0, 1.0] are combined via signed cross-construct item weights into normalized construct estimates and scale-level Standard Errors SE = (sqrt(sum(w^2)) / sum(|w|)) * 0.5.</p>
+    <p><strong>Norming &amp; Percentiles:</strong> Relative z-scores and percentile estimates use a synthetic theoretical zero-centered Gaussian prior (mean = 0.0, SD = 0.40) unless replaced with empirical population sample norms.</p>
+    <p><strong>Disclaimer:</strong> {}</p>
+</div>
+
 </body>
 </html>"#,
         report.answered_questions,
         report.total_questions,
         report.completion_percentage,
-        hierarchy_html
+        hierarchy_html,
+        escape_html(NON_CLINICAL_LIMITATIONS_NOTICE)
     )
 }
 
@@ -867,23 +1020,18 @@ fn base64_url_decode(input: &str) -> Result<Vec<u8>, &'static str> {
 }
 
 /// Imports and applies answers from a previously exported JSON results string.
-/// Returns the number of successfully applied answers.
-pub fn import_responses_from_json(
+fn apply_imported_item_responses(
     state: &mut QuestionnaireState,
-    json_str: &str,
+    item_responses: &[ItemResponseReport],
+    undo_label: &str,
+    empty_err: &'static str,
 ) -> Result<usize, &'static str> {
-    let report: FullAssessmentReport = serde_json::from_str(json_str).map_err(
-        |_| "Invalid JSON format. Please ensure this is a valid Revisited IPIP-NEO results file.",
-    )?;
-
     let old_responses = state.current_responses_snapshot();
     let old_show_results = state.show_results;
     let old_focus_idx = state.current_focus_idx;
 
     let mut applied_count = 0;
-
-    let response_map: HashMap<String, f32> = report
-        .item_responses
+    let response_map: HashMap<String, f32> = item_responses
         .iter()
         .filter_map(|item| item.response_score.map(|score| (item.label.clone(), score)))
         .collect();
@@ -922,12 +1070,29 @@ pub fn import_responses_from_json(
             new_show_results: state.show_results,
             old_focus_idx,
             new_focus_idx,
-            label: "JSON Import".to_string(),
+            label: undo_label.to_string(),
         });
         Ok(applied_count)
     } else {
-        Err("No matching answered questions found in the imported JSON file.")
+        Err(empty_err)
     }
+}
+
+/// Returns the number of successfully applied answers.
+pub fn import_responses_from_json(
+    state: &mut QuestionnaireState,
+    json_str: &str,
+) -> Result<usize, &'static str> {
+    let report: FullAssessmentReport = spodeian_export::import_from_json(json_str).map_err(
+        |_| "Invalid JSON format. Please ensure this is a valid Revisited IPIP-NEO results file.",
+    )?;
+
+    apply_imported_item_responses(
+        state,
+        &report.item_responses,
+        "JSON Import",
+        "No matching answered questions found in the imported JSON file.",
+    )
 }
 
 /// Imports and applies answers from a previously exported CSV results string.
@@ -1016,9 +1181,7 @@ pub fn import_responses_from_csv(
 /// Exports the full assessment report into compressed BSON binary bytes (Zlib-compressed BSON).
 pub fn export_to_compressed_bson(state: &QuestionnaireState) -> Result<Vec<u8>, String> {
     let report = FullAssessmentReport::from_state(state);
-    let bson_bytes =
-        bson::serialize_to_vec(&report).map_err(|e| format!("BSON serialization failed: {}", e))?;
-    Ok(miniz_oxide::deflate::compress_to_vec_zlib(&bson_bytes, 6))
+    spodeian_export::export_to_compressed_bson(&report).map_err(|e| e.to_string())
 }
 
 /// Imports and applies answers from a compressed (or raw) BSON slice.
@@ -1027,62 +1190,14 @@ pub fn import_responses_from_bson(
     state: &mut QuestionnaireState,
     bytes: &[u8],
 ) -> Result<usize, &'static str> {
-    let bson_bytes =
-        miniz_oxide::inflate::decompress_to_vec_zlib(bytes).unwrap_or_else(|_| bytes.to_vec());
-
-    let report: FullAssessmentReport = bson::deserialize_from_slice(&bson_bytes).map_err(
+    let report: FullAssessmentReport = spodeian_export::import_from_compressed_bson(bytes).map_err(
         |_| "Invalid BSON format. Please ensure this is a valid Revisited IPIP-NEO BSON file.",
     )?;
 
-    let old_responses = state.current_responses_snapshot();
-    let old_show_results = state.show_results;
-    let old_focus_idx = state.current_focus_idx;
-
-    let mut applied_count = 0;
-    let response_map: HashMap<String, f32> = report
-        .item_responses
-        .iter()
-        .filter_map(|item| item.response_score.map(|score| (item.label.clone(), score)))
-        .collect();
-
-    for q in state.questions.iter_mut() {
-        if let Some(&score) = response_map.get(&q.label) {
-            let resp = if (score - 1.0).abs() < 0.1 {
-                Some(Response::StronglyAgree)
-            } else if (score - 0.5).abs() < 0.1 {
-                Some(Response::Agree)
-            } else if (score - 0.0).abs() < 0.1 {
-                Some(Response::Neutral)
-            } else if (score - (-0.5)).abs() < 0.1 {
-                Some(Response::Disagree)
-            } else if (score - (-1.0)).abs() < 0.1 {
-                Some(Response::StronglyDisagree)
-            } else {
-                None
-            };
-
-            if let Some(r) = resp {
-                q.response = Some(r);
-                applied_count += 1;
-            }
-        }
-    }
-
-    if applied_count > 0 {
-        state.rebuild_cache();
-        let new_responses = state.current_responses_snapshot();
-        let new_focus_idx = state.current_focus_idx;
-        state.push_action(crate::questionnaire::HistoryAction::StateSnapshot {
-            old_responses,
-            new_responses,
-            old_show_results,
-            new_show_results: state.show_results,
-            old_focus_idx,
-            new_focus_idx,
-            label: "BSON Import".to_string(),
-        });
-        Ok(applied_count)
-    } else {
-        Err("No matching answered questions found in the imported BSON file.")
-    }
+    apply_imported_item_responses(
+        state,
+        &report.item_responses,
+        "BSON Import",
+        "No matching answered questions found in the imported BSON file.",
+    )
 }

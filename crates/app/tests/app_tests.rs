@@ -22,6 +22,8 @@ impl Storage for MockStorage {
 
 fn clean_disk_artifacts() {
     let _ = std::fs::remove_file("revisited_ipip_neo_state.json");
+    let _ = std::fs::remove_file("revisited_ipip_neo_state.json.bak");
+    let _ = std::fs::remove_file("revisited_ipip_neo_state.json.tmp");
 }
 
 #[test]
@@ -403,5 +405,65 @@ fn test_results_persistence_and_completion_restoration() {
         loaded_complete.questionnaire.show_results,
         "show_results should be auto-set to true when 100% completed"
     );
+    clean_disk_artifacts();
+}
+
+#[test]
+fn test_longitudinal_profile_history_snapshot_and_comparison() {
+    clean_disk_artifacts();
+    let mut app = PersonalityApp::default();
+
+    app.state
+        .questionnaire
+        .answer_question(0, Response::StronglyAgree);
+    app.state.questionnaire.answer_question(1, Response::Agree);
+    app.save_longitudinal_snapshot("Baseline Session", 10.0);
+
+    assert_eq!(app.state.profile_history.len(), 1);
+    assert_eq!(app.selected_comparison_idx, Some(0));
+    assert_eq!(app.state.profile_history[0].label, "Baseline Session");
+
+    // Mutate responses and record second snapshot
+    app.state
+        .questionnaire
+        .answer_question(2, Response::StronglyDisagree);
+    app.save_longitudinal_snapshot("Follow-Up Session", 25.0);
+
+    assert_eq!(app.state.profile_history.len(), 2);
+    assert_eq!(app.selected_comparison_idx, Some(1));
+    assert_ne!(
+        app.state.profile_history[0].url_code,
+        app.state.profile_history[1].url_code
+    );
+    clean_disk_artifacts();
+}
+
+#[test]
+fn test_command_palette_actions_execution() {
+    clean_disk_artifacts();
+    let mut app = PersonalityApp::default();
+
+    assert_eq!(
+        app.state.questionnaire.admin_mode,
+        shared::AdministrationMode::Full221
+    );
+    assert!(app.execute_palette_command("toggle_admin_mode", 5.0));
+    assert_eq!(
+        app.state.questionnaire.admin_mode,
+        shared::AdministrationMode::Rapid112
+    );
+
+    assert!(!app.state.config.dyslexia_friendly);
+    assert!(app.execute_palette_command("toggle_dyslexia", 6.0));
+    assert!(app.state.config.dyslexia_friendly);
+
+    assert!(!app.state.questionnaire.show_results);
+    assert!(app.execute_palette_command("toggle_results", 7.0));
+    assert!(app.state.questionnaire.show_results);
+
+    assert!(app.execute_palette_command("save_snapshot", 8.0));
+    assert_eq!(app.state.profile_history.len(), 1);
+
+    assert!(!app.execute_palette_command("nonexistent_command", 9.0));
     clean_disk_artifacts();
 }

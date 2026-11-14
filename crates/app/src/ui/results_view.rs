@@ -1,6 +1,7 @@
 use eframe::egui;
 use shared::{
-    Aspect, Facet, MetaTrait, ScoreTier, Trait, encode_responses_to_url_code,
+    Aspect, Facet, MetaTrait, NormParameters, NormSet, ScoreAccumulator, ScoreTier,
+    SnapshotConstructScore, Trait, encode_responses_to_url_code, export_shareable_summary_json,
     export_to_compressed_bson, export_to_csv, export_to_json, export_to_printable_html,
     export_to_svg,
 };
@@ -24,11 +25,15 @@ impl PersonalityApp {
             });
 
             ui.add_space(6.0);
-            let answered = self.state.questionnaire.answered_count();
-            let total = self.state.questionnaire.total_questions();
+            let answered = self.state.questionnaire.active_answered_count();
+            let total = self.state.questionnaire.active_total_count();
             let pct = self.state.questionnaire.completion_rate() * 100.0;
-            ui.label(format!("Completed: {}/{} ({:.1}%)", answered, total, pct))
-                .on_hover_text("Total items answered out of the 221-item questionnaire");
+            let mode_label = self.state.questionnaire.admin_mode.short_label();
+            ui.label(format!(
+                "Completed ({}): {}/{} ({:.1}%)",
+                mode_label, answered, total, pct
+            ))
+            .on_hover_text("Items answered in the currently active administration protocol");
 
             if self.is_viewing_shared_link {
                 ui.add_space(4.0);
@@ -78,6 +83,26 @@ impl PersonalityApp {
                     self.share_link_copied_time = Some(ui.input(|i| i.time));
                 }
 
+                if ui
+                    .button("🪪  Copy Summary JSON")
+                    .on_hover_text("Copy construct scores, tiers, and plain-language narratives without raw individual answers")
+                    .clicked()
+                {
+                    let summary_json = export_shareable_summary_json(&self.state.questionnaire);
+                    ui.ctx().copy_text(summary_json);
+                    self.summary_copied_time = Some(ui.input(|i| i.time));
+                }
+
+                if ui
+                    .button("📌  Save Snapshot")
+                    .on_hover_text("Save current profile to longitudinal history for cross-session delta comparison")
+                    .clicked()
+                {
+                    let label = format!("Snapshot #{}", self.state.profile_history.len() + 1);
+                    let current_t = ui.input(|i| i.time);
+                    self.save_longitudinal_snapshot(label, current_t);
+                }
+
                 ui.separator();
 
                 egui::ComboBox::from_id_salt("export_format_dropdown")
@@ -121,6 +146,16 @@ impl PersonalityApp {
                 && ui.input(|i| i.time) - t < 3.0
             {
                 ui.label(egui::RichText::new("✓  Share link copied to clipboard").color(egui::Color32::from_rgb(80, 180, 90)).strong());
+            }
+
+            if let Some(t) = self.summary_copied_time
+                && ui.input(|i| i.time) - t < 3.0
+            {
+                ui.label(
+                    egui::RichText::new("✓  Summary JSON copied (raw answers excluded)")
+                        .color(egui::Color32::from_rgb(80, 180, 90))
+                        .strong(),
+                );
             }
 
             ui.add_space(8.0);
@@ -198,6 +233,8 @@ impl PersonalityApp {
                     });
             });
             ui.add_space(4.0);
+            self.render_longitudinal_comparison(ui);
+            ui.add_space(4.0);
 
             // Construct Hierarchy Tree
             egui::ScrollArea::vertical().show(ui, |ui| {
@@ -207,6 +244,185 @@ impl PersonalityApp {
                 }
             });
         });
+    }
+
+    fn render_longitudinal_comparison(&mut self, ui: &mut egui::Ui) {
+        ui.collapsing("📈 Longitudinal History & Two-Profile Comparison", |ui| {
+            if self.state.profile_history.is_empty() {
+                ui.label(
+                    egui::RichText::new(
+                        "No saved snapshots yet. Save a baseline snapshot to compare your profile across sessions or protocol runs.",
+                    )
+                    .small()
+                    .weak(),
+                );
+                ui.add_space(4.0);
+                if ui.button("📌  Save Current Profile Snapshot").clicked() {
+                    let current_t = ui.input(|i| i.time);
+                    self.save_longitudinal_snapshot("Snapshot #1", current_t);
+                }
+                return;
+            }
+
+            let history_len = self.state.profile_history.len();
+            let mut selected_idx = self
+                .selected_comparison_idx
+                .unwrap_or(history_len.saturating_sub(1))
+                .min(history_len - 1);
+
+            let mut delete_requested = false;
+            ui.horizontal_wrapped(|ui| {
+                ui.label("Baseline Snapshot:");
+                let selected_label = {
+                    let snap = &self.state.profile_history[selected_idx];
+                    format!("{} ({})", snap.label, snap.timestamp_label)
+                };
+                egui::ComboBox::from_id_salt("longitudinal_baseline_selector")
+                    .selected_text(selected_label)
+                    .show_ui(ui, |ui| {
+                        for (idx, snap) in self.state.profile_history.iter().enumerate() {
+                            let entry_label = format!(
+                                "{} — {}/{} items ({})",
+                                snap.label, snap.answered_questions, snap.total_questions, snap.timestamp_label
+                            );
+                            ui.selectable_value(&mut selected_idx, idx, entry_label);
+                        }
+                    });
+                if ui
+                    .button("🗑  Delete Snapshot")
+                    .on_hover_text("Remove selected snapshot from longitudinal history")
+                    .clicked()
+                {
+                    delete_requested = true;
+                }
+            });
+
+            self.selected_comparison_idx = Some(selected_idx);
+            if delete_requested {
+                self.state.profile_history.remove(selected_idx);
+                self.selected_comparison_idx = self.state.profile_history.len().checked_sub(1);
+                self.persist_state();
+                return;
+            }
+
+            let baseline = self.state.profile_history[selected_idx].clone();
+            ui.add_space(4.0);
+
+            egui::Grid::new("longitudinal_delta_grid")
+                .striped(true)
+                .spacing([12.0, 4.0])
+                .show(ui, |ui| {
+                    ui.label(egui::RichText::new("Construct").strong());
+                    ui.label(egui::RichText::new("Baseline").strong());
+                    ui.label(egui::RichText::new("Current").strong());
+                    ui.label(egui::RichText::new("Δ (Current - Baseline)").strong());
+                    ui.end_row();
+
+                    let render_delta_row =
+                        |ui: &mut egui::Ui,
+                         display_label: &str,
+                         strong_label: bool,
+                         baseline_scores: &[SnapshotConstructScore],
+                         construct_name: &str,
+                         current_acc: ScoreAccumulator| {
+                            let base_score = baseline_scores
+                                .iter()
+                                .find(|s| s.name == construct_name)
+                                .and_then(|s| s.normalized_score);
+                            let curr_score = current_acc.normalized_score();
+
+                            if strong_label {
+                                ui.label(egui::RichText::new(display_label).strong());
+                            } else {
+                                ui.label(display_label);
+                            }
+                            ui.label(
+                                base_score
+                                    .map(|v| format!("{:+.2}", v))
+                                    .unwrap_or_else(|| "N/A".to_string()),
+                            );
+                            ui.label(
+                                curr_score
+                                    .map(|v| format!("{:+.2}", v))
+                                    .unwrap_or_else(|| "N/A".to_string()),
+                            );
+                            match (curr_score, base_score) {
+                                (Some(c), Some(b)) => {
+                                    let delta = c - b;
+                                    let color = if delta.abs() < 0.05 {
+                                        ui.visuals().text_color()
+                                    } else if delta > 0.0 {
+                                        egui::Color32::from_rgb(70, 170, 90)
+                                    } else {
+                                        egui::Color32::from_rgb(230, 140, 50)
+                                    };
+                                    ui.colored_label(color, format!("{:+.2}", delta));
+                                }
+                                _ => {
+                                    ui.label("N/A");
+                                }
+                            }
+                            ui.end_row();
+                        };
+
+                    for &meta in &MetaTrait::ALL {
+                        let acc = self
+                            .state
+                            .questionnaire
+                            .meta_trait_acc
+                            .get(&meta)
+                            .copied()
+                            .unwrap_or_default();
+                        render_delta_row(
+                            ui,
+                            &format!("Meta: {}", meta.display_name()),
+                            true,
+                            &baseline.meta_scores,
+                            meta.display_name(),
+                            acc,
+                        );
+                    }
+                    for &trait_item in &Trait::ALL {
+                        let acc = self
+                            .state
+                            .questionnaire
+                            .trait_acc
+                            .get(&trait_item)
+                            .copied()
+                            .unwrap_or_default();
+                        render_delta_row(
+                            ui,
+                            &format!("  Trait: {}", trait_item.display_name()),
+                            false,
+                            &baseline.trait_scores,
+                            trait_item.display_name(),
+                            acc,
+                        );
+                    }
+                });
+        });
+    }
+
+    fn render_tooltip_narrative_and_norm<A: Aspect>(
+        ui: &mut egui::Ui,
+        aspect: &A,
+        acc: &ScoreAccumulator,
+        norms: NormParameters,
+    ) {
+        if let Some(pct) = acc.percentile_estimate(norms) {
+            ui.add_space(2.0);
+            ui.label(
+                egui::RichText::new(format!(
+                    "Theoretical Prior Percentile: {:.0}th (synthetic Gaussian prior)",
+                    pct
+                ))
+                .small(),
+            );
+        }
+        if let Some(narrative) = acc.narrative(aspect) {
+            ui.add_space(4.0);
+            ui.label(egui::RichText::new(narrative).italics());
+        }
     }
 
     pub(crate) fn render_meta_trait_node(&self, ui: &mut egui::Ui, meta: MetaTrait) {
@@ -245,6 +461,8 @@ impl PersonalityApp {
                             .small()
                             .weak(),
                     );
+                    let norms = NormSet::theoretical_tga();
+                    Self::render_tooltip_narrative_and_norm(ui, &meta, &acc, norms.for_meta_trait(meta));
                 });
 
                 ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
@@ -302,6 +520,8 @@ impl PersonalityApp {
                             .small()
                             .weak(),
                     );
+                    let norms = NormSet::theoretical_tga();
+                    Self::render_tooltip_narrative_and_norm(ui, &trait_item, &acc, norms.for_trait(trait_item));
                 });
 
                 ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
@@ -341,6 +561,8 @@ impl PersonalityApp {
                     .small()
                     .weak(),
                 );
+                let norms = NormSet::theoretical_tga();
+                Self::render_tooltip_narrative_and_norm(ui, &facet, &acc, norms.for_facet(facet));
             });
 
             ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
