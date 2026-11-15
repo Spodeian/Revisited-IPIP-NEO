@@ -3,10 +3,11 @@ use std::sync::{Arc, Mutex};
 
 use eframe::egui;
 use shared::{
-    AppState, ThemeMode, export_to_compressed_bson, export_to_csv, export_to_json,
-    export_to_printable_html, export_to_svg, import_responses_from_bson, import_responses_from_csv,
-    import_responses_from_json,
+    AdministrationMode, AppState, ThemeMode, export_to_compressed_bson, export_to_csv,
+    export_to_json, export_to_printable_html, export_to_svg, import_responses_from_bson,
+    import_responses_from_csv, import_responses_from_json,
 };
+use spodeian_ui::{CommandEntry, CommandPaletteWidget};
 use tracing::{info, warn};
 
 use crate::storage_manager::{
@@ -15,11 +16,14 @@ use crate::storage_manager::{
 };
 use crate::types::{ExportFormat, ScreenConstraints};
 
-#[derive(Default)]
 pub struct PersonalityApp {
     pub state: AppState,
     pub saved_local_state: Option<AppState>,
     pub current_theme: Option<ThemeMode>,
+    pub current_dyslexia_mode: Option<bool>,
+    pub command_palette: CommandPaletteWidget,
+    pub selected_comparison_idx: Option<usize>,
+    pub summary_copied_time: Option<f64>,
     pub show_reset_dialog: bool,
     pub show_help_dialog: bool,
     pub show_grid_dialog: bool,
@@ -48,7 +52,103 @@ pub struct PersonalityApp {
     pub pending_dropped_file: Arc<Mutex<Option<(Vec<u8>, String)>>>,
 }
 
+impl Default for PersonalityApp {
+    fn default() -> Self {
+        Self::from_initialized_state(AppState::default(), false)
+    }
+}
+
 impl PersonalityApp {
+    /// Builds the default registered commands for the Ctrl+K / Cmd+K Command Palette.
+    pub fn default_command_palette() -> CommandPaletteWidget {
+        CommandPaletteWidget::new(vec![
+            CommandEntry::new(
+                "toggle_results",
+                "Toggle Questions / Results View",
+                "Tab",
+                "Navigation",
+            ),
+            CommandEntry::new(
+                "toggle_admin_mode",
+                "Switch Full (221) / Rapid (112) Protocol",
+                "",
+                "Assessment",
+            ),
+            CommandEntry::new(
+                "save_snapshot",
+                "Save Longitudinal Profile Snapshot",
+                "",
+                "History",
+            ),
+            CommandEntry::new(
+                "cycle_theme",
+                "Cycle Visual Theme (Dark / Light / High Contrast)",
+                "",
+                "Appearance",
+            ),
+            CommandEntry::new(
+                "toggle_dyslexia",
+                "Toggle Dyslexia-Friendly Reading Mode",
+                "",
+                "Accessibility",
+            ),
+            CommandEntry::new(
+                "open_grid",
+                "Open Question Map & Answer Grid",
+                "",
+                "Navigation",
+            ),
+            CommandEntry::new(
+                "open_export_json",
+                "Export Assessment Results (JSON)",
+                "",
+                "Data",
+            ),
+            CommandEntry::new("open_import", "Import / Restore Saved Backup", "", "Data"),
+            CommandEntry::new("open_help", "Open Help, Methods & Limitations", "?", "Help"),
+        ])
+    }
+
+    fn from_initialized_state(state: AppState, is_viewing_shared_link: bool) -> Self {
+        let selected_comparison_idx = state.profile_history.len().checked_sub(1);
+        let saved_local_state = Some(state.clone());
+        Self {
+            state,
+            saved_local_state,
+            current_theme: None,
+            current_dyslexia_mode: None,
+            command_palette: Self::default_command_palette(),
+            selected_comparison_idx,
+            summary_copied_time: None,
+            show_reset_dialog: false,
+            show_help_dialog: false,
+            show_grid_dialog: false,
+            show_import_dialog: false,
+            import_text_buffer: String::new(),
+            import_result_message: None,
+            show_export_dialog: None,
+            export_text_buffer: String::new(),
+            export_copied_notification: None,
+            share_link_copied_time: None,
+            is_viewing_shared_link,
+            selected_export_format: ExportFormat::default(),
+            hide_header: false,
+            last_scroll_time: 0.0,
+            scroll_accumulator: 0.0,
+            answer_timestamps: VecDeque::new(),
+            last_save_time: None,
+            undo_notification_time: None,
+            redo_notification_time: None,
+            storage_diag: query_storage_diagnostics(),
+            show_storage_modal: false,
+            dismissed_ephemeral_warning: false,
+            dismissed_quota_warning: false,
+            dismissed_combined_warning: false,
+            last_diag_poll_time: 0.0,
+            pending_dropped_file: Default::default(),
+        }
+    }
+
     pub fn new(cc: &eframe::CreationContext<'_>) -> Self {
         info!("Initializing Revisited IPIP-NEO Personality Assessment...");
 
@@ -103,37 +203,73 @@ impl PersonalityApp {
             }
         }
 
-        Self {
-            state,
-            saved_local_state,
-            current_theme: None,
-            show_reset_dialog: false,
-            show_help_dialog: false,
-            show_grid_dialog: false,
-            show_import_dialog: false,
-            import_text_buffer: String::new(),
-            import_result_message: None,
-            show_export_dialog: None,
-            export_text_buffer: String::new(),
-            export_copied_notification: None,
-            share_link_copied_time: None,
-            is_viewing_shared_link,
-            selected_export_format: ExportFormat::default(),
-            hide_header: false,
-            last_scroll_time: 0.0,
-            scroll_accumulator: 0.0,
-            answer_timestamps: VecDeque::new(),
-            last_save_time: None,
-            undo_notification_time: None,
-            redo_notification_time: None,
-            storage_diag: query_storage_diagnostics(),
-            show_storage_modal: false,
-            dismissed_ephemeral_warning: false,
-            dismissed_quota_warning: false,
-            dismissed_combined_warning: false,
-            last_diag_poll_time: 0.0,
-            pending_dropped_file: Default::default(),
+        let mut app = Self::from_initialized_state(state, is_viewing_shared_link);
+        app.saved_local_state = saved_local_state;
+        app
+    }
+
+    /// Toggles between Full (221) and Rapid (112) administration modes while preserving answers.
+    pub fn toggle_administration_mode(&mut self) {
+        let next = match self.state.questionnaire.admin_mode {
+            AdministrationMode::Full221 => AdministrationMode::Rapid112,
+            AdministrationMode::Rapid112 => AdministrationMode::Full221,
+        };
+        self.state.questionnaire.set_administration_mode(next);
+        self.persist_state();
+    }
+
+    /// Records the current profile into longitudinal `profile_history`, selects it for
+    /// comparison, and persists state.
+    pub fn save_longitudinal_snapshot(&mut self, label: impl Into<String>, current_time: f64) {
+        let timestamp_label = format!(
+            "Session t={:.0}s • {} items ({})",
+            current_time.max(0.0),
+            self.state.questionnaire.answered_count(),
+            self.state.questionnaire.admin_mode.short_label()
+        );
+        self.state.record_profile_snapshot(label, timestamp_label);
+        self.selected_comparison_idx = self.state.profile_history.len().checked_sub(1);
+        self.last_save_time = Some(current_time);
+        self.persist_state();
+    }
+
+    /// Executes an action invoked from the `Ctrl+K` / `Cmd+K` Command Palette.
+    pub fn execute_palette_command(&mut self, cmd_id: &str, current_time: f64) -> bool {
+        match cmd_id {
+            "toggle_results" => {
+                self.state.questionnaire.show_results = !self.state.questionnaire.show_results;
+                self.persist_state();
+            }
+            "toggle_admin_mode" => {
+                self.toggle_administration_mode();
+            }
+            "save_snapshot" => {
+                let label = format!("Snapshot #{}", self.state.profile_history.len() + 1);
+                self.save_longitudinal_snapshot(label, current_time);
+            }
+            "cycle_theme" => {
+                self.state.config.theme = self.state.config.theme.next();
+                self.persist_state();
+            }
+            "toggle_dyslexia" => {
+                self.state.config.dyslexia_friendly = !self.state.config.dyslexia_friendly;
+                self.persist_state();
+            }
+            "open_grid" => {
+                self.show_grid_dialog = true;
+            }
+            "open_export_json" => {
+                self.open_export_dialog(ExportFormat::Json);
+            }
+            "open_import" => {
+                self.show_import_dialog = true;
+            }
+            "open_help" => {
+                self.show_help_dialog = true;
+            }
+            _ => return false,
         }
+        true
     }
 
     pub fn restore_saved_instance(&mut self) {
@@ -286,7 +422,7 @@ impl eframe::App for PersonalityApp {
         }
 
         self.apply_theme(ui.ctx());
-        if self.state.config.theme.is_high_contrast() {
+        if self.state.config.theme.is_high_contrast() || self.state.config.dyslexia_friendly {
             ui.spacing_mut().interact_size = egui::vec2(44.0, 44.0);
             ui.spacing_mut().button_padding = egui::vec2(14.0, 10.0);
         } else {
@@ -441,5 +577,8 @@ impl eframe::App for PersonalityApp {
 
         self.render_dialogs(ui);
         self.render_warning_banners(ui.ctx());
+        if let Some(cmd_id) = self.command_palette.show(ui.ctx()) {
+            self.execute_palette_command(&cmd_id, current_time);
+        }
     }
 }

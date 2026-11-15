@@ -9,15 +9,17 @@ description = "Core psychometric models, scoring calculations, datasets, and ser
 [dependencies]
 serde = { workspace = true, features = ["derive"] }
 serde_json = { workspace = true }
-bson = { workspace = true, features = ["serde"] }
-miniz_oxide = { workspace = true }
-num = { workspace = true }
 spodeian-export = { workspace = true }
 spodeian-tokens = { workspace = true }
 
 [dev-dependencies]
+criterion = { workspace = true }
 proptest = { workspace = true }
+
+[[bench]]
+name = "scoring_benchmarks"
+harness = false
 
 [features]
 default = ["std"]
-std = ["serde/std", "serde_json/std", "num/std"]
+std = ["serde/std", "serde_json/std"]

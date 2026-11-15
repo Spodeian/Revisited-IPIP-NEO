@@ -9,7 +9,7 @@ members = [
 
 # Shared metadata for all workspace packages
 [workspace.package]
-version = "1.6.1"
+version = "1.6.2"
 edition = "2024"
 license = "PolyForm-Noncommercial-1.0.0"
 repository = "https://github.com/Spodeian/Revisited-IPIP-NEO"
@@ -43,12 +43,15 @@ shared = { path = "crates/shared" }
 app = { path = "crates/app" }
 winit = { version = "0.30", default-features = false }
 android-activity = { version = "0.6", default-features = false, features = ["native-activity"] }
-spodeian-cache = { git = "https://github.com/Spodeian/spodeian-core", tag = "v2.0.0", version = "^1.1.0" }
-spodeian-tokens = { git = "https://github.com/Spodeian/spodeian-core", tag = "v2.0.0", version = "^1.1.0" }
-spodeian-telemetry = { git = "https://github.com/Spodeian/spodeian-core", tag = "v2.0.0", version = "^1.1.0" }
-spodeian-export = { git = "https://github.com/Spodeian/spodeian-core", tag = "v2.0.0", version = "^2.0.0" }
-spodeian-web-utils = { git = "https://github.com/Spodeian/spodeian-core", tag = "v2.0.0", version = "^1.1.0" }
-spodeian-ui = { git = "https://github.com/Spodeian/spodeian-core", tag = "v2.0.0", version = "^1.0.0" }
+# Local v3.0.0 workspace path dependencies (switch to tag = "v3.0.0" once pushed to origin)
+spodeian-cache = { git = "https://github.com/Spodeian/spodeian-core", tag = "v3.0.0", version = "^1.1.0" }
+spodeian-tokens = { git = "https://github.com/Spodeian/spodeian-core", tag = "v3.0.0", version = "^1.1.0" }
+spodeian-telemetry = { git = "https://github.com/Spodeian/spodeian-core", tag = "v3.0.0", version = "^1.1.0" }
+spodeian-export = { git = "https://github.com/Spodeian/spodeian-core", tag = "v3.0.0", version = "^2.0.0" }
+spodeian-persist = { git = "https://github.com/Spodeian/spodeian-core", tag = "v3.0.0", version = "^0.1.0" }
+spodeian-web-utils = { git = "https://github.com/Spodeian/spodeian-core", tag = "v3.0.0", version = "^1.1.0" }
+spodeian-ui = { git = "https://github.com/Spodeian/spodeian-core", tag = "v3.0.0", version = "^1.0.0" }
+criterion = "0.5"
 
 
 [profile.release]

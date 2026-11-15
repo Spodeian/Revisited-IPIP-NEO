@@ -490,6 +490,22 @@ impl PersonalityApp {
                         ui.separator();
                         ui.add_space(8.0);
 
+                        ui.heading("Methods, Norming & Non-Clinical Limitations");
+                        ui.add_space(4.0);
+                        ui.label("• Scoring Model (TGA 3-6-28): Weighted Likert item responses [-1.0, +1.0] aggregate simultaneously into 28 Facets, 6 Traits, and 3 Meta-Traits via signed weights, normalized by sum(|w|) with scale-level SE = (sqrt(sum(w^2)) / sum(|w|)) * 0.5.");
+                        ui.label("• Administration Protocols: Full (221) administers the complete inventory; Rapid (112) administers a deterministic facet-balanced short form across all 28 facets while preserving every entered response.");
+                        ui.label("• Norming & Percentiles: Displayed z-scores and percentile estimates rely on a synthetic zero-centered Gaussian prior (mean = 0.0, SD = 0.40) unless replaced with empirical population norms.");
+                        ui.add_space(2.0);
+                        ui.label(
+                            egui::RichText::new(format!("• Limitations: {}", shared::NON_CLINICAL_LIMITATIONS_NOTICE))
+                                .italics()
+                                .small(),
+                        );
+
+                        ui.add_space(10.0);
+                        ui.separator();
+                        ui.add_space(8.0);
+
                         ui.heading("Academic Reference & Source");
                         ui.add_space(4.0);
                         ui.label("Samo, A., Garrido, L. E., Abad, F. J., Golino, H., McAbee, S. T., & Christensen, A. P. (2026). Revisiting the IPIP-NEO personality hierarchy with taxonomic graph analysis. European Journal of Personality, 40(2), 369–390.");
@@ -582,7 +598,7 @@ impl PersonalityApp {
             ExportFormat::Json => "Export JSON",
             ExportFormat::Bson => "Export Compressed BSON Binary",
             ExportFormat::Svg => "Export SVG Vector Graphic",
-            ExportFormat::Html => "Printable Report (HTML/PDF)",
+            ExportFormat::Html => "Printable Report (HTML)",
         };
 
         let mut open = true;

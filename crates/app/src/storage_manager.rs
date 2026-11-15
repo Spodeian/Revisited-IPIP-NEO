@@ -1,328 +1,108 @@
 //! Unified multi-tiered storage engine, persistence manager, PWA install bridge, and diagnostics.
+//!
+//! Core storage routing, diagnostics, download triggers, and JSON/Snapshot deserialization
+//! are delegated to `spodeian_persist`, while retaining backwards-compatible RON fallback
+//! for legacy desktop and `eframe::Storage` entries.
 
-use serde::{Deserialize, Serialize};
-#[allow(unused_imports)]
-use spodeian_cache::StorageTier;
-use spodeian_cache::{ContentAddressedStorage, PreferentialRouter};
-use thiserror::Error;
-#[allow(unused_imports)]
-use tracing::{error, info, warn};
+pub use spodeian_persist::{
+    StorageBackend, StorageDiagnostics, StorageError, query_storage_diagnostics,
+    request_persistent_storage, trigger_binary_download, trigger_pwa_install,
+    trigger_text_download,
+};
 
-#[cfg(target_arch = "wasm32")]
-use wasm_bindgen::JsCast;
+use tracing::{info, warn};
 
-/// Strongly typed storage errors replacing ad-hoc string reporting.
-#[derive(Error, Debug)]
-pub enum StorageError {
-    #[error("Storage content is empty")]
-    EmptyContent,
-
-    #[error("Failed to deserialize assessment state: JSON ({json_err}), RON ({ron_err})")]
-    Deserialization {
-        json_err: serde_json::Error,
-        ron_err: ron::error::SpannedError,
-    },
-
-    #[cfg(target_arch = "wasm32")]
-    #[error("Web storage quota exceeded or access restricted: {0}")]
-    QuotaExceeded(String),
-
-    #[cfg(target_arch = "wasm32")]
-    #[error("Browser window localStorage is unavailable in this context")]
-    LocalStorageUnavailable,
-
-    #[cfg(not(target_arch = "wasm32"))]
-    #[error("Failed to write assessment state to desktop file '{path}': {source}")]
-    DiskWrite {
-        path: String,
-        #[source]
-        source: std::io::Error,
-    },
-}
-
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Default, Serialize, Deserialize)]
-pub enum StorageBackend {
-    #[default]
-    LocalStorage,
-    IndexedDb,
-    CacheApi,
-    NativeCas,
-    DiskFile,
-    MemoryOnly,
-}
-
-impl StorageBackend {
-    pub fn icon(self) -> &'static str {
-        match self {
-            Self::LocalStorage => "⚡",
-            Self::IndexedDb => "🗄️",
-            Self::CacheApi => "📦",
-            Self::NativeCas => "🔒",
-            Self::DiskFile => "💾",
-            Self::MemoryOnly => "💭",
-        }
-    }
-
-    pub fn label(self) -> &'static str {
-        match self {
-            Self::LocalStorage => "Local Storage (Fast Tier)",
-            Self::IndexedDb => "IndexedDB (Structured Relational Tier)",
-            Self::CacheApi => "Cache API (Large Binary Weights Tier)",
-            Self::NativeCas => "Native CAS (Content-Addressed Disk Tier)",
-            Self::DiskFile => "Local File System",
-            Self::MemoryOnly => "In-Memory Only (Ephemeral)",
-        }
-    }
-
-    pub fn label_with_icon(self) -> String {
-        format!("{} {}", self.icon(), self.label())
-    }
-}
-
-#[derive(Debug, Clone, Default)]
-pub struct StorageDiagnostics {
-    pub is_persisted: Option<bool>,
-    pub pwa_install_available: bool,
-    pub is_pwa_installed: bool,
-    pub backend: StorageBackend,
-    pub quota_exceeded: bool,
-    pub usage_bytes: u64,
-    pub quota_bytes: u64,
-}
-
-#[allow(unused_mut)]
-pub fn query_storage_diagnostics() -> StorageDiagnostics {
-    let mut diag = StorageDiagnostics::default();
-
-    #[cfg(target_arch = "wasm32")]
-    {
-        if let Some(window) = web_sys::window() {
-            if let Ok(val) = js_sys::Reflect::get(
-                &window,
-                &wasm_bindgen::JsValue::from_str("__pwaInstallAvailable"),
-            ) {
-                diag.pwa_install_available = val.as_bool().unwrap_or(false);
-            }
-            if let Ok(val) =
-                js_sys::Reflect::get(&window, &wasm_bindgen::JsValue::from_str("__pwaInstalled"))
-            {
-                diag.is_pwa_installed = val.as_bool().unwrap_or(false);
-            }
-            if let Ok(val) = js_sys::Reflect::get(
-                &window,
-                &wasm_bindgen::JsValue::from_str("__storagePersisted"),
-            ) {
-                if let Some(b) = val.as_bool() {
-                    diag.is_persisted = Some(b);
-                }
-            }
-        }
-    }
-
-    #[cfg(not(target_arch = "wasm32"))]
-    {
-        diag.backend = StorageBackend::DiskFile;
-        diag.is_persisted = Some(true);
-    }
-
-    diag
-}
-
-/// Request persistent storage from the browser (immune to automatic eviction)
-pub fn request_persistent_storage() {
-    #[cfg(target_arch = "wasm32")]
-    {
-        if let Some(window) = web_sys::window() {
-            if let Ok(func) = js_sys::Reflect::get(
-                &window,
-                &wasm_bindgen::JsValue::from_str("__requestPersistentStorage"),
-            ) {
-                if let Some(func) = func.dyn_ref::<js_sys::Function>() {
-                    let _ = func.call0(&window);
-                    info!("Triggered persistent storage request from client");
-                }
-            }
-        }
-    }
-}
-
-/// Trigger the native PWA installation prompt
-pub fn trigger_pwa_install() {
-    #[cfg(target_arch = "wasm32")]
-    {
-        if let Some(window) = web_sys::window() {
-            if let Ok(func) = js_sys::Reflect::get(
-                &window,
-                &wasm_bindgen::JsValue::from_str("__triggerPWAInstall"),
-            ) {
-                if let Some(func) = func.dyn_ref::<js_sys::Function>() {
-                    let _ = func.call0(&window);
-                    info!("Triggered PWA install prompt from client");
-                }
-            }
-        }
-    }
-}
-
+/// Primary dedicated storage key used across `eframe::Storage`, `localStorage`, and disk backups.
 pub const DEDICATED_STORAGE_KEY: &str = "revisited_ipip_neo_state";
 
-/// Robust dual-format deserializer for AppState, attempting JSON first and falling back to RON.
+/// Dual-format deserializer for [`shared::AppState`], delegating JSON/VersionedSnapshot
+/// parsing to `spodeian_persist::StateMigrator` with legacy RON fallback.
 pub fn deserialize_app_state(content: &str) -> Result<shared::AppState, StorageError> {
-    let trimmed = content.trim();
-    if trimmed.is_empty() {
-        return Err(StorageError::EmptyContent);
-    }
-
-    match serde_json::from_str::<shared::AppState>(trimmed) {
-        Ok(state) => Ok(state),
-        Err(json_err) => match ron::from_str::<shared::AppState>(trimmed) {
-            Ok(state) => Ok(state),
-            Err(ron_err) => Err(StorageError::Deserialization { json_err, ron_err }),
-        },
-    }
+    spodeian_persist::StateMigrator::deserialize_with_fallback(content, |trimmed| {
+        ron::from_str::<shared::AppState>(trimmed).map_err(|e| e.to_string())
+    })
 }
 
-/// Multi-tiered loader for AppState.
-/// Checks explicit `eframe::Storage` first if supplied, followed by disk file or window.localStorage.
+fn finalize_loaded_state(mut state: shared::AppState) -> shared::AppState {
+    if state.questionnaire.unanswered_count() == 0 && !state.questionnaire.questions.is_empty() {
+        state.questionnaire.show_results = true;
+    }
+    state.questionnaire.rebuild_cache();
+    state
+}
+
+/// Multi-tiered loader for [`shared::AppState`].
+/// Checks explicit `eframe::Storage` first (JSON & RON), followed by `spodeian_persist`
+/// multi-tier keys and disk / `localStorage` fallback.
 pub fn load_state_multi_tier(storage: Option<&dyn eframe::Storage>) -> Option<shared::AppState> {
-    // 1. Explicit eframe storage tier (priority in test environments and standard app startup)
     if let Some(storage) = storage {
-        if let Some(raw) = storage.get_string(DEDICATED_STORAGE_KEY) {
-            match deserialize_app_state(&raw) {
-                Ok(mut state) => {
-                    info!(
-                        "Restored assessment state from eframe storage [{}]",
-                        DEDICATED_STORAGE_KEY
-                    );
-                    if state.questionnaire.unanswered_count() == 0
-                        && !state.questionnaire.questions.is_empty()
-                    {
-                        state.questionnaire.show_results = true;
+        for &key in &[DEDICATED_STORAGE_KEY, eframe::APP_KEY] {
+            if let Some(raw) = storage.get_string(key) {
+                match deserialize_app_state(&raw) {
+                    Ok(state) => {
+                        info!("Restored assessment state from eframe storage [{}]", key);
+                        return Some(finalize_loaded_state(state));
                     }
-                    state.questionnaire.rebuild_cache();
-                    return Some(state);
-                }
-                Err(e) => {
-                    warn!(
-                        "Failed to parse assessment state from eframe storage [{}]: {}",
-                        DEDICATED_STORAGE_KEY, e
-                    );
+                    Err(e) => {
+                        warn!(
+                            "Failed to parse assessment state from eframe storage [{}]: {}",
+                            key, e
+                        );
+                    }
                 }
             }
         }
 
-        if let Some(raw) = storage.get_string(eframe::APP_KEY) {
-            match deserialize_app_state(&raw) {
-                Ok(mut state) => {
-                    info!(
-                        "Restored assessment state from eframe storage [{}]",
-                        eframe::APP_KEY
-                    );
-                    if state.questionnaire.unanswered_count() == 0
-                        && !state.questionnaire.questions.is_empty()
-                    {
-                        state.questionnaire.show_results = true;
-                    }
-                    state.questionnaire.rebuild_cache();
-                    return Some(state);
-                }
-                Err(e) => {
-                    warn!(
-                        "Failed to parse assessment state from eframe storage [{}]: {}",
-                        eframe::APP_KEY,
-                        e
-                    );
-                }
-            }
-        }
-
-        if let Some(mut state) = eframe::get_value::<shared::AppState>(storage, eframe::APP_KEY) {
+        if let Some(state) = eframe::get_value::<shared::AppState>(storage, eframe::APP_KEY) {
             info!("Restored assessment state from eframe get_value");
-            if state.questionnaire.unanswered_count() == 0
-                && !state.questionnaire.questions.is_empty()
-            {
-                state.questionnaire.show_results = true;
-            }
-            state.questionnaire.rebuild_cache();
-            return Some(state);
+            return Some(finalize_loaded_state(state));
         }
     }
 
-    // 2. Desktop filesystem persistence fallback
+    let disk_filename = format!("{}.json", DEDICATED_STORAGE_KEY);
+    let disk_path = std::path::Path::new(&disk_filename);
+    if let Some(state) = spodeian_persist::load_state_multi_tier_keys::<shared::AppState>(
+        None,
+        &[DEDICATED_STORAGE_KEY, eframe::APP_KEY],
+        Some(disk_path),
+    ) {
+        info!("Restored assessment state via spodeian_persist multi-tier loader");
+        return Some(finalize_loaded_state(state));
+    }
+
     #[cfg(not(target_arch = "wasm32"))]
-    {
-        let filename = format!("{}.json", DEDICATED_STORAGE_KEY);
-        if let Ok(content) = std::fs::read_to_string(&filename) {
-            match deserialize_app_state(&content) {
-                Ok(mut state) => {
-                    info!("Restored assessment state from disk file [{}]", filename);
-                    if state.questionnaire.unanswered_count() == 0
-                        && !state.questionnaire.questions.is_empty()
-                    {
-                        state.questionnaire.show_results = true;
-                    }
-                    state.questionnaire.rebuild_cache();
-                    return Some(state);
-                }
-                Err(e) => {
-                    warn!(
-                        "Failed to parse assessment state from disk file [{}]: {}",
-                        filename, e
-                    );
-                }
+    if let Ok(content) = std::fs::read_to_string(disk_path) {
+        match deserialize_app_state(&content) {
+            Ok(state) => {
+                info!(
+                    "Restored legacy RON state from disk file [{}]",
+                    disk_filename
+                );
+                return Some(finalize_loaded_state(state));
+            }
+            Err(e) => {
+                warn!(
+                    "Failed to parse assessment state from disk file [{}]: {}",
+                    disk_filename, e
+                );
             }
         }
     }
 
-    // 3. Browser localStorage fallback
     #[cfg(target_arch = "wasm32")]
-    {
-        if let Some(window) = web_sys::window() {
-            if let Ok(Some(local_storage)) = window.local_storage() {
-                if let Ok(Some(content)) = local_storage.get_item(DEDICATED_STORAGE_KEY) {
+    if let Some(window) = web_sys::window() {
+        if let Ok(Some(local_storage)) = window.local_storage() {
+            for &key in &[DEDICATED_STORAGE_KEY, eframe::APP_KEY] {
+                if let Ok(Some(content)) = local_storage.get_item(key) {
                     match deserialize_app_state(&content) {
-                        Ok(mut state) => {
-                            info!(
-                                "Restored assessment state from localStorage [{}]",
-                                DEDICATED_STORAGE_KEY
-                            );
-                            if state.questionnaire.unanswered_count() == 0
-                                && !state.questionnaire.questions.is_empty()
-                            {
-                                state.questionnaire.show_results = true;
-                            }
-                            state.questionnaire.rebuild_cache();
-                            return Some(state);
+                        Ok(state) => {
+                            info!("Restored legacy RON state from localStorage [{}]", key);
+                            return Some(finalize_loaded_state(state));
                         }
                         Err(e) => {
                             warn!(
                                 "Failed to parse assessment state from localStorage [{}]: {}",
-                                DEDICATED_STORAGE_KEY, e
-                            );
-                        }
-                    }
-                }
-
-                if let Ok(Some(content)) = local_storage.get_item(eframe::APP_KEY) {
-                    match deserialize_app_state(&content) {
-                        Ok(mut state) => {
-                            info!(
-                                "Restored assessment state from localStorage [{}]",
-                                eframe::APP_KEY
-                            );
-                            if state.questionnaire.unanswered_count() == 0
-                                && !state.questionnaire.questions.is_empty()
-                            {
-                                state.questionnaire.show_results = true;
-                            }
-                            state.questionnaire.rebuild_cache();
-                            return Some(state);
-                        }
-                        Err(e) => {
-                            warn!(
-                                "Failed to parse assessment state from localStorage [{}]: {}",
-                                eframe::APP_KEY,
-                                e
+                                key, e
                             );
                         }
                     }
@@ -334,87 +114,13 @@ pub fn load_state_multi_tier(storage: Option<&dyn eframe::Storage>) -> Option<sh
     None
 }
 
-/// Save state using preferential multi-tiered routing:
-/// - Cache API for large binaries (> 512 KB)
-/// - IndexedDB for structured relational states
-/// - LocalStorage for lightweight config (< 16 KB)
-/// - ContentAddressedStorage / atomic file system write on desktop & mobile
+/// Saves serialized state JSON via `spodeian_persist` preferential multi-tier routing.
 pub fn save_state_multi_tier(key: &str, json_str: &str) -> Result<StorageBackend, StorageError> {
-    let size = json_str.len();
-    let is_large_or_binary = size > 512 * 1024;
-    let recommended_tier =
-        PreferentialRouter::determine_tier(size, "application/json", is_large_or_binary);
-    let _ = (key, &recommended_tier);
-
-    #[cfg(target_arch = "wasm32")]
-    {
-        if let Some(window) = web_sys::window() {
-            // Tier 1 (Large/Binary): Cache API
-            if recommended_tier == StorageTier::CacheApi {
-                if let Ok(func) = js_sys::Reflect::get(
-                    &window,
-                    &wasm_bindgen::JsValue::from_str("__saveToCacheApi"),
-                ) {
-                    if let Some(func) = func.dyn_ref::<js_sys::Function>() {
-                        let k = wasm_bindgen::JsValue::from_str(key);
-                        let v = wasm_bindgen::JsValue::from_str(json_str);
-                        let _ = func.call2(&window, &k, &v);
-                        info!("Preferentially stored large asset to Cache API [{}]", key);
-                        return Ok(StorageBackend::CacheApi);
-                    }
-                }
-            }
-
-            // Tier 2: Try localStorage for fast session data if small
-            if size < 16 * 1024 {
-                if let Ok(Some(storage)) = window.local_storage() {
-                    if storage.set_item(key, json_str).is_ok() {
-                        return Ok(StorageBackend::LocalStorage);
-                    }
-                }
-            }
-
-            // Tier 3: IndexedDB for structured entities and fallback
-            if let Ok(func) = js_sys::Reflect::get(
-                &window,
-                &wasm_bindgen::JsValue::from_str("__saveToIndexedDB"),
-            ) {
-                if let Some(func) = func.dyn_ref::<js_sys::Function>() {
-                    let k = wasm_bindgen::JsValue::from_str(key);
-                    let v = wasm_bindgen::JsValue::from_str(json_str);
-                    let _ = func.call2(&window, &k, &v);
-                    info!("Saved structured assessment state to IndexedDB [{}]", key);
-                    return Ok(StorageBackend::IndexedDb);
-                }
-            }
-
-            return Err(StorageError::LocalStorageUnavailable);
-        }
-        Err(StorageError::LocalStorageUnavailable)
-    }
-
-    #[cfg(not(target_arch = "wasm32"))]
-    {
-        let cas_dir = std::env::temp_dir().join("ipip_neo_cas_store");
-        if let Ok(cas) = ContentAddressedStorage::new(&cas_dir) {
-            let _ = cas.put(json_str.as_bytes());
-        }
-
-        let filename = format!("{}.json", key);
-        match std::fs::write(&filename, json_str) {
-            Ok(()) => Ok(StorageBackend::DiskFile),
-            Err(err) => {
-                warn!(
-                    "Failed to persist assessment state to file '{}': {}",
-                    filename, err
-                );
-                Err(StorageError::DiskWrite {
-                    path: filename,
-                    source: err,
-                })
-            }
-        }
-    }
+    let filename = format!("{}.json", key);
+    spodeian_persist::save_state_multi_tier(
+        key,
+        json_str,
+        "ipip_neo_cas_store",
+        Some(std::path::Path::new(&filename)),
+    )
 }
-
-pub use spodeian_web_utils::{trigger_binary_download, trigger_text_download};

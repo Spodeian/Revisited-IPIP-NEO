@@ -47,14 +47,14 @@ graph TD
 
 ## ✨ Key Features
 
-- **🎯 Dynamic Queue Mechanics**: Skips and defers questions (via mouse scroll or arrow keys) to the back of the queue, ensuring skipped items reappear at the end without data loss.
-- **📊 Mathematically Robust Scoring Engine**: Computes exact raw scores, normalized construct averages, absolute weights, and standard error ($SE$) values for **3 Meta-Traits**, **6 Traits**, and **28 Facets**.
-- **💾 Resilient Multi-Tier State Persistence**:
-  - **Dedicated Key Storage**: Persists state under dedicated key `revisited_ipip_neo_app_state` to prevent namespace collisions.
-  - **Dual-Format Fallback Deserializer**: Seamlessly parses JSON first and automatically falls back to RON, preserving compatibility across past releases.
-  - **Active State Persistence**: Dispatches immediate storage saves on every answer, demographic update, reset, or import.
-  - **Storage Diagnostics**: Inspects browser storage durability (`persisted` vs `ephemeral`) and quota status with one-click persistence requests.
-- **📦 Instant Data Exporting**: Built-in tools for copying and downloading reports as raw CSV, structured JSON, printable HTML/PDF, or compact compressed BSON.
+- **🎯 Dynamic Queue Mechanics & Rapid Protocol**: Skips and defers questions (via mouse scroll or arrow keys) to the back of the queue, and supports switching non-destructively between the **Full Battery (221 items)** and a facet-balanced **Rapid Protocol (112 items)** covering all 28 facets.
+- **📊 Mathematically Robust TGA Scoring, Norming & Narratives**: Computes raw scores, normalized construct averages, absolute weights, standard error ($SE$) values, synthetic theoretical Gaussian prior percentiles (`NormSet`), and plain-language construct narratives for **3 Meta-Traits**, **6 Traits**, and **28 Facets**.
+- **📈 Longitudinal History & Delta Comparison**: Saves up to 50 local profile snapshots (`AppState::profile_history`) to compare baseline vs. current scores ($\Delta$) across sessions without sending data off-device.
+- **⌘ Command Palette & Accessibility**: Quick `Ctrl+K` / `Cmd+K` Command Palette (`spodeian-ui`), WCAG 2.1 Light/Dark/High-Contrast themes, and an optional **Dyslexia-Friendly Reading Mode** for enlarged typography and generous touch/reading spacing.
+- **💾 Resilient Multi-Tier State Persistence (`spodeian-persist`)**:
+  - **Dedicated Key Storage**: Persists state under dedicated key `revisited_ipip_neo_state` to prevent namespace collisions, with `StateMigrator` dual-format JSON and legacy RON fallback.
+  - **Active State Persistence & Diagnostics**: Dispatches immediate storage saves on every answer, protocol change, snapshot, or import, with browser durability and quota inspection.
+- **📦 Instant & Privacy-Preserving Data Exporting (`spodeian-export`)**: Built-in exports for schema-v2 JSON, **Shareable Summary JSON** (raw item answers stripped), CSV, printable HTML (with Methods, Norming & Limitations), vector SVG, and compressed BSON.
 - **📶 Immutable Serverless PWA Caching**: Hybrid caching strategy (**Network-First** for `index.html` to guarantee atomic releases; **Cache-First** for immutable, content-hashed `.wasm`, `.js`, and `.css` assets) with offline fallback.
 - **🛡️ SRI Minification Immunity**: Configured with `data-integrity="none"` to allow aggressive post-build asset minification (HTML, CSS, JS) without SRI hash mismatches.
 
@@ -88,13 +88,16 @@ Open [http://localhost:8080](http://localhost:8080) in your browser. Live reload
 cargo run -p desktop
 ```
 
-### 3. Run Test Suite
+### 3. Run Test Suite & Benchmarks
 ```bash
-# Standard cargo test (31 tests)
+# Workspace unit, integration, and property-based tests
 cargo test --workspace
 
 # Or with cargo-nextest (faster, parallel execution)
 cargo nextest run --workspace
+
+# Criterion psychometric scoring & export benchmarks
+cargo bench -p shared
 ```
 
 ### 4. Run Static Analysis & Linter

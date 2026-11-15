@@ -5,7 +5,15 @@ use crate::app::PersonalityApp;
 
 impl PersonalityApp {
     pub(crate) fn handle_keyboard_and_scroll(&mut self, ui: &mut egui::Ui) {
-        if ui.ctx().egui_wants_keyboard_input() {
+        let palette_toggle =
+            ui.input(|i| (i.modifiers.command || i.modifiers.ctrl) && i.key_pressed(egui::Key::K));
+        if palette_toggle {
+            self.command_palette
+                .set_open(!self.command_palette.is_open());
+            return;
+        }
+
+        if ui.ctx().egui_wants_keyboard_input() || self.command_palette.is_open() {
             return;
         }
 
