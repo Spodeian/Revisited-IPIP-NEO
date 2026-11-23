@@ -1,8 +1,37 @@
 name = "revisited-ipip-neo"
-pages_build_output_dir = "crates/web/dist"
-compatibility_date = "2026-08-18"
+compatibility_date = "2026-11-23"
 compatibility_flags = ["nodejs_compat"]
+workers_dev = true
+
+[assets]
+directory = "crates/web/dist"
+not_found_handling = "single-page-application"
+
+[[routes]]
+pattern = "revisited-ipip-neo.spodeian.trade"
+custom_domain = true
+
+[[routes]]
+pattern = "ipip-neo.spodeian.trade"
+custom_domain = true
+
+[[routes]]
+pattern = "tag-ipip-neo.spodeian.trade"
+custom_domain = true
+
+[[routes]]
+pattern = "tga-ipip-neo.spodeian.trade"
+custom_domain = true
+
+[observability]
+enabled = true
+
+[observability.logs]
+enabled = true
+invocation_logs = true
+
+[observability.traces]
+enabled = true
 
 [vars]
 ENVIRONMENT = "production"
-NODE_VERSION = "24"

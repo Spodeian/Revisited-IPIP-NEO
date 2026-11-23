@@ -21,6 +21,14 @@ fi
 export PATH="$CARGO_HOME/bin:$HOME/.cargo/bin:/opt/buildhome/.cargo/bin:$PATH"
 mkdir -p "$CARGO_HOME/bin"
 
+SPODEIAN_GIT_TOKEN="${SPODEIAN_CORE_TOKEN:-${PRIVATE_READ_ACCESS:-${GH_PAT:-}}}"
+if [ -n "$SPODEIAN_GIT_TOKEN" ]; then
+    export CARGO_NET_GIT_FETCH_WITH_CLI=true
+    export GIT_CONFIG_COUNT=1
+    export GIT_CONFIG_KEY_0="url.https://x-access-token:${SPODEIAN_GIT_TOKEN}@github.com/.insteadOf"
+    export GIT_CONFIG_VALUE_0="https://github.com/"
+fi
+
 if [ -f "$CARGO_HOME/env" ]; then
     . "$CARGO_HOME/env"
 elif [ -f "$HOME/.cargo/env" ]; then
@@ -279,18 +287,12 @@ echo "=== Build Completed Successfully! Static assets are ready in: '$DIST_DIR' 
 
 # 10. Deployment Context Router
 if [ "${CLOUDFLARE_WORKER_DEPLOY:-false}" = "true" ]; then
-    echo "Wrangler Worker deployment context detected."
-    if ! command -v wrangler &> /dev/null; then
-        if command -v npm &> /dev/null; then
-            echo "Installing Cloudflare Wrangler globally via npm..."
-            npm install -g wrangler
-        else
-            echo "ERROR: npm is required to install Wrangler for Worker deployments."
-            exit 1
-        fi
+    echo "Executing Cloudflare Workers Deploy..."
+    if command -v wrangler &> /dev/null; then
+        wrangler deploy
+    else
+        npx --yes wrangler@4 deploy
     fi
-    echo "Executing Wrangler Deploy..."
-    wrangler deploy
 else
-    echo "Pages / Static CDN deployment context detected. Build ready for publishing."
+    echo "Workers Static Assets build complete. Deploy with: npx --yes wrangler@4 deploy"
 fi

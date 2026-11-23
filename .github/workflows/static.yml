@@ -1,34 +1,41 @@
-# GitHub Actions: Compile (Trunk + SIMD wasm-opt), minify, and deploy WASM app to GitHub Pages
+# GitHub Actions: Compile (Trunk + SIMD wasm-opt), minify, and deploy WASM app to GitHub Pages and Cloudflare Workers
 name: Deploy static content to Pages
 
 on:
-  # Runs on pushes targeting the default branch
   push:
     branches: ["main"]
-
-  # Allows you to run this workflow manually from the Actions tab
   workflow_dispatch:
 
-# Sets permissions of the GITHUB_TOKEN to allow deployment to GitHub Pages
 permissions:
   contents: read
   pages: write
   id-token: write
 
-# Allow only one concurrent deployment, skipping runs queued between the run in-progress and latest queued.
 concurrency:
   group: "pages"
   cancel-in-progress: false
 
 jobs:
   deploy:
+    env:
+      CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN || secrets.CLOUDFLARE_PAGES_API_TOKEN }}
+      CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
     environment:
       name: github-pages
       url: ${{ steps.deployment.outputs.page_url }}
     runs-on: ubuntu-latest
     steps:
       - name: Checkout Repository
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
+
+      - name: Configure Private Git Auth (Optional)
+        env:
+          SPODEIAN_GIT_TOKEN: ${{ secrets.SPODEIAN_CORE_TOKEN || secrets.PRIVATE_READ_ACCESS || secrets.GH_PAT }}
+        run: |
+          if [ -n "$SPODEIAN_GIT_TOKEN" ]; then
+            echo "CARGO_NET_GIT_FETCH_WITH_CLI=true" >> "$GITHUB_ENV"
+            git config --global url."https://x-access-token:${SPODEIAN_GIT_TOKEN}@github.com/".insteadOf "https://github.com/"
+          fi
 
       - name: Install Rust Stable Toolchain
         uses: dtolnay/rust-toolchain@stable
@@ -40,7 +47,7 @@ jobs:
 
       - name: Cache Trunk Binary
         id: cache-trunk
-        uses: actions/cache@v4
+        uses: actions/cache@v6
         with:
           path: ~/.cargo/bin/trunk
           key: ${{ runner.os }}-trunk-latest
@@ -54,7 +61,7 @@ jobs:
 
       - name: Cache wasm-opt Binary (Binaryen)
         id: cache-wasm-opt
-        uses: actions/cache@v4
+        uses: actions/cache@v6
         with:
           path: ~/.cargo/bin/wasm-opt
           key: ${{ runner.os }}-wasm-opt-version_132
@@ -72,12 +79,19 @@ jobs:
       - name: Add Cargo Bin to PATH
         run: echo "$HOME/.cargo/bin" >> $GITHUB_PATH
 
+      - name: Setup Pages
+        id: setup-pages
+        continue-on-error: true
+        uses: actions/configure-pages@v6
+
       - name: Build Web Application
         env:
           RUSTFLAGS: "-C target-feature=+simd128"
         run: |
           echo "Active wasm-opt version: $(wasm-opt --version)"
-          trunk build --release --public-url "/Revisited-IPIP-NEO/"
+          PUBLIC_URL="${{ steps.setup-pages.outputs.base_path || '' }}/"
+          echo "Building with public URL: $PUBLIC_URL"
+          trunk build --release --public-url "$PUBLIC_URL"
           for wasm_file in crates/web/dist/*.wasm; do
             if [ -f "$wasm_file" ]; then
               echo "Optimizing $wasm_file with wasm-opt (SIMD enabled)"
@@ -86,7 +100,7 @@ jobs:
           done
 
       - name: Setup Node.js 24 LTS
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@v7
         with:
           node-version-file: '.node-version'
 
@@ -114,14 +128,46 @@ jobs:
             cp -f crates/web/_redirects crates/web/dist/_redirects 2>/dev/null || true
           fi
 
-      - name: Setup Pages
-        uses: actions/configure-pages@v5
-
-      - name: Upload compiled assets artifact
-        uses: actions/upload-pages-artifact@v3
+      - name: Upload compiled assets artifact (Pages)
+        if: steps.setup-pages.outcome == 'success'
+        uses: actions/upload-pages-artifact@v5
         with:
           path: 'crates/web/dist'
 
+      - name: Upload compiled assets artifact (Fallback for Private Repo)
+        if: steps.setup-pages.outcome != 'success'
+        uses: actions/upload-artifact@v7
+        with:
+          name: web-dist
+          path: 'crates/web/dist'
+          retention-days: 14
+
       - name: Deploy to GitHub Pages
+        if: steps.setup-pages.outcome == 'success'
         id: deployment
         uses: actions/deploy-pages@v5
+
+      - name: Rebuild Web Application for Cloudflare Workers Root (/)
+        if: github.repository_owner == 'Spodeian' && github.ref == 'refs/heads/main' && env.CLOUDFLARE_API_TOKEN != '' && env.CLOUDFLARE_ACCOUNT_ID != '' && steps.setup-pages.outputs.base_path != ''
+        env:
+          RUSTFLAGS: "-C target-feature=+simd128"
+        run: |
+          trunk build --release --public-url "/"
+          for wasm_file in crates/web/dist/*.wasm; do
+            if [ -f "$wasm_file" ]; then
+              wasm-opt -Oz --enable-simd "$wasm_file" -o "$wasm_file" || true
+            fi
+          done
+          for js_file in crates/web/dist/*.js; do [ -f "$js_file" ] && npx --yes esbuild "$js_file" --minify --allow-overwrite --outfile="$js_file"; done
+          for css_file in crates/web/dist/*.css; do [ -f "$css_file" ] && npx --yes esbuild "$css_file" --minify --allow-overwrite --outfile="$css_file"; done
+          [ -f "crates/web/dist/index.html" ] && npx --yes html-minifier-terser --collapse-whitespace --remove-comments --remove-redundant-attributes --remove-script-type-attributes --remove-style-link-type-attributes --use-short-doctype --minify-css true --minify-js true -o crates/web/dist/index.html crates/web/dist/index.html
+          cp -f crates/web/_headers crates/web/dist/_headers 2>/dev/null || true
+          cp -f crates/web/_redirects crates/web/dist/_redirects 2>/dev/null || true
+
+      - name: Deploy to Cloudflare Workers
+        if: github.repository_owner == 'Spodeian' && github.ref == 'refs/heads/main' && env.CLOUDFLARE_API_TOKEN != '' && env.CLOUDFLARE_ACCOUNT_ID != ''
+        uses: cloudflare/wrangler-action@v4
+        with:
+          apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN || secrets.CLOUDFLARE_PAGES_API_TOKEN }}
+          accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          command: deploy
