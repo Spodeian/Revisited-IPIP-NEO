@@ -12,7 +12,8 @@ use tracing::{info, warn};
 
 use crate::storage_manager::{
     DEDICATED_STORAGE_KEY, StorageBackend, StorageDiagnostics, load_state_multi_tier,
-    query_storage_diagnostics, save_state_multi_tier, trigger_binary_download,
+    open_web_store, query_storage_diagnostics, queue_web_save, save_state_multi_tier,
+    take_loaded_web_state, take_web_save_outcome, trigger_binary_download,
 };
 use crate::types::{ExportFormat, ScreenConstraints};
 
@@ -203,9 +204,62 @@ impl PersonalityApp {
             }
         }
 
+        // In the browser the IndexedDB copy follows a moment later (see `apply_storage_events`).
+        open_web_store(&cc.egui_ctx);
         let mut app = Self::from_initialized_state(state, is_viewing_shared_link);
         app.saved_local_state = saved_local_state;
         app
+    }
+
+    /// Applies results from the browser store: the state loaded at startup, and the
+    /// outcome of each finished save. Does nothing on native.
+    fn apply_storage_events(&mut self) {
+        match take_loaded_web_state() {
+            Some(Some(mut loaded)) => {
+                // Same preparation `new` gives a loaded state.
+                if loaded.questionnaire.unanswered_count() == 0
+                    && !loaded.questionnaire.questions.is_empty()
+                {
+                    loaded.questionnaire.show_results = true;
+                }
+                loaded.questionnaire.rebuild_cache();
+                self.saved_local_state = Some(loaded.clone());
+                // A shared link stays on screen; the loaded state is what "restore" returns to.
+                if !self.is_viewing_shared_link {
+                    self.selected_comparison_idx = loaded.profile_history.len().checked_sub(1);
+                    self.state = loaded;
+                }
+                self.storage_diag.backend = StorageBackend::IndexedDb;
+            }
+            // Nothing in IndexedDB yet: move whatever loaded at startup into it.
+            Some(None) => self.persist_state(),
+            None => {}
+        }
+        match take_web_save_outcome() {
+            Some(Ok(())) => {
+                self.storage_diag.backend = StorageBackend::IndexedDb;
+                self.storage_diag.quota_exceeded = false;
+            }
+            Some(Err(message)) => {
+                warn!("Saving failed ({message}).");
+                let quota = message.contains("QuotaExceeded");
+                if quota && self.compact_history_if_it_shrinks() {
+                    self.persist_state();
+                } else {
+                    self.storage_diag.quota_exceeded = quota;
+                }
+            }
+            None => {}
+        }
+    }
+
+    /// Compacts the questionnaire history to make a save fit, returning whether the state
+    /// actually got smaller (so a retry can succeed rather than fail the same way forever).
+    fn compact_history_if_it_shrinks(&mut self) -> bool {
+        let size = |state: &AppState| serde_json::to_string(state).map_or(0, |json| json.len());
+        let before = size(&self.state);
+        self.state.questionnaire.compact_history(30);
+        size(&self.state) < before
     }
 
     /// Toggles between Full (221) and Rapid (112) administration modes while preserving answers.
@@ -297,6 +351,11 @@ impl PersonalityApp {
         }
 
         if let Ok(json_str) = serde_json::to_string(&self.state) {
+            // Browser: queued for IndexedDB; the result (and any compaction retry) is handled
+            // in `apply_storage_events`.
+            if queue_web_save(&json_str) {
+                return;
+            }
             match save_state_multi_tier(DEDICATED_STORAGE_KEY, &json_str) {
                 Ok(backend) => {
                     self.storage_diag.backend = backend;
@@ -400,18 +459,25 @@ impl PersonalityApp {
 impl eframe::App for PersonalityApp {
     fn save(&mut self, storage: &mut dyn eframe::Storage) {
         if !self.is_viewing_shared_link {
-            eframe::set_value(storage, eframe::APP_KEY, &self.state);
-
-            if let Ok(json_str) = serde_json::to_string(&self.state) {
-                storage.set_string(DEDICATED_STORAGE_KEY, json_str);
+            // Native: the full state goes into eframe's storage file. The browser keeps it in
+            // IndexedDB instead, so a local storage copy would only duplicate it.
+            #[cfg(not(target_arch = "wasm32"))]
+            {
+                eframe::set_value(storage, eframe::APP_KEY, &self.state);
+                if let Ok(json_str) = serde_json::to_string(&self.state) {
+                    storage.set_string(DEDICATED_STORAGE_KEY, json_str);
+                }
+                storage.flush();
             }
-            storage.flush();
+            #[cfg(target_arch = "wasm32")]
+            let _ = storage;
 
             self.persist_state();
         }
     }
 
     fn ui(&mut self, ui: &mut egui::Ui, _frame: &mut eframe::Frame) {
+        self.apply_storage_events();
         let current_time = ui.input(|i| i.time);
         if current_time - self.last_diag_poll_time > 2.0 {
             let fresh_diag = query_storage_diagnostics();
